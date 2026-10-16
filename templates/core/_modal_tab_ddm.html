@@ -1,0 +1,79 @@
+{% load static %}
+{# Вкладка «DDM» в модалке — плитки SFP-модулей. Ожидает: device, sfps #}
+
+{% if sfps %}
+<div class="sfp-grid">
+    {% for sfp in sfps %}
+    <article class="sfp-card
+        {% if sfp.temp_state == 'alarm' %}sfp-card--alarm
+        {% elif sfp.temp_state == 'warning' %}sfp-card--warn{% endif %}">
+
+        <header class="sfp-card__header">
+            <div class="sfp-card__port">{{ sfp.interface.name }}</div>
+            {% if sfp.temp_state == 'ok' %}
+                <span class="c-status c-status--ok sfp-card__state">ok</span>
+            {% elif sfp.temp_state == 'warning' %}
+                <span class="c-status c-status--warn sfp-card__state">warn</span>
+            {% elif sfp.temp_state == 'alarm' %}
+                <span class="c-status c-status--crit sfp-card__state">alarm</span>
+            {% else %}
+                <span class="c-status c-status--unknown sfp-card__state">—</span>
+            {% endif %}
+        </header>
+
+        <div class="sfp-card__divider"></div>
+
+        <div class="sfp-card__rows">
+            <div class="sfp-card__row">
+                <span class="sfp-card__row-icon"><i class="bi bi-thermometer-half"></i></span>
+                <span class="sfp-card__row-label">Temp</span>
+                <span class="sfp-card__row-value">
+                    {% if sfp.temperature_c is not None %}{{ sfp.temperature_c|floatformat:1 }} °C{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="sfp-card__row">
+                <span class="sfp-card__row-icon"><i class="bi bi-lightning-charge"></i></span>
+                <span class="sfp-card__row-label">Vcc</span>
+                <span class="sfp-card__row-value">
+                    {% if sfp.voltage_v is not None %}{{ sfp.voltage_v|floatformat:2 }} V{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="sfp-card__row">
+                <span class="sfp-card__row-icon sfp-card__row-icon--rx"><i class="bi bi-arrow-down-circle"></i></span>
+                <span class="sfp-card__row-label">Rx</span>
+                <span class="sfp-card__row-value">
+                    {% if sfp.rx_power_dbm is not None %}{{ sfp.rx_power_dbm|floatformat:2 }} dBm{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="sfp-card__row">
+                <span class="sfp-card__row-icon sfp-card__row-icon--tx"><i class="bi bi-arrow-up-circle"></i></span>
+                <span class="sfp-card__row-label">Tx</span>
+                <span class="sfp-card__row-value">
+                    {% if sfp.tx_power_dbm is not None %}{{ sfp.tx_power_dbm|floatformat:2 }} dBm{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="sfp-card__row">
+                <span class="sfp-card__row-icon"><i class="bi bi-battery-half"></i></span>
+                <span class="sfp-card__row-label">Bias</span>
+                <span class="sfp-card__row-value">
+                    {% if sfp.bias_current_ma is not None %}{{ sfp.bias_current_ma|floatformat:2 }} mA{% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <footer class="sfp-card__footer">
+            <i class="bi bi-clock"></i>
+            {{ sfp.updated_at|date:"d.m.Y H:i:s" }}
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="c-empty" style="padding:48px 16px">
+    <i class="bi bi-usb-plug" style="font-size:48px;opacity:0.4"></i>
+    <p style="margin-top:12px">SFP-модулей не найдено</p>
+    <p class="c-muted" style="font-size:13px;margin-top:8px">
+        Возможно, порты пусты или модули без DDM.
+    </p>
+</div>
+{% endif %}

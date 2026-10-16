@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Метрики — Cerberus{% endblock %}
+
+{% block content %}
+
+<div class="dash-header">
+    <div>
+        <h1>Метрики</h1>
+        <div class="dash-header__subtitle">
+            <span>Все устройства — {{ total_devices }} шт.</span>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры -->
+<div class="metrics-filters">
+    <div class="metrics-filters__group">
+        <label class="metrics-filters__label">
+            <i class="bi bi-hdd-network"></i> Устройство
+        </label>
+        <select id="filter-device" class="metrics-filters__select">
+            <option value="">Все устройства</option>
+            {% for card in device_cards %}
+            <option value="{{ card.device.ip }}">{{ card.device.name }} · {{ card.device.ip }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="metrics-filters__group">
+        <label class="metrics-filters__label">
+            <i class="bi bi-graph-up"></i> Группа метрик
+        </label>
+        <select id="filter-group" class="metrics-filters__select">
+            <option value="">Все группы</option>
+            {% for g in filter_groups %}
+            <option value="{{ g.id }}">{{ g.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="metrics-filters__group">
+        <label class="metrics-filters__label">
+            <i class="bi bi-clock"></i> Период
+        </label>
+        <select id="filter-hours" class="metrics-filters__select">
+            <option value="1">1 час</option>
+            <option value="6">6 часов</option>
+            <option value="24" selected>24 часа</option>
+            <option value="168">7 дней</option>
+        </select>
+    </div>
+</div>
+
+<!-- Сетка графиков -->
+<div class="metrics-charts-grid" id="metrics-charts-grid">
+    {% for card in device_cards %}
+        {% for group in card.groups %}
+        <div class="metrics-chart-card"
+             data-device-ip="{{ card.device.ip }}"
+             data-device-name="{{ card.device.name }}"
+             data-group-id="{{ group.id }}"
+             {% if group.is_traffic %}data-is-traffic="1"{% endif %}>
+            <div class="metrics-chart-card__header">
+                <div class="metrics-chart-card__title">
+                    <span class="metrics-chart-card__device">{{ card.device.name }}</span>
+                    <span class="metrics-chart-card__sep">·</span>
+                    <span class="metrics-chart-card__group">{{ group.title }}</span>
+                </div>
+                <a href="/devices/{{ card.device.ip }}/metrics/" class="metrics-chart-card__link" title="Открыть устройство">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+            </div>
+            <div class="metrics-chart-card__body">
+                {% if group.is_traffic %}
+                    {# Трафик: данные тянет JS через /api/v1/interfaces/traffic-summary/ #}
+                    <canvas id="metrics-chart-{{ card.device.ip }}-traffic"
+                            data-device-ip="{{ card.device.ip }}"
+                            data-is-traffic="1"></canvas>
+                {% else %}
+                    <canvas id="metrics-chart-{{ card.device.ip }}-{{ group.id }}"
+                            data-device-ip="{{ card.device.ip }}"
+                            data-group-id="{{ group.id }}"
+                            data-metrics="{% for m in group.metrics %}{{ m.key }}{% if not forloop.last %},{% endif %}{% endfor %}"></canvas>
+                {% endif %}
+            </div>
+            {% if not group.is_traffic and group.metrics|length > 1 %}
+            <div class="metrics-chart-card__legend">
+                {% for m in group.metrics %}
+                <span class="metrics-chart-card__legend-item">
+                    <span class="metrics-chart-card__legend-dot" data-idx="{{ forloop.counter0 }}"></span>
+                    {{ m.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if group.is_traffic %}
+            <div class="metrics-chart-card__legend">
+                <span class="metrics-chart-card__legend-item">
+                    <span class="metrics-chart-card__legend-dot" style="background:#73bf69"></span> In
+                </span>
+                <span class="metrics-chart-card__legend-item">
+                    <span class="metrics-chart-card__legend-dot" style="background:#f2495c"></span> Out
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+
+{% if not device_cards %}
+<div class="dash-empty">
+    <i class="bi bi-graph-up"></i>
+    <p>Устройств с метриками нет</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.__TAB_METRICS__ = { apiBase: "/api/v1" };
+</script>
+<script type="module" src="{% static 'js/tab-metrics.js' %}?v=2"></script>
+{% endblock %}

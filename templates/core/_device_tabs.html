@@ -1,0 +1,30 @@
+{% comment %}
+Общий партиал табов внутри страницы устройства.
+Использование: {% include "core/_device_tabs.html" with device=device tab="metrics" %}
+Параметры:
+  - device: объект Device
+  - tab: один из 'overview' | 'metrics' | 'interfaces' | 'vlans' | 'sfp'
+{% endcomment %}
+
+<div class="c-tabs">
+    <a href="{% url 'device_detail' device.ip %}"
+       class="c-tabs__tab {% if tab == 'overview' %}c-tabs__tab--active{% endif %}">
+        <i class="bi bi-info-circle"></i> Обзор
+    </a>
+    <a href="{% url 'device_metrics' device.ip %}"
+       class="c-tabs__tab {% if tab == 'metrics' %}c-tabs__tab--active{% endif %}">
+        <i class="bi bi-graph-up"></i> Метрики
+    </a>
+    <a href="{% url 'device_interfaces' device.ip %}"
+       class="c-tabs__tab {% if tab == 'interfaces' %}c-tabs__tab--active{% endif %}">
+        <i class="bi bi-ethernet"></i> Интерфейсы
+    </a>
+    <a href="{% url 'device_vlans' device.ip %}"
+       class="c-tabs__tab {% if tab == 'vlans' %}c-tabs__tab--active{% endif %}">
+        <i class="bi bi-diagram-3"></i> VLAN
+    </a>
+    <a href="{% url 'device_sfp' device.ip %}"
+       class="c-tabs__tab {% if tab == 'sfp' %}c-tabs__tab--active{% endif %}">
+        <i class="bi bi-usb-plug"></i> SFP
+    </a>
+</div>

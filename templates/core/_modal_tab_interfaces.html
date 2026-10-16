@@ -1,0 +1,107 @@
+{% load static %}
+{# Вкладка «Интерфейсы» в модалке — плитки портов. Ожидает: device, rows #}
+
+{% if rows %}
+<div class="iface-grid">
+    {% for row in rows %}
+    <article class="iface-card
+        {% if row.iface.admin_status != 1 %}iface-card--down{% endif %}"
+        data-iface-id="{{ row.iface.id }}"
+        data-iface-name="{{ row.iface.name }}"
+        title="Клик — показать график трафика">
+
+        <header class="iface-card__header">
+            <div class="iface-card__name">{{ row.iface.name|default:"—" }}</div>
+            <div class="iface-card__actions">
+                {% if row.iface.admin_status == 1 %}
+                    <span class="c-status c-status--ok iface-card__state">up</span>
+                {% else %}
+                    <span class="c-status c-status--crit iface-card__state">down</span>
+                {% endif %}
+                {% if user.is_staff %}
+                <button class="port-toggle-btn iface-card__toggle"
+                        data-iface-id="{{ row.iface.id }}"
+                        data-iface-name="{{ row.iface.name }}"
+                        data-current-admin="{{ row.iface.admin_status }}"
+                        title="{% if row.iface.admin_status == 1 %}Выключить порт{% else %}Включить порт{% endif %}">
+                    <i class="bi bi-power"></i>
+                </button>
+                {% endif %}
+            </div>
+        </header>
+
+        {% if row.iface.alias %}
+        <div class="iface-card__alias">{{ row.iface.alias|truncatechars:40 }}</div>
+        {% else %}
+        <div class="iface-card__alias iface-card__alias--empty">—</div>
+        {% endif %}
+
+        <div class="iface-card__divider"></div>
+
+        <div class="iface-card__traffic">
+            <div class="iface-card__traffic-row">
+                <span class="iface-card__traffic-icon iface-card__traffic-icon--in">
+                    <i class="bi bi-arrow-down-circle"></i>
+                </span>
+                <span class="iface-card__traffic-value">
+                    {% if row.sample and row.sample.in_bps is not None %}
+                        {{ row.sample.in_bps|filesizeformat }}/s
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="iface-card__traffic-row">
+                <span class="iface-card__traffic-icon iface-card__traffic-icon--out">
+                    <i class="bi bi-arrow-up-circle"></i>
+                </span>
+                <span class="iface-card__traffic-value">
+                    {% if row.sample and row.sample.out_bps is not None %}
+                        {{ row.sample.out_bps|filesizeformat }}/s
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+
+        {# --- VLAN --- #}
+        {% with links=row.iface.vlan_links.all %}
+        {% if links %}
+        <div class="iface-card__divider"></div>
+        <div class="iface-card__vlans">
+            <span class="iface-card__vlans-label">VLAN:</span>
+            {% for l in links %}
+                <span class="iface-card__vlan {% if l.is_tagged %}iface-card__vlan--tagged{% else %}iface-card__vlan--untagged{% endif %}"
+                      title="{% if l.is_tagged %}tagged{% else %}untagged{% endif %}{% if l.vlan.name %} · {{ l.vlan.name|truncatechars:30 }}{% endif %}">
+                    {{ l.vlan.vlan_id }}{% if l.is_tagged %}T{% else %}U{% endif %}
+                </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <footer class="iface-card__footer">
+            <span class="iface-card__meta">
+                {% if row.iface.speed_mbps %}{{ row.iface.speed_mbps }} M{% else %}—{% endif %}
+            </span>
+            {% if row.iface.pvid %}
+            <span class="iface-card__meta">
+                <i class="bi bi-diagram-3"></i> PVID {{ row.iface.pvid }}
+            </span>
+            {% endif %}
+            {% if row.sample and row.sample.in_errors or row.sample and row.sample.out_errors %}
+            <span class="iface-card__meta iface-card__meta--err">
+                <i class="bi bi-exclamation-triangle"></i>
+                {{ row.sample.in_errors|default:0 }}/{{ row.sample.out_errors|default:0 }}
+            </span>
+            {% endif %}
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="c-empty" style="padding:48px 16px">
+    <i class="bi bi-ethernet" style="font-size:48px;opacity:0.4"></i>
+    <p style="margin-top:12px">Интерфейсы не собраны</p>
+</div>
+{% endif %}
+
+<script src="{% static 'js/port-control.js' %}?v=5"></script>
+<script src="{% static 'js/traffic-chart.js' %}?v=1"></script>

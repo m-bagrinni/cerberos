@@ -1,0 +1,61 @@
+{% load static %}
+{# Плитка устройства. Ожидает: item = {device, cpu, mem, temp, ports} #}
+<article class="device-card"
+         data-device-ip="{{ item.device.ip }}"
+         data-device-name="{{ item.device.name }}"
+         data-device-status="{{ item.device.status }}"
+         data-device-subtitle="{{ item.device.vendor.name|default:'' }} · {{ item.device.ent_model|default:item.device.sys_descr|default:''|truncatechars:40 }}"
+         data-device-full-url="/devices/{{ item.device.ip }}/">
+
+    <header class="device-card__header">
+        <div class="device-card__status device-card__status--{% if item.device.status == 'ok' %}ok{% elif item.device.status == 'unreachable' %}crit{% else %}unknown{% endif %}"></div>
+        <div class="device-card__name">{{ item.device.name }}</div>
+        <div class="device-card__emoji">{{ item.device.status_emoji }}</div>
+    </header>
+
+    <div class="device-card__ip c-mono">{{ item.device.ip }}</div>
+
+    <div class="device-card__vendor">
+        {{ item.device.vendor.name|default:"—" }}
+        {% if item.device.ent_model %} · {{ item.device.ent_model }}{% endif %}
+    </div>
+
+    <div class="device-card__divider"></div>
+
+    <div class="device-card__metrics">
+        <div class="device-card__metric">
+            <span class="device-card__metric-label">CPU</span>
+            <span class="device-card__metric-value">
+                {% if item.cpu.value is not None %}
+                    {{ item.cpu.value|floatformat:1 }}{% if item.cpu.unit %} {{ item.cpu.unit }}{% endif %}
+                {% else %}—{% endif %}
+            </span>
+        </div>
+        <div class="device-card__metric">
+            <span class="device-card__metric-label">RAM</span>
+            <span class="device-card__metric-value">
+                {% if item.mem.value is not None %}
+                    {{ item.mem.value|floatformat:1 }}{% if item.mem.unit %} {{ item.mem.unit }}{% endif %}
+                {% else %}—{% endif %}
+            </span>
+        </div>
+        <div class="device-card__metric">
+            <span class="device-card__metric-label">Temp</span>
+            <span class="device-card__metric-value">
+                {% if item.temp.value is not None %}
+                    {{ item.temp.value|floatformat:1 }}{% if item.temp.unit %} {{ item.temp.unit }}{% endif %}
+                {% else %}—{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="device-card__ports">
+        <i class="bi bi-ethernet"></i>
+        Порты:
+        <span class="device-card__ports-up">{{ item.ports.up }}</span>
+        /
+        <span class="device-card__ports-total">{{ item.ports.total }}</span>
+        up
+    </div>
+
+</article>

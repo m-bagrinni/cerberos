@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Discovery — {{ discovery.device.name }} — Cerberus{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom:16px">
+    <a href="{% url 'discoveries_list' %}" class="c-muted" style="text-decoration:none;font-size:13px">
+        ← Все снимки
+    </a>
+</div>
+
+<div style="margin-bottom:24px">
+    <h1 style="font-size:24px;font-weight:700;margin:0">
+        Discovery — {{ discovery.device.name }}
+    </h1>
+    <div class="c-muted" style="font-size:13px;margin-top:4px">
+        {{ discovery.device.ip }} · {{ discovery.created_at|date:"d.m.Y H:i:s" }} ·
+        {{ rows|length }} строк
+    </div>
+    {% if discovery.note %}
+    <div class="c-muted" style="font-size:13px;margin-top:4px">
+        Заметка: {{ discovery.note }}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Фильтр -->
+<div class="c-card" style="margin-bottom:16px">
+    <div class="c-card__body" style="padding:12px 24px">
+        <input type="text" id="filter-input" placeholder="Фильтр по OID или имени..."
+               style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;
+                      border-radius:6px;font-size:13px;font-family:inherit">
+    </div>
+</div>
+
+<div class="c-card">
+    <table class="c-table" id="discovery-table">
+        <thead>
+            <tr>
+                <th style="width:45%">OID</th>
+                <th style="width:35%">Имя</th>
+                <th style="width:20%">Значение</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr data-search="{{ row.oid|lower }} {{ row.name|lower }}">
+                <td class="c-mono" style="font-size:12px">{{ row.oid }}</td>
+                <td style="font-size:13px">
+                    {{ row.name|default:"—" }}
+                    {% if row.syntax %}
+                    <span class="c-muted" style="font-size:11px;margin-left:6px">
+                        ({{ row.syntax }})
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="c-mono" style="font-size:12px">{{ row.value|truncatechars:60 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Простой фильтр по таблице
+  document.getElementById('filter-input').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('#discovery-table tbody tr').forEach(tr => {
+      const match = !q || tr.dataset.search.includes(q);
+      tr.style.display = match ? '' : 'none';
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% load static %}
+{# Вкладка «Обзор» в модалке. Ожидает: device, metrics_view #}
+
+<div class="modal-section">
+    <div class="modal-info-grid">
+        <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">Статус</div>
+            <div class="modal-info-grid__value">
+                <span class="c-status c-status--{% if device.status == 'ok' %}ok{% elif device.status == 'unreachable' %}crit{% else %}unknown{% endif %}">
+                    {{ device.get_status_display }}
+                </span>
+            </div>
+        </div>
+        <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">Вендор</div>
+            <div class="modal-info-grid__value">{{ device.vendor.name|default:"—" }}</div>
+        </div>
+        <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">Модель</div>
+            <div class="modal-info-grid__value">{{ device.ent_model|default:"—" }}</div>
+        </div>
+        <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">Профиль</div>
+            <div class="modal-info-grid__value">{{ device.effective_profile.name|default:"—" }}</div>
+        </div>
+        <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">SNMP</div>
+            <div class="modal-info-grid__value c-mono" style="font-size:12px">
+                v{{ device.snmp_version }} · {{ device.snmp_community }} · {{ device.snmp_port }}
+            </div>
+        </div>
+        <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">Последний опрос</div>
+            <div class="modal-info-grid__value" style="font-size:13px">
+                {{ device.last_polled_at|date:"d.m.Y H:i:s"|default:"никогда" }}
+            </div>
+        </div>
+        <div class="modal-info-grid__item modal-info-grid__item--full">
+            <div class="modal-info-grid__label">sysDescr</div>
+            <div class="modal-info-grid__value c-mono" style="font-size:12px">{{ device.sys_descr|default:"—" }}</div>
+        </div>
+        <div class="modal-info-grid__item modal-info-grid__item--full">
+            <div class="modal-info-grid__label">sysObjectID</div>
+            <div class="modal-info-grid__value c-mono" style="font-size:12px">{{ device.sys_object_id|default:"—" }}</div>
+        </div>
+    </div>
+</div>
+
+{% if metrics_view %}
+<div class="modal-section">
+    <div class="modal-section__title">Метрики</div>
+    <div class="metric-cards">
+        {% for m in metrics_view %}
+        <article class="metric-card
+            {% if m.percent is not None %}
+                {% if m.percent >= 90 %}metric-card--crit
+                {% elif m.percent >= 70 %}metric-card--warn{% endif %}
+            {% endif %}">
+
+            <header class="metric-card__header">
+                <span class="metric-card__icon"><i class="bi {{ m.icon }}"></i></span>
+                <span class="metric-card__name">{{ m.name }}</span>
+            </header>
+
+            <div class="metric-card__value">{{ m.value }}</div>
+
+            {% if m.percent is not None %}
+            <div class="metric-card__bar">
+                <div class="metric-card__bar-fill" style="width: {{ m.percent|floatformat:1 }}%"></div>
+            </div>
+            {% endif %}
+
+            <div class="metric-card__key c-mono">{{ m.key }}</div>
+        </article>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="modal-section">
+    <div class="c-empty" style="padding:32px">
+        <i class="bi bi-slash-circle" style="font-size:32px"></i>
+        <p style="margin-top:8px">У устройства нет метрик</p>
+    </div>
+</div>
+{% endif %}

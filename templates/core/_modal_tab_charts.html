@@ -1,0 +1,61 @@
+{% load static %}
+{# Вкладка «Графики» в модалке. Ожидает: device, metric_groups #}
+
+{% if metric_groups %}
+<div class="modal-charts-grid">
+    {% for group in metric_groups %}
+    <div class="modal-chart modal-chart--{{ group.id }}">
+        <div class="modal-chart__header">
+            <div class="modal-chart__title">{{ group.title }}</div>
+            <div class="modal-chart__range"
+                 data-range-picker
+                 data-group-id="{{ group.id }}"
+                 data-device-ip="{{ device.ip }}"
+                 data-metrics="{% for m in group.metrics %}{{ m.key }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                <button data-hours="1">1ч</button>
+                <button data-hours="6">6ч</button>
+                <button data-hours="24" class="is-active">24ч</button>
+                <button data-hours="168">7д</button>
+            </div>
+        </div>
+        <div class="modal-chart__body">
+            <canvas id="modal-chart-{{ device.ip }}-{{ group.id }}"
+                    data-group-id="{{ group.id }}"
+                    data-device-ip="{{ device.ip }}"
+                    data-metrics="{% for m in group.metrics %}{{ m.key }}{% if not forloop.last %},{% endif %}{% endfor %}"></canvas>
+        </div>
+        {% if group.metrics|length > 1 %}
+        <div class="modal-chart__legend">
+            {% for m in group.metrics %}
+            <span class="modal-chart__legend-item" data-metric-key="{{ m.key }}">
+                <span class="modal-chart__legend-color"></span>
+                {{ m.name }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+window.__MODAL_METRICS__ = {
+    ip: "{{ device.ip }}",
+    groups: [
+        {% for group in metric_groups %}
+        {
+            id: "{{ group.id }}",
+            keys: [{% for m in group.metrics %}"{{ m.key }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ],
+    prefix: "modal-chart-",
+};
+</script>
+<script type="module" src="{% static 'js/modal-charts.js' %}?v=3"></script>
+{% else %}
+<div class="c-empty" style="padding:48px 16px">
+    <i class="bi bi-graph-up" style="font-size:48px;opacity:0.4"></i>
+    <p style="margin-top:12px">У устройства нет метрик</p>
+</div>
+{% endif %}

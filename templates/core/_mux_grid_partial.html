@@ -1,0 +1,73 @@
+<div class="mux-grid" id="muxGrid">
+    {% for c in cards %}
+    {% with ne=c.ne %}
+    <div class="mux-card mux-card--{{ c.agg_status }}"
+         data-ne-id="{{ ne.id }}"
+         onclick="if (window.openNeModal) window.openNeModal({{ ne.id }});">
+
+        {# ── Заголовок ── #}
+        <div class="mux-card__head">
+            <div class="mux-card__title">
+                <span class="mux-card__ne-addr">NE-{{ ne.ne_id }}</span>
+                <span class="mux-card__name">{{ ne.display_name }}</span>
+            </div>
+            <button class="mux-card__edit" type="button" title="Переименовать"
+                    onclick="event.stopPropagation(); if (window.openNeRename) window.openNeRename({{ ne.id }}, '{{ ne.display_name|escapejs }}');">
+                <i class="bi bi-pencil"></i>
+            </button>
+        </div>
+
+        {# ── IP ── #}
+        {% if ne.ne_ip or ne.gateway.ip %}
+        <div class="mux-card__ip">{{ ne.ne_ip|default:ne.gateway.ip }}</div>
+        {% endif %}
+
+        {# ── SFP ── #}
+        <div class="mux-card__sfp">
+            {% for port, d in c.sfp.items %}
+            <div class="sfp-row {% if d.link == 1 %}sfp-row--up{% elif d.link == 0 %}sfp-row--down{% else %}sfp-row--empty{% endif %}">
+                <span class="sfp-row__port">SFP{{ port }}</span>
+                <span class="sfp-row__dot"></span>
+                {% if d.link == 1 %}
+                    <span class="sfp-row__link">up</span>
+                    {% if d.rx %}
+                    <span class="sfp-row__rx">{{ d.rx|floatformat:1 }} dBm</span>
+                    {% else %}
+                    <span class="sfp-row__rx sfp-row__rx--na">—</span>
+                    {% endif %}
+                    {% if d.temp %}
+                    <span class="sfp-row__temp">{{ d.temp|floatformat:1 }}°</span>
+                    {% endif %}
+                {% elif d.link == 0 %}
+                    <span class="sfp-row__link">down</span>
+                {% else %}
+                    <span class="sfp-row__link sfp-row__link--muted">нет модуля</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {# ── LAN ── #}
+        <div class="mux-card__lan">
+            <div class="mux-card__lan-title">LAN</div>
+            <div class="mux-card__lan-row">
+                {% for port, d in c.lan.items %}
+                <div class="lan-mini {% if d.link == 'up' %}lan-mini--up{% else %}lan-mini--down{% endif %}">
+                    <div class="lan-mini__top">
+                        <span class="lan-mini__dot"></span>
+                        <span class="lan-mini__num">{{ d.idx }}</span>
+                    </div>
+                    <div class="lan-mini__pvid">{{ d.pvid|default:"—" }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Footer ── #}
+        <div class="mux-card__foot">
+            <span class="mux-card__poll">опрос {{ ne.last_polled_at|date:"H:i"|default:"—" }}</span>
+        </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+</div>

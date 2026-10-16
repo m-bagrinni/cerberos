@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Станции — Cerberus{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Станции</h1>
+    <div class="page-header__actions">
+        <span class="live-indicator" id="stationsLive" title="Авто-обновление">
+            <span class="live-indicator__dot"></span>
+            <span id="stationsLiveText">ожидание…</span>
+        </span>
+        <button class="btn btn--ghost" id="btnReloadStations" title="Обновить">
+            <i class="bi bi-arrow-clockwise"></i> Обновить
+        </button>
+        <button class="btn btn--primary" id="btnNewStation">
+            <i class="bi bi-plus-lg"></i> Добавить станцию
+        </button>
+        <button class="btn btn--primary" id="btnNewLink">
+            <i class="bi bi-link-45deg"></i> Добавить линию
+        </button>
+    </div>
+</div>
+
+<div id="stationModalRoot"></div>
+<div id="linkModalRoot"></div>
+
+{# Вкладки: Список / Карта #}
+<div class="stations-tabs" role="tablist">
+    <button class="stations-tab is-active" data-tab="list" type="button">
+        <i class="bi bi-list-ul"></i> Список
+    </button>
+    <button class="stations-tab" data-tab="map" type="button">
+        <i class="bi bi-map"></i> Карта
+    </button>
+</div>
+
+{# Вкладка «Список» #}
+<div class="stations-tab-pane is-active" data-tab-pane="list">
+    <div class="stations-list-legend">
+        <span class="stations-legend__item"><span class="scheme-dot scheme-dot--ok"></span> норма</span>
+        <span class="stations-legend__item"><span class="scheme-dot scheme-dot--warn"></span> предупр.</span>
+        <span class="stations-legend__item"><span class="scheme-dot scheme-dot--crit"></span> авария</span>
+        <span class="stations-legend__item"><span class="scheme-dot scheme-dot--unknown"></span> нет данных</span>
+    </div>
+    <div id="stationsListRoot">
+        {% include "core/_stations_list_partial.html" %}
+    </div>
+</div>
+
+{# Вкладка «Карта» — заглушка, реализуем следующим этапом #}
+<div class="stations-tab-pane" data-tab-pane="map">
+    <div class="map-toolbar">
+        <button class="btn btn--ghost btn--sm" id="btnMapFullscreen" title="Развернуть на весь экран">
+            <i class="bi bi-arrows-fullscreen"></i> <span id="btnMapFullscreenLabel">На весь экран</span>
+        </button>
+        <span class="map-toolbar__hint">
+            Колесо — зум, тяните карту. Линии — цвет по состоянию оптики.
+        </span>
+    </div>
+    <div class="stations-map-wrap" id="stationsMapWrap">
+        <div id="stationsMap" class="stations-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/stations.js' %}?v=52"></script>
+{% endblock %}

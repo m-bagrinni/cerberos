@@ -1,0 +1,147 @@
+{% load static %}
+
+<!-- Заголовок -->
+<div class="dash-panel__header">
+    <div>
+        <h2 class="dash-panel__title">
+            {{ device.status_emoji }} {{ device.name }}
+        </h2>
+        <div class="dash-panel__subtitle">{{ device.ip }}</div>
+    </div>
+    <div class="dash-panel__actions">
+        <a href="/devices/{{ device.ip }}/" class="c-btn"
+           style="background:white;border:1px solid #e5e7eb;font-size:13px">
+            <i class="bi bi-box-arrow-up-right"></i> Открыть
+        </a>
+        <a href="/admin/devices/device/{{ device.id }}/change/" class="c-btn"
+           style="background:white;border:1px solid #e5e7eb;font-size:13px;padding:8px 12px"
+           title="Админка">
+            <i class="bi bi-gear"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Инфо -->
+<div class="dash-info">
+    <div class="dash-info__item">
+        <div class="dash-info__label">Статус</div>
+        <div class="dash-info__value">
+            <span class="c-status c-status--{% if device.status == 'ok' %}ok{% elif device.status == 'unreachable' %}crit{% else %}unknown{% endif %}">
+                {{ device.get_status_display }}
+            </span>
+        </div>
+    </div>
+    <div class="dash-info__item">
+        <div class="dash-info__label">Вендор</div>
+        <div class="dash-info__value">{{ device.vendor.name|default:"—" }}</div>
+    </div>
+    <div class="dash-info__item">
+        <div class="dash-info__label">Профиль</div>
+        <div class="dash-info__value">{{ device.effective_profile.name|default:"—" }}</div>
+    </div>
+    <div class="dash-info__item">
+        <div class="dash-info__label">Последний опрос</div>
+        <div class="dash-info__value" style="font-size:13px">
+            {{ device.last_polled_at|date:"d.m.Y H:i:s"|default:"никогда" }}
+        </div>
+    </div>
+    <div class="dash-info__item dash-info__full">
+        <div class="dash-info__label">sysDescr</div>
+        <div class="dash-info__value dash-info__value--mono">{{ device.sys_descr|default:"—" }}</div>
+    </div>
+</div>
+
+<!-- Метрики -->
+{% if metrics %}
+<div class="dash-metrics">
+    {% for m in metrics %}
+    <div class="dash-metric" data-metric-key="{{ m.key }}"
+         data-warn="{{ m.warn|default:'' }}" data-crit="{{ m.crit|default:'' }}">
+        <div class="dash-metric__label">{{ m.name }}</div>
+        <div class="dash-metric__value"
+             data-metric-key="{{ m.key }}"
+             data-field="value">—</div>
+        <div class="dash-metric__meta">
+            {% if m.unit %}<span class="dash-metric__meta-item">{{ m.unit }}</span>{% endif %}
+            {% if m.warn %}<span class="dash-metric__meta-item">⚠ {{ m.warn|floatformat:0 }}</span>{% endif %}
+            {% if m.crit %}<span class="dash-metric__meta-item">🚨 {{ m.crit|floatformat:0 }}</span>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Графики -->
+{% if metrics %}
+<div class="dash-charts">
+    {% for m in metrics %}
+    {% if m.key == 'cpu_5m' or m.key == 'mem_dram_used' or m.key == 'temp_current' %}
+    <div class="dash-chart">
+        <div class="dash-chart__header">
+            <div class="dash-chart__title">{{ m.name }}</div>
+            <div class="dash-range"
+                 data-range-picker
+                 data-metric-key="{{ m.key }}"
+                 data-device-ip="{{ device.ip }}">
+                <button data-hours="1">1ч</button>
+                <button data-hours="6">6ч</button>
+                <button data-hours="24" class="is-active">24ч</button>
+                <button data-hours="168">7д</button>
+            </div>
+        </div>
+        <div class="dash-chart__body">
+            <canvas id="chart-{{ device.ip }}-{{ m.key }}"
+                    class="dash-chart__canvas"
+                    data-device-ip="{{ device.ip }}"
+                    data-metric-key="{{ m.key }}"
+                    data-unit="{{ m.unit }}"></canvas>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Топ-5 портов -->
+{% if top_ports %}
+<div class="c-card">
+    <div class="c-card__header" style="padding:12px 20px">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;
+                    color:#6b7280;letter-spacing:0.05em">
+            Топ-5 активных портов
+        </div>
+        <a href="/devices/{{ device.ip }}/interfaces/" class="c-table__link"
+           style="font-size:12px">Все →</a>
+    </div>
+    <table class="c-table">
+        <thead>
+            <tr>
+                <th style="font-size:11px">Порт</th>
+                <th style="font-size:11px">Описание</th>
+                <th style="font-size:11px">↓ In</th>
+                <th style="font-size:11px">↑ Out</th>
+                <th style="font-size:11px">Errors</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in top_ports %}
+            <tr>
+                <td style="font-size:12px;font-weight:500">{{ s.interface.name }}</td>
+                <td style="font-size:11px" class="c-muted">
+                    {{ s.interface.alias|default:""|truncatechars:40 }}
+                </td>
+                <td class="c-mono" style="font-size:11px">{{ s.in_bps|filesizeformat }}/s</td>
+                <td class="c-mono" style="font-size:11px">{{ s.out_bps|filesizeformat }}/s</td>
+                <td class="c-mono" style="font-size:11px">
+                    {% if s.in_errors or s.out_errors %}
+                        <span style="color:#ef4444">↓{{ s.in_errors|default:0 }} ↑{{ s.out_errors|default:0 }}</span>
+                    {% else %}
+                        <span class="c-muted">0</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}

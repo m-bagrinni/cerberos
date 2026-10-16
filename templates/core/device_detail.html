@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ device.name }} — Cerberus{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom:16px">
+    <a href="{% url 'dashboard' %}" class="c-muted" style="text-decoration:none;font-size:13px">
+        ← Обзор
+    </a>
+</div>
+
+<div class="c-card" style="margin-bottom:24px">
+    <div class="c-card__body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+                <h1 style="font-size:24px;font-weight:700;margin:0">
+                    {{ device.status_emoji }} {{ device.name }}
+                </h1>
+                <div class="c-mono c-muted" style="margin-top:4px;font-size:14px">
+                    {{ device.ip }}
+                </div>
+            </div>
+            <div style="text-align:right;font-size:13px">
+                <div class="c-muted">Последний опрос</div>
+                <div style="font-weight:500">
+                    {{ device.last_polled_at|date:"d.m.Y H:i:s"|default:"никогда" }}
+                </div>
+            </div>
+        </div>
+
+        <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+                   gap:16px;margin-top:24px">
+            <div>
+                <dt class="c-stat__label">Вендор</dt>
+                <dd style="font-weight:500;margin:4px 0 0">{{ device.vendor.name|default:"—" }}</dd>
+            </div>
+            <div>
+                <dt class="c-stat__label">Профиль</dt>
+                <dd style="font-weight:500;margin:4px 0 0">{{ device.effective_profile.name|default:"—" }}</dd>
+            </div>
+            <div>
+                <dt class="c-stat__label">sysDescr</dt>
+                <dd class="c-truncate" style="margin:4px 0 0">{{ device.sys_descr|default:"—" }}</dd>
+            </div>
+            <div>
+                <dt class="c-stat__label">sysObjectID</dt>
+                <dd class="c-mono c-truncate" style="margin:4px 0 0;font-size:13px">
+                    {{ device.sys_object_id|default:"—" }}
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+{% include "core/_device_tabs.html" with device=device tab="overview" %}
+
+<div class="c-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+    <a href="{% url 'device_metrics' device.ip %}"
+       class="c-stat" style="text-decoration:none;color:inherit">
+        <div>
+            <div class="c-stat__label">Метрики</div>
+            <div class="c-stat__value" style="color:#4f46e5">{{ metrics_count }}</div>
+        </div>
+        <i class="bi bi-graph-up c-stat__icon"></i>
+    </a>
+
+    <a href="{% url 'device_interfaces' device.ip %}"
+       class="c-stat" style="text-decoration:none;color:inherit">
+        <div>
+            <div class="c-stat__label">Интерфейсы</div>
+            <div class="c-stat__value" style="color:#10b981">{{ interfaces_count }}</div>
+        </div>
+        <i class="bi bi-ethernet c-stat__icon"></i>
+    </a>
+
+    <a href="{% url 'device_sfp' device.ip %}"
+       class="c-stat" style="text-decoration:none;color:inherit">
+        <div>
+            <div class="c-stat__label">SFP</div>
+            <div class="c-stat__value" style="color:#f59e0b">DDM</div>
+        </div>
+        <i class="bi bi-usb-plug c-stat__icon"></i>
+    </a>
+</div>
+
+{% endblock %}

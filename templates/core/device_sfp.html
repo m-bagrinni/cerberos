@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.name }} — SFP — Cerberus{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom:16px">
+    <a href="{% url 'device_detail' device.ip %}" class="c-muted" style="text-decoration:none;font-size:13px">
+        ← {{ device.name }}
+    </a>
+</div>
+
+<div style="margin-bottom:24px">
+    <h1 style="font-size:24px;font-weight:700;margin:0">SFP-модули (DDM)</h1>
+    <div class="c-muted" style="font-size:13px;margin-top:4px">
+        {{ device.name }} — {{ device.ip }} · найдено: {{ sfps|length }}
+    </div>
+</div>
+
+{% include "core/_device_tabs.html" with device=device tab="sfp" %}
+
+{% if sfps %}
+<div class="c-card">
+    <table class="c-table">
+        <thead>
+            <tr>
+                <th>Порт</th>
+                <th style="width:80px">Temp</th>
+                <th style="width:80px">Voltage</th>
+                <th style="width:100px">Tx Power</th>
+                <th style="width:100px">Rx Power</th>
+                <th style="width:90px">Bias</th>
+                <th>Обновлено</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sfp in sfps %}
+            <tr>
+                <td style="font-weight:500">
+                    {{ sfp.interface.name }}
+                    {% if sfp.temp_state == 'ok' %}
+                        <span class="c-status c-status--ok" style="font-size:10px">ok</span>
+                    {% elif sfp.temp_state == 'warning' %}
+                        <span class="c-status c-status--warn" style="font-size:10px">warn</span>
+                    {% elif sfp.temp_state == 'alarm' %}
+                        <span class="c-status c-status--crit" style="font-size:10px">alarm</span>
+                    {% endif %}
+                </td>
+                <td class="c-mono" style="font-size:12px">
+                    {% if sfp.temperature_c is not None %}{{ sfp.temperature_c|floatformat:1 }} °C{% else %}—{% endif %}
+                </td>
+                <td class="c-mono" style="font-size:12px">
+                    {% if sfp.voltage_v is not None %}{{ sfp.voltage_v|floatformat:2 }} V{% else %}—{% endif %}
+                </td>
+                <td class="c-mono" style="font-size:12px">
+                    {% if sfp.tx_power_dbm is not None %}{{ sfp.tx_power_dbm|floatformat:2 }} dBm{% else %}—{% endif %}
+                </td>
+                <td class="c-mono" style="font-size:12px">
+                    {% if sfp.rx_power_dbm is not None %}{{ sfp.rx_power_dbm|floatformat:2 }} dBm{% else %}—{% endif %}
+                </td>
+                <td class="c-mono" style="font-size:12px">
+                    {% if sfp.bias_current_ma is not None %}{{ sfp.bias_current_ma|floatformat:2 }} mA{% else %}—{% endif %}
+                </td>
+                <td class="c-muted" style="font-size:12px">{{ sfp.updated_at|date:"d.m.Y H:i:s" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="c-card">
+    <div class="c-empty">
+        <i class="bi bi-usb-plug" style="font-size:48px;opacity:0.4"></i>
+        <p style="margin-top:12px">SFP-модулей не найдено</p>
+        <p class="c-muted" style="font-size:13px;margin-top:8px">
+            Возможно, SFP-порты пусты или модули без DDM. Данные появятся автоматически.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,111 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#111217">
+    <title>{% block title %}Cerberus{% endblock %}</title>
+
+    <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+
+    <script src="{% static 'vendor/js/chart.umd.min.js' %}"></script>
+    <script src="{% static 'vendor/js/luxon.min.js' %}"></script>
+    <script src="{% static 'vendor/js/chartjs-adapter-luxon.min.js' %}"></script>
+    <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
+
+    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
+    <link rel="stylesheet" href="{% static 'css/stations.css' %}?v=52">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="app-layout">
+
+    <aside class="app-sidebar">
+        <a href="{% url 'dashboard' %}" class="app-sidebar__brand">
+            <i class="bi bi-shield-shaded"></i>
+            <span>Cerberus</span>
+        </a>
+
+        <nav class="app-sidebar__nav">
+            <a href="{% url 'dashboard' %}"
+               class="app-sidebar__link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Обзор</span>
+            </a>
+            <a href="{% url 'alerts_list' %}"
+               class="app-sidebar__link {% if request.resolver_match.url_name == 'alerts_list' %}is-active{% endif %}">
+                <i class="bi bi-bell"></i>
+                <span>Алерты</span>
+                {% if alerts_firing_total %}
+                <span class="app-sidebar__badge {% if alerts_firing_crit %}app-sidebar__badge--crit{% else %}app-sidebar__badge--warn{% endif %}">
+                    {{ alerts_firing_total }}
+                </span>
+                {% endif %}
+            </a>
+            <a href="{% url 'tab_metrics' %}"
+               class="app-sidebar__link {% if request.resolver_match.url_name == 'tab_metrics' %}is-active{% endif %}">
+                <i class="bi bi-graph-up"></i>
+                <span>Метрики</span>
+            </a>
+            <a href="{% url 'tab_sfp' %}"
+               class="app-sidebar__link {% if request.resolver_match.url_name == 'tab_sfp' %}is-active{% endif %}">
+                <i class="bi bi-usb-plug"></i>
+                <span>SFP/DDM</span>
+            </a>
+            <a href="{% url 'multiplexers_list' %}"
+               class="app-sidebar__link {% if request.resolver_match.url_name == 'multiplexers_list' %}is-active{% endif %}">
+                <i class="bi bi-hdd-network"></i>
+                <span>Мультиплексоры</span>
+            </a>
+
+            <a href="{% url 'stations_list' %}"
+               class="app-sidebar__link {% if request.resolver_match.url_name == 'stations_list' %}is-active{% endif %}">
+                <i class="bi bi-diagram-3"></i>
+                <span>Станции</span>
+            </a>
+        </nav>
+
+        <div class="app-sidebar__bottom">
+            <a href="/admin/" class="app-sidebar__link app-sidebar__link--muted">
+                <i class="bi bi-gear"></i>
+                <span>Админка</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="app-main">
+
+        {% if messages %}
+        <div style="margin-bottom:16px">
+            {% for message in messages %}
+            <div style="padding:12px;border-radius:8px;margin-bottom:8px;
+                        {% if message.tags == 'error' %}background:#fee2e2;color:#991b1b
+                        {% elif message.tags == 'success' %}background:#d1fae5;color:#065f46
+                        {% else %}background:#dbeafe;color:#1e40af{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+
+        <footer style="padding:32px 0 16px;text-align:center;font-size:12px;color:var(--text-disabled);border-top:1px solid var(--border);margin-top:32px">
+            Cerberus — multi-vendor SNMP monitoring
+        </footer>
+    </main>
+
+</div>
+
+{% block extra_js %}{% endblock %}
+    <script src="{% static 'js/ne-modal.js' %}?v=10"></script>
+    <script src="{% static 'js/mux-metrics.js' %}?v=4"></script>
+    <script src="{% static 'vendor/js/sortable.min.js' %}"></script>
+    <script src="{% static 'js/mux-sortable.js' %}?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Устройства — Cerberus{% endblock %}
+
+{% block content %}
+
+<div class="dash-header">
+    <div>
+        <h1>Устройства</h1>
+        <div class="dash-header__subtitle">
+            <span>{{ stats.total }} всего</span>
+            {% if stats.unreachable %}
+            <span class="dash-header__stat dash-header__stat--crit">
+                <i class="bi bi-circle-fill" style="font-size:8px"></i>
+                {{ stats.unreachable }} недоступно
+            </span>
+            {% endif %}
+            {% if stats.unknown %}
+            <span class="dash-header__stat">
+                <i class="bi bi-circle-fill" style="font-size:8px"></i>
+                {{ stats.unknown }} неизвестно
+            </span>
+            {% endif %}
+            {% if stats.ok %}
+            <span class="dash-header__stat dash-header__stat--ok">
+                <i class="bi bi-circle-fill" style="font-size:8px"></i>
+                {{ stats.ok }} онлайн
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if groups %}
+    {% for group in groups %}
+    <section class="device-group device-group--{{ group.css }}">
+        <div class="device-group__header">
+            <span class="device-group__dot device-group__dot--{{ group.css }}"></span>
+            <span class="device-group__title">{{ group.label }}</span>
+            <span class="device-group__count">{{ group.devices|length }}</span>
+        </div>
+        <div class="device-grid">
+            {% for item in group.devices %}
+                {% include "core/_device_card.html" with item=item %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+{% else %}
+<div class="dash-empty">
+    <i class="bi bi-inbox"></i>
+    <p>Устройств пока нет</p>
+    <a href="/admin/devices/device/add/" class="c-btn c-btn--primary"
+       style="margin-top:16px">
+        <i class="bi bi-plus-lg"></i> Добавить устройство
+    </a>
+</div>
+{% endif %}
+
+<!-- Модальное окно устройства -->
+<div class="device-modal" id="device-modal" hidden>
+    <div class="device-modal__overlay" data-modal-close></div>
+    <div class="device-modal__content">
+        <div class="device-modal__header">
+            <div class="device-modal__title-wrap">
+                <div class="device-modal__title" id="device-modal-title">
+                    <span class="device-modal__status" id="device-modal-status"></span>
+                    <span id="device-modal-name">—</span>
+                </div>
+                <div class="device-modal__subtitle" id="device-modal-subtitle"></div>
+            </div>
+            <div class="device-modal__actions">
+                <a href="#" class="c-btn" id="device-modal-full-link"
+                   style="background:white;border:1px solid #e5e7eb;font-size:13px">
+                    <i class="bi bi-box-arrow-up-right"></i> Открыть полностью
+                </a>
+                <button class="device-modal__close" data-modal-close title="Закрыть (Esc)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="device-modal__tabs" id="device-modal-tabs">
+            <button class="device-modal__tab is-active" data-modal-tab="overview">
+                <i class="bi bi-info-circle"></i> Обзор
+            </button>
+            <button class="device-modal__tab" data-modal-tab="interfaces">
+                <i class="bi bi-ethernet"></i> Интерфейсы
+            </button>
+            <button class="device-modal__tab" data-modal-tab="charts">
+                <i class="bi bi-graph-up"></i> Графики
+            </button>
+            <button class="device-modal__tab" data-modal-tab="ddm">
+                <i class="bi bi-usb-plug"></i> DDM
+            </button>
+        </div>
+
+        <div class="device-modal__body" id="device-modal-body">
+            <div class="device-modal__loading">
+                <i class="bi bi-hourglass-split"></i>
+                <p>Загрузка...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.__DEVICE_MODAL_URLS__ = {
+    overview:   "/modal/{ip}/overview/",
+    interfaces: "/modal/{ip}/interfaces/",
+    charts:     "/modal/{ip}/charts/",
+    ddm:        "/modal/{ip}/ddm/",
+};
+</script>
+<script type="module" src="{% static 'js/device-cards.js' %}?v=1"></script>
+{% endblock %}

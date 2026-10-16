@@ -1,0 +1,38 @@
+.git/
+.gitignore
+
+# venv
+.venv/
+venv/
+
+# python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# env и секреты
+.env
+.env.*
+!.env.example
+
+# локальные данные
+*.sqlite3
+db.sqlite3*
+staticfiles/
+media/
+logs/
+
+# большие/незачем копировать в образ
+mibs/
+profiles/.cache/
+docs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

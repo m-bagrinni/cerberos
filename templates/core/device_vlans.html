@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.name }} — VLAN — Cerberus{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom:16px">
+    <a href="{% url 'device_detail' device.ip %}" class="c-muted" style="text-decoration:none;font-size:13px">
+        ← {{ device.name }}
+    </a>
+</div>
+
+<div style="margin-bottom:24px">
+    <h1 style="font-size:24px;font-weight:700;margin:0">VLAN</h1>
+    <div class="c-muted" style="font-size:13px;margin-top:4px">
+        {{ device.name }} — {{ device.ip }} · всего: {{ vlans|length }}
+    </div>
+</div>
+
+{% include "core/_device_tabs.html" with device=device tab="vlans" %}
+
+<div class="c-card">
+    {% if vlans %}
+    <table class="c-table">
+        <thead>
+            <tr>
+                <th style="width:100px">VLAN ID</th>
+                <th>Имя</th>
+                <th style="width:100px">ifIndex</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vlans %}
+            <tr>
+                <td>
+                    <span class="c-status c-status--unknown" style="font-size:12px">
+                        VLAN {{ v.vlan_id }}
+                    </span>
+                </td>
+                <td>{{ v.name|default:"—" }}</td>
+                <td class="c-mono c-muted" style="font-size:12px">{{ v.if_index|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="c-empty">
+        <i class="bi bi-diagram-3" style="font-size:48px;opacity:0.4"></i>
+        <p>VLAN не собраны. Запусти:</p>
+        <code class="c-mono c-muted" style="font-size:12px">
+            manage.py poll_interfaces {{ device.ip }}
+        </code>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

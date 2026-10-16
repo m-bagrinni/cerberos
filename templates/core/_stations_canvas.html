@@ -1,0 +1,82 @@
+<div class="stations-canvas-wrap">
+    <div class="stations-canvas" id="stationsCanvas" data-vb-w="1400" data-vb-h="900">
+
+        <svg class="stations-canvas__links"
+             id="canvasLinksSvg"
+             viewBox="0 0 1400 900"
+             preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
+            <g id="canvasLinks"></g>
+        </svg>
+
+        <div class="stations-canvas__nodes" id="canvasNodes">
+            {% for c in cards %}
+            {% with st=c.station %}
+            <div class="station-node"
+                 data-slug="{{ st.slug }}"
+                 data-id="{{ st.id }}"
+                 data-x="{{ st.x|floatformat:0 }}"
+                 data-y="{{ st.y|floatformat:0 }}">
+
+                <div class="station-node__head">
+                    <span class="station-node__name">{{ st.name }}</span>
+                    <span class="station-node__slug">{{ st.slug }}</span>
+                </div>
+
+                {% if st.devices.all %}
+                <div class="station-node__section">
+                    <div class="station-node__section-title">Коммутаторы</div>
+                    {% for sd in st.devices.all %}
+                        <div class="station-node__eq">
+                            <span class="station-node__dot station-node__dot--{{ sd.device.status }}"></span>
+                            <span class="station-node__eq-icon">🔌</span>
+                            <span class="station-node__eq-name">{{ sd.device.name }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if st.nes.all %}
+                <div class="station-node__section">
+                    <div class="station-node__section-title">Мультиплексоры</div>
+                    {% for sn in st.nes.all %}
+                        <div class="station-node__eq">
+                            <span class="station-node__dot station-node__dot--{{ sn.ne.status }}"></span>
+                            <span class="station-node__eq-icon">🛰</span>
+                            <span class="station-node__eq-name">NE-{{ sn.ne.ne_id }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if not st.devices.all and not st.nes.all %}
+                    <div class="station-node__empty">пусто</div>
+                {% endif %}
+
+                <div class="station-node__foot">
+                    <span class="station-node__links" title="Линий">
+                        <i class="bi bi-link-45deg"></i> {{ c.links_count }}
+                    </span>
+                    <div class="station-node__actions">
+                        <button class="station-node__btn" type="button"
+                                title="Добавить линию"
+                                onclick="event.stopPropagation(); window.openLinkAddForStation('{{ st.slug }}');">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <button class="station-node__btn" type="button"
+                                title="Подробности"
+                                onclick="event.stopPropagation(); window.openStationModal('{{ st.slug }}');">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+            {% empty %}
+            <div class="stations-canvas__empty">Станций нет. Нажмите «Добавить станцию».</div>
+            {% endfor %}
+        </div>
+
+        <div id="canvasTooltip" class="canvas-tooltip" hidden></div>
+    </div>
+</div>

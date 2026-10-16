@@ -1,0 +1,38 @@
+[project]
+name = "cerber"
+version = "0.1.0"
+description = "Cerberus — multi-vendor SNMP monitoring (D-Link / Eltex / MikroTik)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "django>=5.0,<5.1",
+    "psycopg[binary]>=3.1",
+    "redis>=5.0",
+    "celery>=5.3",
+    "django-celery-beat>=2.6",
+    "pysnmp>=6.2,<7.0",
+    "pysmi>=1.4",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "djangorestframework>=3.15",
+    "aiogram>=3.4",
+    "structlog>=24.1",
+    "rich>=13.7",
+
+    # prod
+    "gunicorn>=22.0",
+    "whitenoise>=6.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "django-debug-toolbar>=4.3",
+    "django-extensions>=3.2",
+    "ipython>=8.20",
+    "ruff>=0.4",
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

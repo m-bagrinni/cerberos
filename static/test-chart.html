@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Chart.js Test</title>
+    <script src="/static/vendor/js/chart.umd.min.js"></script>
+</head>
+<body style="background:#111217;padding:20px;font-family:sans-serif">
+    <h1 style="color:#ccc">Chart.js Test: 13 одинаковых точек</h1>
+    <div style="background:#181b1f;padding:20px;border-radius:4px;height:300px">
+        <canvas id="testChart"></canvas>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var values = [50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722, 50.722];
+            var labels = values.map((_, i) => 'pt' + (i+1));
+            var mn = Math.min.apply(null, values);
+            var mx = Math.max.apply(null, values);
+            new Chart(document.getElementById('testChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Test',
+                        data: values,
+                        borderColor: '#ff780a',
+                        backgroundColor: '#ff780a22',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#ff780a',
+                        tension: 0.3,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#ccc' } } },
+                    scales: {
+                        x: { grid: { color: '#2c3235' }, ticks: { color: '#8e8e8e' } },
+                        y: { grid: { color: '#2c3235' }, ticks: { color: '#8e8e8e' },
+                             min: mn - 0.5, max: mx + 0.5 }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ device.name }} — Интерфейсы — Cerberus{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/port-control.js' %}?v=1"></script>
+{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom:16px">
+    <a href="{% url 'device_detail' device.ip %}" class="c-muted" style="text-decoration:none;font-size:13px">
+        ← {{ device.name }}
+    </a>
+</div>
+
+<div style="margin-bottom:24px">
+    <h1 style="font-size:24px;font-weight:700;margin:0">Интерфейсы</h1>
+    <div class="c-muted" style="font-size:13px;margin-top:4px">
+        {{ device.name }} — {{ device.ip }} · всего: {{ interfaces|length }}
+    </div>
+</div>
+
+{% include "core/_device_tabs.html" with device=device tab="interfaces" %}
+
+<div class="c-card">
+    {% if rows %}
+    <table class="c-table">
+        <thead>
+            <tr>
+                <th style="width:50px">#</th>
+                <th>Имя</th>
+                <th>Описание</th>
+                <th style="width:70px">Тип</th>
+                <th style="width:80px">Speed</th>
+                <th style="width:70px">Статус</th>
+                <th style="width:60px">PVID</th>
+                <th style="width:120px">In / Out</th>
+                <th style="width:100px">Errors</th>
+                <th>VLAN</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td class="c-mono c-muted" style="font-size:11px">{{ row.iface.if_index }}</td>
+                <td style="font-weight:500">{{ row.iface.name|default:"—" }}</td>
+                <td class="c-muted" style="font-size:12px">{{ row.iface.alias|default:"" }}</td>
+                <td>
+                    {% if row.iface.is_physical %}<span class="c-status c-status--ok" style="font-size:10px">phys</span>
+                    {% elif row.iface.is_vlan %}<span class="c-status c-status--unknown" style="font-size:10px">vlan</span>
+                    {% elif row.iface.is_svi %}<span class="c-status" style="background:#ddd6fe;color:#5b21b6;font-size:10px">svi</span>
+                    {% else %}<span class="c-muted" style="font-size:11px">t={{ row.iface.if_type }}</span>{% endif %}
+                </td>
+                <td class="c-mono" style="font-size:11px">
+                    {% if row.iface.speed_mbps %}{{ row.iface.speed_mbps }} M{% else %}—{% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:6px" data-iface-row data-iface-id="{{ row.iface.id }}">
+                        {% if row.iface.admin_status == 1 %}
+                            <span class="c-status c-status--ok" style="font-size:11px">up</span>
+                        {% else %}
+                            <span class="c-status c-status--crit" style="font-size:11px">down</span>
+                        {% endif %}
+                        {% if user.is_staff %}
+                        <button class="port-toggle-btn"
+                                data-iface-id="{{ row.iface.id }}"
+                                data-iface-name="{{ row.iface.name }}"
+                                data-current-admin="{{ row.iface.admin_status }}"
+                                title="{% if row.iface.admin_status == 1 %}Выключить порт{% else %}Включить порт{% endif %}"
+                                style="background:none;border:none;cursor:pointer;padding:2px;
+                                       color:#6b7280;transition:color 120ms">
+                            {% if row.iface.admin_status == 1 %}
+                                <i class="bi bi-power"></i>
+                            {% else %}
+                                <i class="bi bi-power" style="color:#10b981"></i>
+                            {% endif %}
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="c-mono" style="font-size:11px">{{ row.iface.pvid|default:"—" }}</td>
+                <td class="c-mono" style="font-size:11px">
+                    {% if row.sample and row.sample.in_bps is not None %}
+                        <span title="Входящий трафик">↓ {{ row.sample.in_bps|filesizeformat }}/s</span><br>
+                        <span title="Исходящий трафик">↑ {{ row.sample.out_bps|filesizeformat }}/s</span>
+                    {% else %}
+                        <span class="c-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="c-mono" style="font-size:11px">
+                    {% if row.sample %}
+                        {% if row.sample.in_errors or row.sample.out_errors %}
+                            <span style="color:#ef4444">
+                                ↓{{ row.sample.in_errors|default:0 }} ↑{{ row.sample.out_errors|default:0 }}
+                            </span>
+                        {% else %}
+                            <span class="c-muted">0</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="c-muted">—</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:11px">
+                    {% with links=row.iface.vlan_links.all %}
+                    {% if links %}
+                        {% for l in links %}
+                            <span class="c-status {% if l.is_tagged %}c-status--unknown{% else %}c-status--ok{% endif %}"
+                                  style="font-size:10px;margin-right:3px"
+                                  title="{% if l.is_tagged %}tagged{% else %}untagged{% endif %}">
+                                {{ l.vlan.vlan_id }}{% if l.is_tagged %}T{% else %}U{% endif %}
+                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="c-muted">—</span>
+                    {% endif %}
+                    {% endwith %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="c-empty">
+        <i class="bi bi-ethernet" style="font-size:48px;opacity:0.4"></i>
+        <p>Интерфейсы не собраны</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

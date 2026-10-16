@@ -1,0 +1,266 @@
+<div class="ne-tabs">
+    <button class="ne-tab is-active" data-ne-tab="overview">
+        <i class="bi bi-list-ul"></i> Обзор
+    </button>
+    <button class="ne-tab" data-ne-tab="charts">
+        <i class="bi bi-graph-up"></i> Графики
+    </button>
+</div>
+
+<div class="ne-tab-content is-active" data-ne-tab-content="overview">
+    <div class="ne-detail">
+        <div class="ne-detail__meta" style="position:relative; padding-right:140px;">
+            <button class="btn btn--primary ne-poll-btn"
+                    style="position:absolute; top:8px; right:8px; font-size:12px; padding:5px 12px;"
+                    onclick="pollNeNow({{ ne.id }});">
+                <i class="bi bi-arrow-clockwise"></i> Опросить
+            </button>
+            <span class="ne-detail__badge ne-detail__badge--{{ ne.status }}">
+                {{ ne.status_emoji }} {{ ne.get_status_display }}
+            </span>
+            <span class="ne-detail__gateway">Шлюз: {{ ne.gateway.name }} ({{ ne.gateway.ip }})</span>
+            <span class="ne-detail__ne-id">NE-{{ ne.ne_id }}</span>
+            {% if ne.ne_ip %}<span class="ne-detail__ip">{{ ne.ne_ip }}</span>{% endif %}
+        </div>
+
+        <h3 class="ne-detail__section">SFP порты (SNMP 1, 2, 3)</h3>
+        <div class="ne-sfp-grid">
+            {% for port, d in sfp.items %}
+            <div class="ne-sfp-card {% if d.link == 1 %}ne-sfp-card--up{% else %}ne-sfp-card--down{% endif %}">
+                <div class="ne-sfp-card__header">
+                    <span class="ne-sfp-card__port">SFP{{ port }}</span>
+                    <span class="ne-sfp-card__link">
+                        {% if d.link == 1 %}🟢 UP{% elif d.link == 0 %}🔴 DOWN{% else %}⚪ —{% endif %}
+                    </span>
+                </div>
+                {% if d.vendor %}
+                <div class="ne-sfp-card__vendor">{{ d.vendor }}{% if d.pn %} / {{ d.pn }}{% endif %}</div>
+                {% if d.sn %}<div class="ne-sfp-card__sn text-muted">SN: {{ d.sn }}</div>{% endif %}
+                {% else %}
+                <div class="ne-sfp-card__vendor text-muted">Модуль не установлен</div>
+                {% endif %}
+                <div class="ne-sfp-card__rows">
+                    <div class="ne-sfp-card__row"><span>Температура</span><b>{% if d.temp %}{{ d.temp|floatformat:2 }} °C{% else %}—{% endif %}</b></div>
+                    <div class="ne-sfp-card__row"><span>RX мощность</span><b>{% if d.rx %}{{ d.rx|floatformat:2 }} dBm{% else %}—{% endif %}</b></div>
+                    <div class="ne-sfp-card__row"><span>TX мощность</span><b>{% if d.tx %}{{ d.tx|floatformat:2 }} dBm{% else %}—{% endif %}</b></div>
+                    <div class="ne-sfp-card__row"><span>Ток смещения</span><b>{% if d.bias %}{{ d.bias|floatformat:2 }} mA{% else %}—{% endif %}</b></div>
+                    <div class="ne-sfp-card__row"><span>Напряжение</span><b>{% if d.voltage %}{{ d.voltage|floatformat:3 }} V{% else %}—{% endif %}</b></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <h3 class="ne-detail__section">Ethernet порты (LAN1-LAN4)</h3>
+        <div class="ne-lan-grid">
+            {% for port, d in lan.items %}
+            <div class="ne-lan-card">
+                <div class="ne-lan-card__header">
+                    <span class="ne-lan-card__port">LAN{{ forloop.counter }}</span>
+                    <span class="ne-lan-card__status">
+                        {% if d.link == 'up' %}🟢 link
+                        {% elif d.link == 'down' %}🔴 down
+                        {% else %}⚪ —{% endif %}
+                    </span>
+                </div>
+                <div class="ne-lan-card__rows">
+                    <div class="ne-lan-card__row"><span>PVID</span><b>{% if d.pvid %}{{ d.pvid|floatformat:0 }}{% else %}—{% endif %}</b></div>
+                    <div class="ne-lan-card__row"><span>Mode</span><b>{{ d.mode_display|default:"—" }}</b></div>
+                    <div class="ne-lan-card__row"><span>Enable</span><b>{% if d.enable == 1 %}да{% else %}нет{% endif %}</b></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="ne-tab-content" data-ne-tab-content="charts">
+    <div class="ne-charts-toolbar">
+        <div class="ne-charts-range">
+            <button class="ne-range is-active" data-hours="1">1ч</button>
+            <button class="ne-range" data-hours="6">6ч</button>
+            <button class="ne-range" data-hours="24">24ч</button>
+            <button class="ne-range" data-hours="168">7д</button>
+        </div>
+        <div class="ne-charts-port">
+            <span class="text-muted">SFP:</span>
+            <button class="ne-sfp-sel is-active" data-instance="1">SFP1</button>
+            <button class="ne-sfp-sel" data-instance="2">SFP2</button>
+        </div>
+    </div>
+
+    <div class="ne-charts-grid">
+        <div class="ne-chart-card">
+            <h4 class="ne-chart-card__title">Температура (°C)</h4>
+            <div class="ne-chart-card__canvas"><canvas id="ne-chart-temp"></canvas></div>
+        </div>
+        <div class="ne-chart-card">
+            <h4 class="ne-chart-card__title">RX мощность (dBm)</h4>
+            <div class="ne-chart-card__canvas"><canvas id="ne-chart-rx"></canvas></div>
+        </div>
+        <div class="ne-chart-card">
+            <h4 class="ne-chart-card__title">TX мощность (dBm)</h4>
+            <div class="ne-chart-card__canvas"><canvas id="ne-chart-tx"></canvas></div>
+        </div>
+        <div class="ne-chart-card">
+            <h4 class="ne-chart-card__title">Ток смещения (mA)</h4>
+            <div class="ne-chart-card__canvas"><canvas id="ne-chart-bias"></canvas></div>
+        </div>
+        <div class="ne-chart-card">
+            <h4 class="ne-chart-card__title">Напряжение (V)</h4>
+            <div class="ne-chart-card__canvas"><canvas id="ne-chart-voltage"></canvas></div>
+        </div>
+    </div>
+
+    <h3 class="ne-detail__section">Трафик LAN (RX)</h3>
+    <div class="ne-charts-toolbar">
+        <div class="ne-charts-range">
+            <button class="ne-range-traffic is-active" data-hours="1">1ч</button>
+            <button class="ne-range-traffic" data-hours="6">6ч</button>
+            <button class="ne-range-traffic" data-hours="24">24ч</button>
+            <button class="ne-range-traffic" data-hours="168">7д</button>
+        </div>
+        <div class="ne-charts-port">
+            <span class="text-muted">Вид:</span>
+            <button class="ne-traffic-mode is-active" data-mode="speed">Мбит/с</button>
+            <button class="ne-traffic-mode" data-mode="total">МБ (всего)</button>
+        </div>
+    </div>
+    <div class="ne-chart-card ne-chart-card--traffic">
+        <div class="ne-chart-card__canvas"><canvas id="ne-chart-traffic"></canvas></div>
+    </div>
+
+    <div class="ne-charts-empty" id="ne-charts-empty" style="display:none;">
+        <p>Нет данных для отображения.</p>
+        <p class="text-muted">Запустите опрос несколько раз, чтобы накопилась история.</p>
+    </div>
+</div>
+
+<script src="/static/vendor/chart.js/chart.min.js"></script>
+<script>
+(function() {
+    if (window.__neModalInit) return;
+    window.__neModalInit = true;
+
+    var neId = {{ ne.id }};
+    var charts = {};
+    var currentHours = 1;
+    var currentPort = "1";
+    var loadedOnce = false;
+
+    function cssVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
+    }
+
+    function bindControls() {
+        document.querySelectorAll('.ne-tab').forEach(function(tab) {
+            tab.onclick = function() {
+                var target = tab.dataset.neTab;
+                document.querySelectorAll('.ne-tab').forEach(function(t){
+                    t.classList.toggle('is-active', t === tab);
+                });
+                document.querySelectorAll('.ne-tab-content').forEach(function(c){
+                    c.classList.toggle('is-active', c.dataset.neTabContent === target);
+                });
+                if (target === 'charts' && !loadedOnce) {
+                    loadedOnce = true;
+                    loadAllCharts();
+                }
+            };
+        });
+        document.querySelectorAll('.ne-range').forEach(function(btn) {
+            btn.onclick = function() {
+                document.querySelectorAll('.ne-range').forEach(function(b){
+                    b.classList.remove('is-active');
+                });
+                btn.classList.add('is-active');
+                currentHours = parseInt(btn.dataset.hours, 10);
+                loadAllCharts();
+            };
+        });
+        document.querySelectorAll('.ne-sfp-sel').forEach(function(btn) {
+            btn.onclick = function() {
+                document.querySelectorAll('.ne-sfp-sel').forEach(function(b){
+                    b.classList.remove('is-active');
+                });
+                btn.classList.add('is-active');
+                currentPort = btn.dataset.instance;
+                loadAllCharts();
+            };
+        });
+    }
+
+    function loadAllCharts() {
+        loadChart('ne-chart-temp',    'sfp_temp',    '°C',  '--primary');
+        loadChart('ne-chart-rx',      'sfp_rx_dbm',  'dBm', '--tiffany');
+        loadChart('ne-chart-tx',      'sfp_tx_dbm',  'dBm', '--ok');
+        loadChart('ne-chart-bias',    'sfp_bias',    'mA',  '--warn');
+        loadChart('ne-chart-voltage', 'sfp_voltage', 'V',   '--text-strong');
+    }
+
+    function loadChart(canvasId, key, unit, colorVar) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        var url = '/api/v1/ne/' + neId + '/metric-history/?key=' + key +
+                  '&instance=' + currentPort + '&hours=' + currentHours + '&limit=500';
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var points = data.points || [];
+                if (!points.length) {
+                    if (charts[canvasId]) { charts[canvasId].destroy(); delete charts[canvasId]; }
+                    return;
+                }
+                var labels = points.map(function(p) {
+                    var d = new Date(p.ts);
+                    return d.toLocaleString('ru-RU', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'});
+                });
+                var values = points.map(function(p) { return p.value; });
+
+                if (charts[canvasId]) {
+                    charts[canvasId].data.labels = labels;
+                    charts[canvasId].data.datasets[0].data = values;
+                    charts[canvasId].update('none');
+                } else {
+                    var color = cssVar(colorVar);
+                    charts[canvasId] = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: unit,
+                                data: values,
+                                borderColor: color,
+                                backgroundColor: color + '22',
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                tension: 0.3,
+                                fill: true,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: {
+                                    grid: { color: '#2c3235' },
+                                    ticks: { color: '#8e8e8e', maxTicksLimit: 6 }
+                                },
+                                y: {
+                                    grid: { color: '#2c3235' },
+                                    ticks: { color: '#8e8e8e' }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(function(e) { console.error('chart error', key, e); });
+    }
+
+    bindControls();
+})();
+</script>

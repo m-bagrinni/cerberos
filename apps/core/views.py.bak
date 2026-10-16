@@ -1,0 +1,295 @@
+"""Views для веб-интерфейса."""
+from django.db.models import Count
+from django.shortcuts import get_object_or_404, render
+
+from apps.devices.models import Device, DeviceDiscovery, Vendor
+from apps.monitoring.models import Interface, InterfaceSample, MetricValue, Vlan
+
+
+def dashboard(request):
+    """Master-detail: слева список устройств, справа — детали выбранного."""
+    devices = list(
+        Device.objects.select_related("vendor", "profile", "profile_override")
+        .order_by("name")
+    )
+
+    total = len(devices)
+    ok = sum(1 for d in devices if d.status == Device.STATUS_OK)
+    unreachable = sum(1 for d in devices if d.status == Device.STATUS_UNREACHABLE)
+    unknown = sum(1 for d in devices if d.status == Device.STATUS_UNKNOWN)
+
+    # выбранное устройство: из query ?ip=... или первое в списке
+    selected_ip = request.GET.get("ip")
+    selected_device = None
+    if selected_ip:
+        selected_device = next((d for d in devices if d.ip == selected_ip), None)
+    if not selected_device and devices:
+        selected_device = devices[0]
+
+    context = {
+        "devices": devices,
+        "selected_device": selected_device,
+        "stats": {
+            "total": total,
+            "ok": ok,
+            "unreachable": unreachable,
+            "unknown": unknown,
+        },
+    }
+    return render(request, "core/dashboard.html", context)
+
+
+def device_panel(request, ip):
+    """HTML-фрагмент правой панели — детали устройства. Для HTMX-обновлений."""
+    device = get_object_or_404(
+        Device.objects.select_related("vendor", "profile", "profile_override"),
+        ip=ip,
+    )
+
+    profile = device.effective_profile
+    metrics = []
+    latest = {}
+    if profile:
+        metrics = list(profile.get_effective_metrics().values())
+        for m in metrics:
+            latest[m.key] = (
+                MetricValue.objects.filter(device=device, metric=m)
+                .order_by("-ts")
+                .first()
+            )
+
+    iface_count = Interface.objects.filter(
+        device=device,
+        if_type__in=Interface.PHYSICAL_IF_TYPES,
+        if_index__lt=1024,
+    ).count()
+
+    top_ports = []
+    if iface_count:
+        from django.db.models import F
+        recent_ts = (
+            InterfaceSample.objects
+            .filter(interface__device=device)
+            .order_by("-ts")
+            .values_list("ts", flat=True)
+            .first()
+        )
+        if recent_ts:
+            top_ports = list(
+                InterfaceSample.objects
+                .filter(interface__device=device, ts=recent_ts)
+                .select_related("interface")
+                .order_by(F("in_bps").desc(nulls_last=True))[:5]
+            )
+
+    context = {
+        "device": device,
+        "metrics": metrics,
+        "latest": latest,
+        "iface_count": iface_count,
+        "top_ports": top_ports,
+    }
+    return render(request, "core/_device_panel.html", context)
+
+
+
+def devices_list(request):
+    devices = Device.objects.select_related(
+        "vendor", "profile", "profile_override"
+    ).order_by("name")
+    return render(request, "core/devices_list.html", {"devices": devices})
+
+
+def device_detail(request, ip):
+    device = get_object_or_404(
+        Device.objects.select_related("vendor", "profile", "profile_override"),
+        ip=ip,
+    )
+    context = {
+        "device": device,
+        "metrics_count": (
+            len(device.effective_profile.get_effective_metrics())
+            if device.effective_profile else 0
+        ),
+        "interfaces_count": Interface.objects.filter(
+            device=device,
+            if_type__in=Interface.PHYSICAL_IF_TYPES,
+            if_index__lt=1024,
+        ).count(),
+        "tab": "overview",
+    }
+    return render(request, "core/device_detail.html", context)
+
+
+def device_metrics(request, ip):
+    device = get_object_or_404(Device, ip=ip)
+    metrics = []
+    metric_values = {}
+    if device.effective_profile:
+        metrics = list(device.effective_profile.get_effective_metrics().values())
+        for m in metrics:
+            metric_values[m.key] = (
+                MetricValue.objects.filter(device=device, metric=m)
+                .order_by("-ts")
+                .first()
+            )
+    context = {
+        "device": device,
+        "metrics": metrics,
+        "metric_values": metric_values,
+        "tab": "metrics",
+    }
+    return render(request, "core/device_metrics.html", context)
+
+
+def device_interfaces(request, ip):
+    device = get_object_or_404(Device, ip=ip)
+
+    # Только физические порты (ifType=6 ethernetCsmacd, ifIndex < 1024)
+    interfaces = list(
+        Interface.objects.filter(
+            device=device,
+            if_type__in=Interface.PHYSICAL_IF_TYPES,
+            if_index__lt=1024,
+        )
+        .prefetch_related("vlan_links__vlan")
+        .order_by("if_index")
+    )
+
+    # последний сэмпл трафика для каждого интерфейса
+    samples_by_idx = {}
+    for i in interfaces:
+        s = i.samples.order_by("-ts").first()
+        if s:
+            samples_by_idx[i.if_index] = s
+
+    # есть ли SFP-модули
+    sfp_by_idx = {}
+    for i in interfaces:
+        try:
+            sfp_by_idx[i.if_index] = i.sfp
+        except Exception:
+            pass
+
+    rows = [
+        {
+            "iface": i,
+            "sample": samples_by_idx.get(i.if_index),
+            "sfp": sfp_by_idx.get(i.if_index),
+        }
+        for i in interfaces
+    ]
+
+    context = {
+        "device": device,
+        "interfaces": interfaces,
+        "rows": rows,
+        "tab": "interfaces",
+    }
+    return render(request, "core/device_interfaces.html", context)
+
+
+
+def device_sfp(request, ip):
+    """Страница SFP-модулей (DDM)."""
+    device = get_object_or_404(Device, ip=ip)
+    interfaces = Interface.objects.filter(device=device).order_by("if_index")
+
+    sfps = []
+    for i in interfaces:
+        try:
+            sfps.append(i.sfp)
+        except Exception:
+            pass
+
+    context = {
+        "device": device,
+        "sfps": sfps,
+        "tab": "sfp",
+    }
+    return render(request, "core/device_sfp.html", context)
+
+
+
+def device_vlans(request, ip):
+    device = get_object_or_404(Device, ip=ip)
+    vlans = Vlan.objects.filter(device=device).order_by("vlan_id")
+    context = {"device": device, "vlans": vlans, "tab": "vlans"}
+    return render(request, "core/device_vlans.html", context)
+
+
+def discoveries_list(request):
+    discoveries = (
+        DeviceDiscovery.objects.select_related("device").order_by("-created_at")[:100]
+    )
+    return render(request, "core/discoveries_list.html", {"discoveries": discoveries})
+
+
+def discovery_detail(request, pk):
+    discovery = get_object_or_404(
+        DeviceDiscovery.objects.select_related("device"), pk=pk
+    )
+    return render(request, "core/discovery_detail.html", {
+        "discovery": discovery,
+        "rows": discovery.snapshot or [],
+    })
+
+
+# ============================================================
+# Глобальные табы (верхний уровень навигации)
+# ============================================================
+
+def tab_metrics(request):
+    """
+    Таб «Метрики» — агрегатор графиков по всем устройствам.
+    Пока каркас: список устройств + их метрики (наполним позже).
+    """
+    devices = list(
+        Device.objects.select_related("vendor", "profile", "profile_override")
+        .order_by("name")
+    )
+
+    # Собираем метрики каждого устройства — для дальнейшей отрисовки
+    devices_with_metrics = []
+    for d in devices:
+        profile = d.effective_profile
+        if not profile:
+            devices_with_metrics.append({"device": d, "metrics": []})
+            continue
+        metrics = list(profile.get_effective_metrics().values())
+        devices_with_metrics.append({"device": d, "metrics": metrics})
+
+    context = {
+        "devices_with_metrics": devices_with_metrics,
+        "tab": "metrics",
+    }
+    return render(request, "core/tab_metrics.html", context)
+
+
+def tab_sfp(request):
+    """
+    Таб «SFP/DDM» — все SFP-модули всех устройств.
+    Пока каркас: список устройств + их SFP (наполним позже).
+    """
+    devices = list(
+        Device.objects.select_related("vendor", "profile", "profile_override")
+        .order_by("name")
+    )
+
+    # Собираем SFP каждого устройства
+    devices_with_sfp = []
+    for d in devices:
+        interfaces = Interface.objects.filter(device=d).order_by("if_index")
+        sfps = []
+        for i in interfaces:
+            try:
+                sfps.append(i.sfp)
+            except Exception:
+                pass
+        devices_with_sfp.append({"device": d, "sfps": sfps})
+
+    context = {
+        "devices_with_sfp": devices_with_sfp,
+        "tab": "sfp",
+    }
+    return render(request, "core/tab_sfp.html", context)

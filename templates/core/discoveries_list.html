@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Discovery-снимки — Cerberus{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom:24px">
+    <h1 style="font-size:24px;font-weight:700;margin:0">Discovery-снимки</h1>
+    <p class="c-muted" style="margin:4px 0 0;font-size:13px">
+        Результаты обхода устройств — для заведения профилей и метрик
+    </p>
+</div>
+
+<div class="c-card">
+    {% if discoveries %}
+    <table class="c-table">
+        <thead>
+            <tr>
+                <th>Устройство</th>
+                <th>IP</th>
+                <th>Заметка</th>
+                <th style="width:100px">Строк</th>
+                <th style="width:160px">Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in discoveries %}
+            <tr>
+                <td>
+                    <a href="{% url 'discovery_detail' d.pk %}" class="c-table__link">
+                        {{ d.device.name }}
+                    </a>
+                </td>
+                <td class="c-mono c-muted" style="font-size:12px">{{ d.device.ip }}</td>
+                <td class="c-muted" style="font-size:13px">{{ d.note|default:"—" }}</td>
+                <td>{{ d.snapshot|length }}</td>
+                <td class="c-muted" style="font-size:13px">{{ d.created_at|date:"d.m.Y H:i:s" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="c-empty">
+        <i class="bi bi-radar" style="font-size:48px;opacity:0.4"></i>
+        <p>Discovery-снимков пока нет</p>
+        <p class="c-muted" style="font-size:13px;margin-top:12px">
+            Запусти команду для обхода устройства:
+        </p>
+        <code class="c-mono" style="display:inline-block;padding:8px 16px;background:#f3f4f6;
+                                     border-radius:6px;font-size:12px;margin-top:8px">
+            manage.py discover &lt;IP&gt; --save
+        </code>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

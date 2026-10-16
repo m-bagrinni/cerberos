@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Алерты — Cerberus{% endblock %}
+
+{% block content %}
+
+<div class="dash-header">
+    <div>
+        <h1>Алерты</h1>
+        <div class="dash-header__subtitle">
+            {% if counts.firing_crit %}
+            <span class="dash-header__stat dash-header__stat--crit">
+                <i class="bi bi-circle-fill" style="font-size:8px"></i>
+                {{ counts.firing_crit }} critical
+            </span>
+            {% endif %}
+            {% if counts.firing_warn %}
+            <span class="dash-header__stat" style="color:var(--warn)">
+                <i class="bi bi-circle-fill" style="font-size:8px"></i>
+                {{ counts.firing_warn }} warning
+            </span>
+            {% endif %}
+            {% if not counts.firing_total %}
+            <span class="dash-header__stat dash-header__stat--ok">
+                <i class="bi bi-check-circle"></i>
+                Все системы в норме
+            </span>
+            {% endif %}
+            <span class="c-muted">· история: {{ counts.resolved_total }}</span>
+        </div>
+    </div>
+</div>
+
+{% if firing %}
+<section class="alerts-section">
+    <div class="alerts-section__title">
+        <span class="device-group__dot device-group__dot--crit"></span>
+        Активные ({{ counts.firing_total }})
+    </div>
+    <div class="alerts-grid">
+        {% for a in firing %}
+        <article class="alert-card alert-card--{{ a.severity }}">
+            <header class="alert-card__header">
+                <span class="alert-card__emoji">{{ a.severity_emoji }}</span>
+                <span class="alert-card__severity">{{ a.severity|upper }}</span>
+                <span class="alert-card__ago">{{ a.started_at|timesince }} назад</span>
+            </header>
+            <div class="alert-card__device">
+                {% if a.ne_device %}
+                    <div class="alert-card__device-line">
+                        <span class="alert-card__ne-badge">NE-{{ a.ne_device.ne_id }}</span>
+                        <span class="alert-card__ne-name">{{ a.ne_device.display_name }}</span>
+                    </div>
+                {% else %}
+                    <a href="/devices/{{ a.device.ip }}/" class="alert-card__device-link">
+                        {{ a.device.name }}
+                    </a>
+                    <span class="c-mono c-muted" style="font-size:11px">{{ a.device.ip }}</span>
+                {% endif %}
+            </div>
+            <div class="alert-card__metric">
+                <span class="alert-card__metric-key c-mono">{{ a.metric_key }}</span>
+                {% if a.metric %}<span class="alert-card__metric-name">{{ a.metric.name }}</span>{% endif %}
+            </div>
+            <div class="alert-card__value">
+                <span class="alert-card__value-num">{{ a.value|floatformat:2 }}</span>
+                {% if a.metric.unit %}<span class="alert-card__value-unit">{{ a.metric.unit }}</span>{% endif %}
+                <span class="alert-card__value-threshold">≥ {{ a.threshold|floatformat:2 }}</span>
+            </div>
+            <div class="alert-card__message c-muted">{{ a.message }}</div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+<div class="alerts-empty">
+    <i class="bi bi-shield-check"></i>
+    <p>Активных алертов нет</p>
+    <p class="c-muted" style="font-size:13px">Все метрики в норме</p>
+</div>
+{% endif %}
+
+{% if resolved %}
+<section class="alerts-section" style="margin-top:32px">
+    <div class="alerts-section__title">
+        <i class="bi bi-clock-history"></i>
+        История (последние {{ counts.resolved_total }})
+    </div>
+    <div class="c-card">
+        <table class="c-table">
+            <thead>
+                <tr>
+                    <th style="width:80px">Уровень</th>
+                    <th>Устройство</th>
+                    <th>Метрика</th>
+                    <th style="width:120px">Значение</th>
+                    <th style="width:100px">Порог</th>
+                    <th style="width:180px">Начало</th>
+                    <th style="width:180px">Разрешён</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in resolved %}
+                <tr>
+                    <td>
+                        <span class="c-status c-status--{% if a.severity == 'crit' %}crit{% else %}warn{% endif %}" style="font-size:10px">
+                            {{ a.severity }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if a.ne_device %}
+                            <span class="alert-card__ne-badge">NE-{{ a.ne_device.ne_id }}</span>
+                            <span style="font-weight:500">{{ a.ne_device.display_name }}</span>
+                        {% else %}
+                            <span style="font-weight:500">{{ a.device.name }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="c-mono" style="font-size:11px">{{ a.metric_key }}</td>
+                    <td class="c-mono" style="font-size:11px">{{ a.value|floatformat:2 }}</td>
+                    <td class="c-mono c-muted" style="font-size:11px">≥ {{ a.threshold|floatformat:2 }}</td>
+                    <td class="c-muted" style="font-size:11px">{{ a.started_at|date:"d.m.Y H:i:s" }}</td>
+                    <td class="c-muted" style="font-size:11px">{{ a.resolved_at|date:"d.m.Y H:i:s"|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}

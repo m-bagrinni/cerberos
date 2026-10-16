@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Мультиплексоры{% endblock %}
+
+{% block content %}
+<div class="app-main__header" style="position:relative;">
+    <button class="btn btn--primary"
+            style="position:absolute; top:0; right:0;"
+            onclick="pollAllGateways();">
+        <i class="bi bi-arrow-clockwise"></i> Опросить все
+    </button>
+    <h1 class="app-main__title">Мультиплексоры</h1>
+    <p class="app-main__subtitle">
+        Всего: <b>{{ total }}</b> · онлайн: <b class="c-ok">{{ online }}</b>
+    </p>
+</div>
+
+<div class="ne-tabs ne-tabs--main">
+    <button class="ne-tab is-active" data-mux-tab="devices">
+        <i class="bi bi-grid"></i> Устройства
+    </button>
+    <button class="ne-tab" data-mux-tab="metrics">
+        <i class="bi bi-graph-up"></i> Метрики
+    </button>
+</div>
+
+<div class="ne-tab-content is-active" data-mux-tab-content="devices">
+    {% if cards %}
+    <div class="device-group device-group--ok">
+        {% include "core/_mux_summary.html" %}
+
+        {% include "core/_mux_grid_partial.html" %}
+    </div>
+    {% else %}
+    <div class="alerts-empty">
+        <p>Мультиплексоры не найдены.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="ne-tab-content" data-mux-tab-content="metrics">
+    <div class="mux-metrics-toolbar">
+        <div class="mux-metrics-group">
+            <label>Метрика</label>
+            <select id="mux-metric-key" class="ne-modal__input" style="width:220px">
+                <option value="sfp_rx_dbm">RX мощность (dBm)</option>
+                <option value="sfp_tx_dbm">TX мощность (dBm)</option>
+                <option value="sfp_temp">Температура (°C)</option>
+                <option value="sfp_bias">Ток смещения (mA)</option>
+                <option value="sfp_voltage">Напряжение (V)</option>
+            </select>
+        </div>
+        <div class="mux-metrics-group">
+            <label>Порт</label>
+            <select id="mux-metric-port" class="ne-modal__input" style="width:120px">
+                <option value="1">SFP1</option>
+                <option value="2">SFP2</option>
+            </select>
+        </div>
+        <div class="mux-metrics-group">
+            <label>Период</label>
+            <div class="ne-charts-range">
+                <button class="ne-range is-active" data-hours="1">1ч</button>
+                <button class="ne-range" data-hours="6">6ч</button>
+                <button class="ne-range" data-hours="24">24ч</button>
+                <button class="ne-range" data-hours="168">7д</button>
+            </div>
+        </div>
+        <div class="mux-metrics-group mux-metrics-group--right">
+            <button class="btn btn--primary" onclick="MuxMetrics.reload()">
+                <i class="bi bi-arrow-clockwise"></i> Обновить
+            </button>
+        </div>
+    </div>
+
+    <h3 class="ne-detail__section">Сравнение всех NE</h3>
+    <div class="ne-chart-card" style="height:340px">
+        <div class="ne-chart-card__canvas" style="height:300px"><canvas id="mux-chart-all"></canvas></div>
+    </div>
+
+    <h3 class="ne-detail__section">По каждому NE</h3>
+    <div class="mux-metrics-grid" id="mux-metrics-grid">
+        <div class="ne-modal__loading">Загрузка…</div>
+    </div>
+</div>
+
+<div id="ne-modal" class="ne-modal" style="display:none;">
+    <div class="ne-modal__overlay" onclick="closeNeModal()"></div>
+    <div class="ne-modal__content">
+        <div class="ne-modal__header">
+            <h2 class="ne-modal__title" id="ne-modal-title">NE</h2>
+            <button class="ne-modal__close" onclick="closeNeModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="ne-modal__body" id="ne-modal-body">
+            <div class="ne-modal__loading">Загрузка…</div>
+        </div>
+    </div>
+</div>
+
+<div id="ne-rename" class="ne-modal" style="display:none;">
+    <div class="ne-modal__overlay" onclick="closeNeRename()"></div>
+    <div class="ne-modal__content ne-modal__content--sm">
+        <div class="ne-modal__header">
+            <h2 class="ne-modal__title">Переименовать NE</h2>
+            <button class="ne-modal__close" onclick="closeNeRename()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="ne-modal__body">
+            <label class="ne-modal__label">
+                Имя
+                <input type="text" id="ne-rename-input" class="ne-modal__input" maxlength="128">
+            </label>
+            <div class="ne-modal__actions">
+                <button class="btn btn--ghost" onclick="closeNeRename()">Отмена</button>
+                <button class="btn btn--primary" onclick="submitNeRename()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.MUX_GATEWAY_IP = "{{ cards.0.ne.gateway.ip|default:'' }}";
+window.MUX_NE_LIST = [
+    {% for c in cards %}{"id": {{ c.ne.id }}, "ne_id": {{ c.ne.ne_id }}, "name": "{{ c.ne.display_name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
+];
+
+var _renameNeId = null;
+
+function getCookie(name) {
+    var m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return m ? decodeURIComponent(m[2]) : '';
+}
+
+function openNeModal(neId) {
+    var modal = document.getElementById('ne-modal');
+    var body = document.getElementById('ne-modal-body');
+    var title = document.getElementById('ne-modal-title');
+    var card = document.querySelector('[data-ne-id="' + neId + '"]');
+    var name = card ? card.querySelector('.device-card__name').textContent : ('NE-' + neId);
+    title.textContent = name;
+    body.innerHTML = '<div class="ne-modal__loading">Загрузка…</div>';
+    modal.style.display = 'flex';
+    fetch('/modal/ne/' + neId + '/')
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+            body.innerHTML = html;
+            if (window.NeModal) {
+                window.NeModal.bind(neId, body);
+            }
+        })
+        .catch(function() { body.innerHTML = '<div class="ne-modal__error">Ошибка загрузки</div>'; });
+}
+
+function closeNeModal() {
+    if (window.NeModal) {
+        try { window.NeModal.cleanup(); } catch (e) {}
+    }
+    var body = document.getElementById('ne-modal-body');
+    if (body) body.innerHTML = '';
+    document.getElementById('ne-modal').style.display = 'none';
+}
+
+function openNeRename(neId, currentName) {
+    _renameNeId = neId;
+    var inp = document.getElementById('ne-rename-input');
+    inp.value = currentName || '';
+    document.getElementById('ne-rename').style.display = 'flex';
+    setTimeout(function(){ inp.focus(); }, 50);
+}
+function closeNeRename() {
+    document.getElementById('ne-rename').style.display = 'none';
+    _renameNeId = null;
+}
+function submitNeRename() {
+    if (!_renameNeId) return;
+    var name = document.getElementById('ne-rename-input').value.trim();
+    fetch('/api/v1/ne/' + _renameNeId + '/rename/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({name: name})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+        if (data.ok) {
+            var card = document.querySelector('[data-ne-id="' + _renameNeId + '"]');
+            if (card) card.querySelector('.device-card__name').textContent = data.name;
+            closeNeRename();
+        } else {
+            alert('Ошибка: ' + (data.error || 'unknown'));
+        }
+    })
+    .catch(function(e){ alert('Ошибка сети: ' + e); });
+}
+
+// --- Главные вкладки страницы ---
+document.querySelectorAll('.ne-tabs--main .ne-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        var target = tab.dataset.muxTab;
+        document.querySelectorAll('.ne-tabs--main .ne-tab').forEach(function(t){
+            t.classList.toggle('is-active', t === tab);
+        });
+        document.querySelectorAll('[data-mux-tab-content]').forEach(function(c){
+            c.classList.toggle('is-active', c.dataset.muxTabContent === target);
+        });
+        if (target === 'metrics' && window.MuxMetrics) {
+            window.MuxMetrics.load();
+        }
+    });
+});
+
+// Клик по карточке NE
+document.addEventListener('click', function(e) {
+    var card = e.target.closest('.mux-card');
+    if (card && !e.target.closest('.device-card__edit')) {
+        openNeModal(card.dataset.neId);
+    }
+});
+</script>
+{% endblock %}

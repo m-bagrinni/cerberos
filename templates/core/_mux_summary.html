@@ -1,0 +1,44 @@
+{% if summary %}
+<div class="mux-summary">
+    <div class="mux-summary__card">
+        <div class="mux-summary__label">Всего NE</div>
+        <div class="mux-summary__value">{{ summary.total }}</div>
+        <div class="mux-summary__hint">
+            <span class="c-ok">{{ summary.online }}</span> онлайн
+            {% if summary.offline %} · <span class="c-crit">{{ summary.offline }}</span> оффлайн{% endif %}
+        </div>
+    </div>
+
+    <div class="mux-summary__card">
+        <div class="mux-summary__label">SFP линков up</div>
+        <div class="mux-summary__value">{{ summary.sfp_up }} <span class="c-muted" style="font-size:14px">/ {{ summary.sfp_total }}</span></div>
+        <div class="mux-summary__hint">портов с активным сигналом</div>
+    </div>
+
+    <div class="mux-summary__card">
+        <div class="mux-summary__label">Средний RX</div>
+        <div class="mux-summary__value">
+            {% if summary.avg_rx is not None %}{{ summary.avg_rx|floatformat:2 }} <span class="c-muted" style="font-size:14px">dBm</span>{% else %}—{% endif %}
+        </div>
+        <div class="mux-summary__hint">
+            {% if summary.min_rx is not None %}мин. {{ summary.min_rx|floatformat:2 }} dBm{% else %}—{% endif %}
+        </div>
+    </div>
+
+    <div class="mux-summary__card">
+        <div class="mux-summary__label">Средняя темп.</div>
+        <div class="mux-summary__value">
+            {% if summary.avg_temp is not None %}{{ summary.avg_temp|floatformat:1 }} <span class="c-muted" style="font-size:14px">°C</span>{% else %}—{% endif %}
+        </div>
+        <div class="mux-summary__hint">
+            {% if summary.max_temp is not None %}макс. {{ summary.max_temp|floatformat:1 }} °C{% else %}—{% endif %}
+        </div>
+    </div>
+
+    <div class="mux-summary__card {% if summary.bad_rx_count %}mux-summary__card--crit{% endif %}">
+        <div class="mux-summary__label">Проблемы RX</div>
+        <div class="mux-summary__value">{{ summary.bad_rx_count }}</div>
+        <div class="mux-summary__hint">RX &lt; −25 dBm</div>
+    </div>
+</div>
+{% endif %}
