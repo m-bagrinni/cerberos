@@ -1204,3 +1204,162 @@ body.map-fullscreen-active {
     background: rgba(255, 136, 0, .15);
     color: #ffa633;
 }
+
+/* ============================================================
+   Модалка станции — поверх карты в fullscreen
+   ============================================================ */
+.station-modal {
+    z-index: 10001 !important;
+}
+.station-modal__panel {
+    z-index: 10002 !important;
+}
+
+/* И модалка линии тоже */
+.link-modal,
+.link-details-modal {
+    z-index: 10001 !important;
+}
+
+/* Кнопка "Выйти (Esc)" для fullscreen — ниже модалки */
+.map-fullscreen-exit {
+    z-index: 9998;
+}
+
+/* ============================================================
+   Модалка станции — поверх карты в fullscreen
+   ============================================================ */
+.station-modal {
+    z-index: 10001 !important;
+}
+.station-modal__panel {
+    z-index: 10002 !important;
+}
+
+/* И модалка линии тоже */
+.link-modal,
+.link-details-modal {
+    z-index: 10001 !important;
+}
+
+/* Кнопка "Выйти (Esc)" для fullscreen — ниже модалки */
+.map-fullscreen-exit {
+    z-index: 9998;
+}
+
+/* ============================================================
+   Контейнеры модалок — поверх всего (в т.ч. поверх карты в fullscreen)
+   ============================================================ */
+#stationModalRoot,
+#linkModalRoot {
+    position: relative;
+    z-index: 10100;
+}
+
+/* Модалка станции — сама поверх карты */
+.station-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10101 !important;
+}
+.station-modal__panel {
+    position: relative !important;
+    z-index: 10102 !important;
+}
+
+/* Модалка линии — тоже */
+.link-modal,
+.link-details-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10101 !important;
+}
+
+/* Fullscreen карты — ниже модалок */
+.stations-map-wrap.is-fullscreen {
+    z-index: 9990 !important;
+}
+
+/* ============================================================
+   Оптические линии — эффекты
+   ============================================================ */
+
+/* Пульсация красного при обрыве */
+.leaflet-overlay-pane svg path.optical-link--crit {
+  animation: pulse-crit 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-crit {
+  0%, 100% { opacity: 0.55; stroke-width: 4; }
+  50%      { opacity: 1;    stroke-width: 5; }
+}
+
+/* Лёгкое мерцание жёлтого (warn/degraded) */
+.leaflet-overlay-pane svg path.optical-link--warn,
+.leaflet-overlay-pane svg path.optical-link--degraded {
+  animation: pulse-warn 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-warn {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+/* Зелёный — стабильный, но с лёгким свечением */
+.leaflet-overlay-pane svg path.optical-link--ok {
+  filter: drop-shadow(0 0 2px rgba(0, 255, 0, 0.5));
+}
+
+/* Unknown — синий пунктир без анимации */
+
+/* ============================================================
+   Оптические линии — эффекты
+   ============================================================ */
+
+/* Пульсация красного при обрыве */
+.leaflet-overlay-pane svg path.optical-link--crit {
+  animation: pulse-crit 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-crit {
+  0%, 100% { opacity: 0.55; stroke-width: 4; }
+  50%      { opacity: 1;    stroke-width: 5; }
+}
+
+/* Лёгкое мерцание жёлтого (warn/degraded) */
+.leaflet-overlay-pane svg path.optical-link--warn,
+.leaflet-overlay-pane svg path.optical-link--degraded {
+  animation: pulse-warn 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-warn {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+/* Зелёный — стабильный, но с лёгким свечением */
+.leaflet-overlay-pane svg path.optical-link--ok {
+  filter: drop-shadow(0 0 2px rgba(0, 255, 0, 0.5));
+}
+
+/* Unknown — синий пунктир без анимации */
+
+/* ============================================================
+   Ж/Д линии (tooltip)
+   ============================================================ */
+.leaflet-tooltip.rail-tooltip {
+    background: rgba(24, 27, 31, 0.95) !important;
+    color: var(--text, #ccccdc) !important;
+    border: 1px solid var(--border, #2c3235) !important;
+    border-radius: var(--radius, 4px) !important;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+.leaflet-tooltip.rail-tooltip::before {
+    border-top-color: var(--border, #2c3235) !important;
+}
+.leaflet-tooltip.rail-tooltip b {
+    color: var(--text-strong, #ffffff) !important;
+}

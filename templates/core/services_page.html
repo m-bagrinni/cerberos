@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Службы — Cerberus{% endblock %}
+
+{% block content %}
+<div class="services-page">
+
+  {# ─── Header ─── #}
+  <div class="services-header">
+    <h1><i class="bi bi-gear"></i> Службы</h1>
+    <div class="services-header__actions">
+      <span class="services-header__status">
+        <span class="dot dot--ok"></span>
+        <span id="health-badge">Проверка...</span>
+      </span>
+    </div>
+  </div>
+
+  {# ─── Health Cards ─── #}
+  <div class="services-health-grid" id="health-cards">
+    <div class="services-health-card">
+      <div class="services-health-card__icon"><i class="bi bi-database"></i></div>
+      <div class="services-health-card__label">Database</div>
+      <div class="services-health-card__value" id="h-db">—</div>
+    </div>
+    <div class="services-health-card">
+      <div class="services-health-card__icon"><i class="bi bi-lightning-charge"></i></div>
+      <div class="services-health-card__label">Redis</div>
+      <div class="services-health-card__value" id="h-redis">—</div>
+    </div>
+    <div class="services-health-card">
+      <div class="services-health-card__icon"><i class="bi bi-list-task"></i></div>
+      <div class="services-health-card__label">Очередь Celery</div>
+      <div class="services-health-card__value" id="h-queue">—</div>
+    </div>
+    <div class="services-health-card">
+      <div class="services-health-card__icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="services-health-card__label">Алерты</div>
+      <div class="services-health-card__value" id="h-alerts">—</div>
+    </div>
+    <div class="services-health-card">
+      <div class="services-health-card__icon"><i class="bi bi-database"></i></div>
+      <div class="services-health-card__label">MetricValue</div>
+      <div class="services-health-card__value" id="h-mv">—</div>
+    </div>
+    <div class="services-health-card">
+      <div class="services-health-card__icon"><i class="bi bi-plug"></i></div>
+      <div class="services-health-card__label">PG connections</div>
+      <div class="services-health-card__value" id="h-pg">—</div>
+    </div>
+  </div>
+
+  {# ─── Containers ─── #}
+  <h2 class="services-section-title">
+    <i class="bi bi-box"></i> Контейнеры
+    <span class="services-section-count" id="containers-count">—</span>
+  </h2>
+  <div class="services-containers-grid" id="containers-grid">
+    <div class="services-loading">Загрузка...</div>
+  </div>
+
+  {# ─── Beat Tasks ─── #}
+  <h2 class="services-section-title">
+    <i class="bi bi-clock-history"></i> Задачи Beat
+    <span class="services-section-count" id="tasks-count">—</span>
+  </h2>
+  <div class="services-tasks-table-wrap">
+    <table class="services-tasks-table">
+      <thead>
+        <tr>
+          <th>Имя</th>
+          <th>Task</th>
+          <th>Интервал</th>
+          <th>Last Run</th>
+          <th>Всего</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tasks-tbody">
+        <tr><td colspan="6" class="services-loading">Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# ─── Events ─── #}
+  <h2 class="services-section-title">
+    <i class="bi bi-list"></i> Последние события
+  </h2>
+  <div class="services-events" id="events-list">
+    <div class="services-loading">Загрузка...</div>
+  </div>
+
+</div>
+
+<link rel="stylesheet" href="{% static 'css/services.css' %}?v=1">
+<script src="{% static 'js/services.js' %}?v=1"></script>
+{% endblock %}

@@ -38,49 +38,68 @@
 </div>
 
 <div class="ne-tab-content" data-mux-tab-content="metrics">
-    <div class="mux-metrics-toolbar">
-        <div class="mux-metrics-group">
-            <label>Метрика</label>
-            <select id="mux-metric-key" class="ne-modal__input" style="width:220px">
-                <option value="sfp_rx_dbm">RX мощность (dBm)</option>
-                <option value="sfp_tx_dbm">TX мощность (dBm)</option>
-                <option value="sfp_temp">Температура (°C)</option>
-                <option value="sfp_bias">Ток смещения (mA)</option>
-                <option value="sfp_voltage">Напряжение (V)</option>
-            </select>
-        </div>
-        <div class="mux-metrics-group">
-            <label>Порт</label>
-            <select id="mux-metric-port" class="ne-modal__input" style="width:120px">
-                <option value="1">SFP1</option>
-                <option value="2">SFP2</option>
-            </select>
-        </div>
-        <div class="mux-metrics-group">
-            <label>Период</label>
-            <div class="ne-charts-range">
-                <button class="ne-range is-active" data-hours="1">1ч</button>
-                <button class="ne-range" data-hours="6">6ч</button>
-                <button class="ne-range" data-hours="24">24ч</button>
-                <button class="ne-range" data-hours="168">7д</button>
+
+    <div class="mux-metrics-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            <div class="mux-metrics-group">
+                <label style="font-size:11px; color:var(--text-muted); margin-bottom:4px; display:block;">Порт</label>
+                <div class="mux-port-switch" id="mux-port-switch">
+                    <button class="is-active" data-port="1">SFP1</button>
+                    <button data-port="2">SFP2</button>
+                    <button data-port="3">SFP3</button>
+                </div>
+            </div>
+            <div class="mux-metrics-group">
+                <label style="font-size:11px; color:var(--text-muted); margin-bottom:4px; display:block;">Период</label>
+                <div class="ne-charts-range" id="mux-period-switch">
+                    <button class="is-active" data-hours="1">1ч</button>
+                    <button data-hours="6">6ч</button>
+                    <button data-hours="24">24ч</button>
+                    <button data-hours="168">7д</button>
+                </div>
             </div>
         </div>
-        <div class="mux-metrics-group mux-metrics-group--right">
+        <div>
             <button class="btn btn--primary" onclick="MuxMetrics.reload()">
                 <i class="bi bi-arrow-clockwise"></i> Обновить
             </button>
         </div>
     </div>
 
-    <h3 class="ne-detail__section">Сравнение всех NE</h3>
-    <div class="ne-chart-card" style="height:340px">
-        <div class="ne-chart-card__canvas" style="height:300px"><canvas id="mux-chart-all"></canvas></div>
+    <div class="mux-main-charts">
+        <div class="mux-metrics-chart-card">
+            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-down-circle"></i> RX (dBm)</span></div>
+            <div class="mux-metrics-chart-body"><canvas id="mux-chart-rx"></canvas></div>
+        </div>
+        <div class="mux-metrics-chart-card">
+            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-up-circle"></i> TX (dBm)</span></div>
+            <div class="mux-metrics-chart-body"><canvas id="mux-chart-tx"></canvas></div>
+        </div>
+        <div class="mux-metrics-chart-card">
+            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-thermometer-half"></i> Температура (°C)</span></div>
+            <div class="mux-metrics-chart-body"><canvas id="mux-chart-temp"></canvas></div>
+        </div>
+        <div class="mux-metrics-chart-card">
+            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-lightning-charge"></i> Bias (mA)</span></div>
+            <div class="mux-metrics-chart-body"><canvas id="mux-chart-bias"></canvas></div>
+        </div>
+        
+        {# НОВЫЕ: Трафик #}
+        <div class="mux-metrics-chart-card">
+            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-down-square"></i> Трафик</span></div>
+            <div class="mux-metrics-chart-body"><canvas id="mux-chart-lan-in"></canvas></div>
+        </div>
+        <div class="mux-metrics-chart-card">
+            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-up-square"></i> Трафик LAN (Out)</span></div>
+            <div class="mux-metrics-chart-body"><canvas id="mux-chart-lan-out"></canvas></div>
+        </div>
     </div>
 
-    <h3 class="ne-detail__section">По каждому NE</h3>
-    <div class="mux-metrics-grid" id="mux-metrics-grid">
-        <div class="ne-modal__loading">Загрузка…</div>
+    <h3 class="ne-detail__section" style="margin-top:24px;">Состояние портов</h3>
+    <div class="mux-ne-grid" id="mux-ne-grid">
+        <div style="padding:20px; text-align:center;">Загрузка...</div>
     </div>
+
 </div>
 
 <div id="ne-modal" class="ne-modal" style="display:none;">

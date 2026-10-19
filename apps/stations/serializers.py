@@ -113,6 +113,7 @@ class OpticalLinkSerializer(serializers.ModelSerializer):
             "end_a_label", "end_b_label",
             "ddm_a", "ddm_b",
             "updated_at", "created_at",
+            "path_geojson",
         )
         read_only_fields = (
             "rx_a_dbm", "rx_b_dbm", "link_a_up", "link_b_up",

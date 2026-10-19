@@ -1,0 +1,98 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}NE (Olencom){% endblock %}
+
+{% block admin_content %}
+
+<form method="get" class="aui-filter-bar">
+  <div class="aui-filter-bar__field">
+    <select name="gateway" class="aui-input" onchange="this.form.submit()">
+      <option value="">Все шлюзы</option>
+      {% for gw in gateways %}
+      <option value="{{ gw.pk }}" {% if current_gateway == gw.pk|stringformat:"s" %}selected{% endif %}>
+        {{ gw.name }} ({{ gw.ip }}) — {{ gw.ne_count }} NE
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="aui-filter-bar__field aui-filter-bar__field--grow">
+    <input type="text" name="q" class="aui-input" placeholder="поиск по имени…" value="{{ search_q }}">
+  </div>
+  <button type="submit" class="btn--secondary"><i class="bi bi-funnel"></i> Фильтр</button>
+  {% if current_gateway or search_q %}
+  <a href="{% url 'adminui:ne' %}" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>
+  {% endif %}
+</form>
+
+<div class="panel">
+  <div class="panel__header"><h2 class="panel__title">NE ({{ total }})</h2></div>
+  <div class="panel__body panel__body--flush">
+    {% if ne_list %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:60px">NE ID</th>
+          <th>Имя</th>
+          <th>Raw name</th>
+          <th>Gateway</th>
+          <th>Status</th>
+          <th>Last seen</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ne in ne_list %}
+        <tr data-ne-id="{{ ne.pk }}">
+          <td class="mono"><strong>{{ ne.ne_id }}</strong></td>
+          <td>
+            <a href="{% url 'adminui:ne_detail' ne.pk %}" class="ne-name-link" style="color:var(--text-strong);text-decoration:none;font-weight:600">
+              {{ ne.name }}
+            </a>
+            <button type="button" class="aui-icon-btn aui-icon-btn--rename"
+                    data-pk="{{ ne.pk }}" data-name="{{ ne.name }}" title="Переименовать">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+          </td>
+          <td class="text-muted mono" style="font-size:11px">{{ ne.raw_name|default:"—" }}</td>
+          <td>
+            <a href="{% url 'adminui:device_detail' ne.gateway.pk %}" style="color:var(--primary)">
+              {{ ne.gateway.name }}
+            </a>
+          </td>
+          <td>
+            <span class="status-dot status-dot--{{ ne.status }}"></span>
+            {{ ne.status }}
+          </td>
+          <td class="text-muted">
+            {% if ne.last_seen %}{{ ne.last_seen|timesince }} назад{% else %}—{% endif %}
+          </td>
+          <td>
+            <div class="aui-row-actions">
+              <a href="{% url 'adminui:device_detail' ne.gateway.pk %}" class="aui-icon-btn" title="Открыть шлюз">
+                <i class="bi bi-router"></i>
+              </a>
+              <button type="button" class="aui-icon-btn aui-icon-btn--poll"
+                      data-pk="{{ ne.gateway.pk }}" title="Poll шлюз">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-router"></i><p>NE не найдены</p></div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.CERBER_NE_RENAME_URL = "/admin-ui/ne/__PK__/rename/";
+</script>
+<script src="{% static 'js/adminui-ne.js' %}?v=2"></script>
+{% endblock %}

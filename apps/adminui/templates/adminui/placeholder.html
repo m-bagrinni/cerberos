@@ -1,0 +1,18 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}{{ section }}{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__body">
+    <div class="empty-state empty-state--lg">
+      <i class="bi bi-tools"></i>
+      <h2>{{ section }}</h2>
+      <p>Раздел появится на <strong>{{ stage }}</strong>.</p>
+      <a href="{% url 'adminui:dashboard' %}" class="btn--secondary">
+        <i class="bi bi-arrow-left"></i> Назад к обзору
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

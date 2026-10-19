@@ -32,8 +32,17 @@ class Alert(models.Model):
 
     device = models.ForeignKey(
         Device,
+        null=True, blank=True,
         on_delete=models.CASCADE,
         related_name="alerts",
+        help_text="Устройство (заполнено для D-Link/Eltex-алертов)",
+    )
+    ip_address = models.ForeignKey(
+        "subnets.IpAddress",
+        null=True, blank=True,
+        on_delete=models.CASCADE,
+        related_name="alerts",
+        help_text="IP-адрес (заполнено для пинг-алертов подсетей)",
     )
     ne_device = models.ForeignKey(
         "devices.NeDevice",
@@ -72,7 +81,11 @@ class Alert(models.Model):
         ]
 
     def __str__(self):
-        return f"[{self.severity.upper()}] {self.device.name} · {self.metric_key} = {self.value}"
+        target = (
+            self.ip_address.ip if self.ip_address
+            else (self.device.name if self.device else "?")
+        )
+        return f"[{self.severity.upper()}] {target} · {self.metric_key} = {self.value}"
 
     @property
     def is_firing(self):

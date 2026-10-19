@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Django
+*.log
+db.sqlite3
+/staticfiles/
+/media/
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Backups
+*.bak
+*.bak2
+*.bak3
+*.bak4
+*.bak5
+*.bak6
+*.orig
+*.rej
+
+# OSM raw data
+kgz_railways.json
+static/geojson/raw_kgz_railways.json
+*.osm.pbf
+*.osm.bz2
+
+# MIBs
+mibs/
+apps/mibs/
+
+# Node
+node_modules/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/

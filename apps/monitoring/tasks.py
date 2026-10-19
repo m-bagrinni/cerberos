@@ -16,7 +16,14 @@ def poll_all_devices():
     log.info("poll_all_devices: запуск")
     started = timezone.now()
 
-    devices = Device.objects.all()
+    # Исключаем Olencom (multiplexer) — у них отдельный poll_olencom.
+    # poll_device_task для Olencom зависает (SNMP v1 + OID другой вендор),
+    # блокирует worker и не даёт выполниться poll_olencom_all.
+    devices = Device.objects.exclude(
+        profile__device_category="multiplexer"
+    ).exclude(
+        profile_override__device_category="multiplexer"
+    )
     total = devices.count()
 
     if total == 0:
@@ -162,9 +169,11 @@ def poll_olencom_task(ip):
 def poll_olencom_all():
     """Найти все Olencom-устройства в БД и запустить опрос каждого."""
     from apps.devices.models import Device
+    from django.db.models import Q
     qs = Device.objects.filter(
-        effective_profile__slug="olencom-rp1000",
-    ).exclude(status="unreachable")
+        Q(profile__slug="olencom-rp1000") |
+        Q(profile_override__slug="olencom-rp1000")
+    )
     count = 0
     for d in qs:
         poll_olencom_task.delay(d.ip)
@@ -752,3 +761,92 @@ def _close_ne_alert(ne):
         metric_key=metric_key, state="firing"
     ).update(state="ok", resolved_at=timezone.now())
     return updated
+
+@shared_task(name="monitoring.poll_traffic_light")
+def poll_traffic_light():
+    """
+    Лёгкий сбор eth_rx_bytes (только порты 1 и 5) для всех Olencom NE.
+    Запускается раз в 10 секунд — для плавного графика трафика.
+    """
+    from apps.devices.models import Device, NeDevice, MetricDefinition
+    from apps.monitoring.models import MetricValue
+    from apps.monitoring.management.commands.poll_olencom import (
+        snmpget, parse_hex, OID_ETH_CNT2,
+    )
+
+    gateways = Device.objects.filter(
+        profile__device_category="multiplexer",
+    )
+    if not gateways.exists():
+        return {"ok": True, "saved": 0, "reason": "no gateways"}
+
+    metric = MetricDefinition.objects.filter(key="eth_rx_bytes").first()
+    if not metric:
+        return {"ok": False, "error": "no metric eth_rx_bytes"}
+
+    saved = 0
+    ports = ["1", "5"]  # Только активные: WAN (1) и LAN (5)
+    
+    for gw in gateways:
+        community = gw.snmp_community or "public"
+        nes = NeDevice.objects.filter(gateway=gw)
+        for ne in nes:
+            for port in ports:
+                try:
+                    oid = f"{OID_ETH_CNT2}.{ne.ne_id}.{port}"
+                    raw = snmpget(gw.ip, community, oid, timeout=2, retries=0)
+                    if not raw:
+                        continue
+                    
+                    c_hex = parse_hex(raw)
+                    if not c_hex or len(c_hex) < 8:
+                        continue
+                    
+                    rx_bytes = int.from_bytes(bytes(c_hex[0:8]), "little")
+                    MetricValue.objects.create(
+                        device=gw,  # ← ДОБАВЛЕНО: device_id (NOT NULL)
+                        ne_device=ne, metric=metric,
+                        instance=port, value=float(rx_bytes),
+                    )
+                    saved += 1
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"[poll_traffic_light] NE={ne.ne_id} port={port} ERROR: {e}")
+                    print(f"[ERROR] NE={ne.ne_id} port={port} EXC={e}")
+                    continue
+
+    # Retention: раз в 30 минут удаляем старые MetricValue (старше 2 часов)
+    try:
+        from django.core.cache import cache
+        from apps.monitoring.models import MetricValue
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        last_cleanup = cache.get("metric_cleanup_last")
+        now = timezone.now()
+        if not last_cleanup or (now - last_cleanup).total_seconds() > 1800:
+            cutoff = now - timedelta(hours=2)
+            deleted, _ = MetricValue.objects.filter(ts__lt=cutoff).delete()
+            cache.set("metric_cleanup_last", now, timeout=7200)
+            print(f"[poll_traffic_light] cleanup: deleted {deleted} old MetricValue")
+    except Exception as e:
+        print(f"[poll_traffic_light] cleanup error: {e}")
+
+    return {"ok": True, "saved": saved}
+
+@shared_task(name="monitoring.cleanup_old_metric_values")
+def cleanup_old_metric_values():
+    """
+    Удаляет MetricValue старше 2 часов.
+    Запускается каждые 30 минут — не даём БД распухнуть.
+    """
+    from apps.monitoring.models import MetricValue
+    from django.utils import timezone
+    from datetime import timedelta
+
+    cutoff = timezone.now() - timedelta(hours=2)
+    deleted, _ = MetricValue.objects.filter(ts__lt=cutoff).delete()
+    return {"ok": True, "deleted": deleted}
+
+

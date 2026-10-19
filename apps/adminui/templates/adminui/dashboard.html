@@ -1,0 +1,111 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Обзор{% endblock %}
+
+{% block admin_content %}
+
+{# ===== Счётчики ===== #}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-card__label">Устройства</div>
+    <div class="stat-card__value">{{ stats.devices }}</div>
+    <div class="stat-card__hint">{{ stats.vendors }} вендоров · {{ stats.profiles }} профилей</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">NE (Olencom)</div>
+    <div class="stat-card__value">{{ stats.ne }}</div>
+    <div class="stat-card__hint">мультиплексоры</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__label">Метрик в БД</div>
+    <div class="stat-card__value">{{ stats.metrics }}</div>
+    <div class="stat-card__hint">retention: 2ч</div>
+  </div>
+  <a href="{% url 'adminui:alerts' %}?state=firing" class="stat-card {% if stats.alerts_crit %}stat-card--crit{% elif stats.alerts_firing %}stat-card--warn{% endif %}" style="text-decoration:none">
+    <div class="stat-card__label">Алерты (firing)</div>
+    <div class="stat-card__value">{{ stats.alerts_firing }}</div>
+    <div class="stat-card__hint">
+      {% if stats.alerts_crit %}<span class="text-crit">{{ stats.alerts_crit }} crit</span>{% else %}нет критичных{% endif %}
+    </div>
+  </a>
+  <div class="stat-card">
+    <div class="stat-card__label">Подсети</div>
+    <div class="stat-card__value">{{ stats.subnets }}</div>
+    <div class="stat-card__hint">{{ stats.ips_alive }} живых IP</div>
+  </div>
+</div>
+
+{# ===== Две колонки ===== #}
+<div class="adminui-grid-2">
+
+  {# Алерты #}
+  <section class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title">Активные алерты</h2>
+      <a href="{% url 'adminui:alerts' %}" class="panel__link">все →</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      {% if recent_alerts %}
+      <table class="data-table">
+        <thead>
+          <tr><th>Severity</th><th>Объект</th><th>Метрика</th><th>Начало</th></tr>
+        </thead>
+        <tbody>
+          {% for a in recent_alerts %}
+          <tr style="cursor:pointer" onclick="location.href='{% url 'adminui:alert_detail' a.pk %}'">
+            <td><span class="badge badge--{{ a.severity }}">{{ a.severity }}</span></td>
+            <td>
+              {% if a.device %}{{ a.device.name }}
+              {% elif a.ne_device %}{{ a.ne_device.name }}
+              {% elif a.ip_address %}{{ a.ip_address.ip }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-muted">{{ a.metric_key }}</td>
+            <td class="text-muted">{{ a.started_at|date:"H:i d.m" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-check-circle"></i>
+        <p>Активных алертов нет</p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# Устройства #}
+  <section class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title">Устройства</h2>
+      <a href="{% url 'adminui:devices' %}" class="panel__link">все →</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <table class="data-table">
+        <thead>
+          <tr><th>Name</th><th>IP</th><th>Vendor</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for d in devices %}
+          <tr>
+            <td>{{ d.name }}</td>
+            <td class="text-muted mono">{{ d.ip }}</td>
+            <td>{{ d.vendor.name|default:"—" }}</td>
+            <td>
+              <span class="status-dot status-dot--{{ d.status }}"></span>
+              {{ d.status }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-muted">Устройств нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+{% endblock %}

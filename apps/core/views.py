@@ -1014,3 +1014,41 @@ def ne_rename_api(request, ne_id):
     ne.name = name
     ne.save(update_fields=["name"])
     return JsonResponse({"ok": True, "name": ne.display_name, "id": ne.id})
+
+
+# ─────────────────────────────────────────────────────────────
+# Подсети (apps/subnets)
+# ─────────────────────────────────────────────────────────────
+
+def subnets_list(request):
+    """Список подсетей."""
+    from apps.subnets.models import Subnet
+    subnets = Subnet.objects.all().order_by("cidr")
+
+    # Сводка
+    total = subnets.count()
+    active = subnets.filter(is_active=True).count()
+    total_ips = sum(s.ips.count() for s in subnets)
+    total_alive = sum(s.ips.filter(is_alive=True).count() for s in subnets)
+
+    return render(request, "core/subnets_list.html", {
+        "subnets": subnets,
+        "summary": {
+            "total": total,
+            "active": active,
+            "total_ips": total_ips,
+            "total_alive": total_alive,
+        },
+    })
+
+
+def subnet_detail(request, subnet_id):
+    """Детали подсети — карта IP + таблица."""
+    from django.shortcuts import get_object_or_404
+    from apps.subnets.models import Subnet
+
+    subnet = get_object_or_404(Subnet, pk=subnet_id)
+    return render(request, "core/subnet_detail.html", {
+        "subnet": subnet,
+    })
+

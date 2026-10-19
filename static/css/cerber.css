@@ -4386,3 +4386,153 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     font-family: ui-monospace, monospace;
     color: var(--text-muted);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Метрики мультиплексоров — 4 больших графика + сетка NE
+   ═══════════════════════════════════════════════════════════ */
+
+.mux-port-switch {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.mux-port-switch button {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: transparent;
+    border: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all .12s;
+}
+
+.mux-port-switch button:hover {
+    color: var(--text);
+}
+
+.mux-port-switch button.is-active {
+    background: var(--primary);
+    color: #1a0e00;
+    font-weight: 600;
+}
+
+/* Сетка 4 больших графиков */
+.mux-metrics-charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+    .mux-metrics-charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+.mux-metrics-chart-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 320px;
+}
+
+.mux-metrics-chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.mux-metrics-chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mux-metrics-chart-title i {
+    color: var(--primary);
+    font-size: 14px;
+}
+
+.mux-metrics-chart-badge {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: ui-monospace, monospace;
+}
+
+.mux-metrics-chart-body {
+    flex: 1;
+    min-height: 260px;
+    position: relative;
+}
+
+/* Сетка карточек по NE */
+.mux-ne-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.mux-ne-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mux-ne-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.mux-ne-card__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.mux-ne-card__id {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: ui-monospace, monospace;
+}
+
+.mux-ne-card__charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.mux-ne-card__chart {
+    height: 60px;
+    position: relative;
+    background: var(--bg-input);
+    border-radius: 3px;
+    padding: 4px;
+}
+
+.mux-ne-card__chart canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+

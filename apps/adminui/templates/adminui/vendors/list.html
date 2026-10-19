@@ -1,0 +1,59 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Вендоры{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:vendor_create' %}" class="btn--secondary">
+  <i class="bi bi-plus-lg"></i> Добавить вендора
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Вендоры ({{ vendors|length }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if vendors %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Slug</th>
+          <th>Enterprise IDs</th>
+          <th>Profiles</th>
+          <th>Devices</th>
+          <th style="width:100px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vendors %}
+        <tr>
+          <td><strong>{{ v.name }}</strong></td>
+          <td class="mono text-muted">{{ v.slug }}</td>
+          <td class="mono text-muted" style="font-size:11px">{{ v.enterprise_ids }}</td>
+          <td>{{ v.profiles_count }}</td>
+          <td>{{ v.devices_count }}</td>
+          <td>
+            <div class="aui-row-actions">
+              <a href="{% url 'adminui:vendor_update' v.pk %}" class="aui-icon-btn" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'adminui:vendor_delete' v.pk %}" class="aui-icon-btn" title="Удалить">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-building"></i>
+      <p>Вендоров нет</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

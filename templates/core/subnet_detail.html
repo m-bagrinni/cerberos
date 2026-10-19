@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ subnet.cidr }} — Cerberus{% endblock %}
+
+{% block content %}
+{# Inline-фикс модалки: побеждает внешние CSS #}
+<style id="inline-ip-modal-fix">
+.ip-modal-backdrop{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;background:rgba(0,0,0,.72)!important;z-index:2147483000!important;display:block!important;}
+.ip-modal-backdrop[hidden]{display:none!important;}
+.ip-modal{position:fixed!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;width:520px!important;max-width:92vw!important;max-height:88vh!important;background:#181b1f!important;border:1px solid #3d444b!important;border-radius:6px!important;box-shadow:0 30px 90px rgba(0,0,0,.85)!important;z-index:2147483001!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+.ip-modal[hidden]{display:none!important;}
+.ip-modal__head{padding:16px 20px!important;background:linear-gradient(180deg,#1f2226 0%,#181b1f 100%)!important;border-bottom:1px solid #2c3235!important;display:flex!important;align-items:center!important;justify-content:space-between!important;}
+.ip-modal__body{padding:16px 20px!important;overflow-y:auto!important;flex:1!important;}
+.ip-modal__actions{display:flex!important;gap:8px!important;padding:14px 20px!important;border-top:1px solid #2c3235!important;background:#1f2226!important;flex-wrap:wrap!important;}
+</style>
+<div class="subnet-detail-page" data-subnet-id="{{ subnet.id }}" data-cidr="{{ subnet.cidr }}">
+
+  <div class="subnet-detail__header">
+    <div>
+      <a href="{% url 'subnets_list' %}" class="back-link">
+        <i class="bi bi-arrow-left"></i> К списку
+      </a>
+      <h1>
+        {{ subnet.cidr }}
+        {% if subnet.name %}<small class="subnet-detail__name">{{ subnet.name }}</small>{% endif %}
+      </h1>
+      {% if subnet.description %}
+        <p class="subnet-detail__descr">{{ subnet.description }}</p>
+      {% endif %}
+    </div>
+    <div class="subnet-detail__actions">
+      <button id="subnet-scan-now" class="btn btn--primary"
+              data-subnet-id="{{ subnet.id }}">
+        <i class="bi bi-arrow-clockwise"></i> Сканировать
+      </button>
+      <button id="subnet-toggle-auto" class="btn"
+              data-subnet-id="{{ subnet.id }}">
+        <i class="bi bi-toggle-on"></i> LIVE
+      </button>
+    </div>
+  </div>
+
+  <div class="subnet-detail__summary" id="subnet-summary">
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">Всего IP</div>
+      <div class="subnet-stat__value" id="stat-total">—</div>
+    </div>
+    <div class="subnet-stat subnet-stat--ok">
+      <div class="subnet-stat__label">Живых</div>
+      <div class="subnet-stat__value" id="stat-alive">—</div>
+    </div>
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">Занято</div>
+      <div class="subnet-stat__value" id="stat-used">—</div>
+    </div>
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">Свободно</div>
+      <div class="subnet-stat__value" id="stat-free">—</div>
+    </div>
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">На мониторинге</div>
+      <div class="subnet-stat__value" id="stat-monitored">—</div>
+    </div>
+  </div>
+
+  <div class="subnet-detail__legend">
+    <span class="legend-item"><span class="legend-swatch legend-swatch--alive"></span> живой</span>
+    <span class="legend-item"><span class="legend-swatch legend-swatch--alive-mon"></span> ◉ на мониторинге</span>
+    <span class="legend-item"><span class="legend-swatch legend-swatch--dead"></span> молчит (мониторится)</span>
+    <span class="legend-item"><span class="legend-swatch legend-swatch--reserved"></span> reserved</span>
+    <span class="legend-item"><span class="legend-swatch legend-swatch--free"></span> свободен</span>
+    <span class="legend-item"><span class="legend-swatch legend-swatch--unknown"></span> неизвестен</span>
+  </div>
+
+  <div class="subnet-detail__toolbar">
+    <input type="text" id="ip-filter" class="subnet-detail__filter"
+           placeholder="Фильтр по IP или hostname...">
+    <label class="subnet-detail__check">
+      <input type="checkbox" id="only-alive"> Только живые
+    </label>
+    <label class="subnet-detail__check">
+      <input type="checkbox" id="only-monitored"> Только мониторинг
+    </label>
+
+    <div class="grid-size-switch" id="grid-size-switch">
+      <button type="button" data-size="normal" class="is-active">◼ норма</button>
+      <button type="button" data-size="dense">▫ плотно</button>
+      <button type="button" data-size="tiny">· микро</button>
+    </div>
+  </div>
+
+  <div class="ip-grid-wrap">
+    <div class="ip-grid" id="ip-grid">
+      <div class="ip-grid__loading">Загрузка...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Модалка IP -->
+<div class="ip-modal-backdrop" id="ip-modal-backdrop" hidden></div>
+<div class="ip-modal" id="ip-modal" hidden>
+  <div class="ip-modal__head">
+    <h3 id="ip-modal-title">IP</h3>
+    <button class="ip-modal__close" id="ip-modal-close">&times;</button>
+  </div>
+  <div class="ip-modal__body" id="ip-modal-body">
+    Загрузка...
+  </div>
+</div>
+
+<link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=241">
+<script src="{% static 'js/subnets.js' %}?v=241"></script>
+{% endblock %}

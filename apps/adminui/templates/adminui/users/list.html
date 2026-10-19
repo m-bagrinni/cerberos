@@ -1,0 +1,60 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Пользователи{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:user_create' %}" class="btn--secondary">
+  <i class="bi bi-plus-lg"></i> Добавить пользователя
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header"><h2 class="panel__title">Пользователи ({{ users|length }})</h2></div>
+  <div class="panel__body panel__body--flush">
+    {% if users %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Telegram ID</th>
+          <th>Роли</th>
+          <th>Last login</th>
+          <th style="width:100px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>{{ u.username }}</strong></td>
+          <td class="text-muted">{{ u.email|default:"—" }}</td>
+          <td class="mono text-muted">{{ u.telegram_id|default:"—" }}</td>
+          <td>
+            {% if u.is_superuser %}<span class="badge badge--crit">superuser</span>{% endif %}
+            {% if u.is_staff %}<span class="badge badge--info">staff</span>{% endif %}
+            {% if not u.is_active %}<span class="badge" style="opacity:.5">inactive</span>{% endif %}
+          </td>
+          <td class="text-muted">
+            {% if u.last_login %}{{ u.last_login|timesince }} назад{% else %}—{% endif %}
+          </td>
+          <td>
+            <div class="aui-row-actions">
+              <a href="{% url 'adminui:user_update' u.pk %}" class="aui-icon-btn" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'adminui:user_delete' u.pk %}" class="aui-icon-btn" title="Удалить">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-people"></i><p>Пользователей нет</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

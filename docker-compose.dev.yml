@@ -3,21 +3,25 @@
 
 services:
   postgres:
-    ports:
-      - "5432:5432"
+    # Порты НЕ публикуются — конфликт с системным PostgreSQL
+    # Внутри docker-сети доступен как postgres:5432
 
   redis:
-    ports:
-      - "6379:6379"
+    # Порты НЕ публикуются — конфликт с системным Redis
+    # Внутри docker-сети доступен как redis:6379
 
   web:
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
     volumes:
       - .:/app
       - ./mibs:/app/mibs:ro
       - /var/lib/mibs:/var/lib/mibs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
-      - "8000:8000"
+      # Хост 8888 → контейнер 8000 (8000 на сервере занят NetXMS)
+      - "8888:8000"
     environment:
       DJANGO_ENV: dev
       MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
@@ -28,11 +32,14 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
     volumes:
       - .:/app
       - ./mibs:/app/mibs:ro
       - /var/lib/mibs:/var/lib/mibs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file: .env
     environment:
       DJANGO_ENV: dev
@@ -49,7 +56,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "${CUID:-1000}:${CGID:-1000}"
     volumes:
       - .:/app
     env_file: .env

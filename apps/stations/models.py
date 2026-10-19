@@ -131,6 +131,11 @@ class OpticalLink(models.Model):
     # ── Метаданные ──────────────────────────────────────────
     label = models.CharField(max_length=128, blank=True)
     description = models.TextField(blank=True)
+    path_geojson = models.JSONField(
+        null=True, blank=True,
+        help_text="Координаты [[lat, lon], ...] вдоль ж/д (для отрисовки)",
+    )
+
     is_active = models.BooleanField(default=True)
 
     # ── Кэш DDM ─────────────────────────────────────────────

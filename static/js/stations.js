@@ -32,6 +32,7 @@
     };
 
     let _map = null;
+    let _railLayer;
     let _markersLayer = null;
     let _linksLayer = null;
     let _liveTimer = null;
@@ -343,17 +344,102 @@
                 zoomControl: true,
                 attributionControl: true,
             });
-            L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-                attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap',
-                maxZoom: 17,
-                crossOrigin: true,
-            }).addTo(_map);
+            // ============================================================
+            // Базовые слои карты (переключатель в правом верхнем углу)
+            // ============================================================
+            const baseLayers = {
+                "🌍 OpenTopoMap (топография)": L.tileLayer(
+                    "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+                    {
+                        attribution: '&copy; OSM, SRTM | &copy; OpenTopoMap',
+                        maxZoom: 17,
+                        crossOrigin: true,
+                    }
+                ),
+                "🛰 Спутник (Esri)": L.tileLayer(
+                    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                    {
+                        attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+                        maxZoom: 19,
+                        crossOrigin: true,
+                    }
+                ),
+                "🗺 Улицы (OSM HOT)": L.tileLayer(
+                    "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+                    {
+                        attribution: '&copy; OSM contributors, HOT',
+                        maxZoom: 19,
+                        subdomains: "ab",
+                        // crossOrigin НЕ указываем — OSM блокирует CORS-запросы
+                    }
+                ),
+                "🌑 Тёмная (Esri Dark Gray)": L.tileLayer(
+                    "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+                    {
+                        attribution: '&copy; Esri, HERE, Garmin',
+                        maxZoom: 16,
+                        crossOrigin: true,
+                    }
+                ),
+                "☀ Светлая (Esri Light Gray)": L.tileLayer(
+                    "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+                    {
+                        attribution: '&copy; Esri, HERE, Garmin',
+                        maxZoom: 16,
+                        crossOrigin: true,
+                    }
+                ),
+                "🏔 Топо (Esri)": L.tileLayer(
+                    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+                    {
+                        attribution: '&copy; Esri, HERE, Garmin, USGS',
+                        maxZoom: 19,
+                        crossOrigin: true,
+                    }
+                ),
+            };
+
+            // Слой по умолчанию — восстанавливаем из localStorage
+            const savedLayer = localStorage.getItem("cerber-map-layer") || "🌍 OpenTopoMap (топография)";
+            const initialLayer = baseLayers[savedLayer] || baseLayers["🌍 OpenTopoMap (топография)"];
+            initialLayer.addTo(_map);
+
+            // Ж/Д линии — отдельный слой ПОД маркерами/линками
+            _railLayer = L.layerGroup().addTo(_map);
+
             _markersLayer = L.layerGroup().addTo(_map);
             _linksLayer = L.layerGroup().addTo(_map);
+
+            // Контрол переключения слоёв
+            // Overlay: OpenRailwayMap (инфраструктура, сигналы, стрелки)
+            const overlays = {
+                "🚦 OpenRailwayMap (сигналы)": L.tileLayer(
+                    "/tiles/orm/signals/{z}/{x}/{y}.png",
+                    {
+                        attribution: '&copy; OpenRailwayMap, &copy; OSM',
+                        maxZoom: 19,
+                        opacity: 0.85,
+                    }
+                ),
+            };
+
+            L.control.layers(baseLayers, overlays, {
+                position: "topright",
+                collapsed: true,
+            }).addTo(_map);
+
+            // Запоминаем выбор
+            _map.on("baselayerchange", function (e) {
+                localStorage.setItem("cerber-map-layer", e.name);
+            });
         } else {
             _markersLayer.clearLayers();
             _linksLayer.clearLayers();
+            if (_railLayer) _railLayer.clearLayers();
         }
+
+        // Загружаем ж/д линии (один раз, кеш)
+        await loadRailTracks();
 
         const bySlug = {};
         stations.forEach((s) => { bySlug[s.slug] = s; });
@@ -380,32 +466,47 @@
             const ctrlLat = midLat + perpLat * offset;
             const ctrlLng = midLng + perpLng * offset;
 
-            const pts = [];
-            const N = 20;
-            for (let i = 0; i <= N; i++) {
-                const t = i / N;
-                const mt = 1 - t;
-                pts.push([
-                    mt*mt*A[0] + 2*mt*t*ctrlLat + t*t*B[0],
-                    mt*mt*A[1] + 2*mt*t*ctrlLng + t*t*B[1],
-                ]);
+            // Если есть path_geojson — используем реальный ж/д трек
+            // Иначе — Безье-дуга (fallback)
+            let pts;
+            if (l.path_geojson && l.path_geojson.length > 1) {
+                pts = l.path_geojson;
+            } else {
+                pts = [];
+                const N = 20;
+                for (let i = 0; i <= N; i++) {
+                    const t = i / N;
+                    const mt = 1 - t;
+                    pts.push([
+                        mt*mt*A[0] + 2*mt*t*ctrlLat + t*t*B[0],
+                        mt*mt*A[1] + 2*mt*t*ctrlLng + t*t*B[1],
+                    ]);
+                }
             }
 
             const color = STATUS_COLOR[l.link_status] || STATUS_COLOR.unknown;
+            const statusClass = `optical-link optical-link--${l.link_status}`;
 
-            // Белая обводка (не привязываем __linkId — она статичная)
+            // 1) Внешний glow (самый широкий, полупрозрачный)
             L.polyline(pts, {
-                color: "#ffffff", weight: 7, opacity: 0.85,
-                lineJoin: "round",
+                color: color, weight: 12, opacity: 0.18,
+                lineCap: "round", lineJoin: "round",
             }).addTo(_linksLayer);
 
-            // Цветная линия
+            // 2) Белая обводка (средняя)
+            L.polyline(pts, {
+                color: "#ffffff", weight: 7, opacity: 0.85,
+                lineCap: "round", lineJoin: "round",
+            }).addTo(_linksLayer);
+
+            // 3) Цветная линия (основная)
             const line = L.polyline(pts, {
                 color: color,
                 weight: 4,
                 opacity: 1,
                 dashArray: l.link_status === "unknown" ? "12,8" : null,
-                lineJoin: "round",
+                lineCap: "round", lineJoin: "round",
+                className: statusClass,
             }).addTo(_linksLayer);
 
             line.bindTooltip(buildLinkTooltip(l), {
@@ -653,4 +754,47 @@
         // Запускаем live
         startStationsLive();
     });
-})();
+
+    // ============================================================
+    // Ж/Д линии из OSM (один раз, кеш)
+    // ============================================================
+    let _railLoaded = false;
+
+    async function loadRailTracks() {
+        if (_railLoaded || !_railLayer) return;
+        try {
+            const resp = await fetch("/static/geojson/kyrgyzstan_railways.geojson");
+            if (!resp.ok) {
+                console.warn("[rail] не удалось загрузить:", resp.status);
+                return;
+            }
+            const geojson = await resp.json();
+            _railLoaded = true;
+
+            L.geoJSON(geojson, {
+                style: function () {
+                    return {
+                        color: "#ff8c00",       // ярко-оранжевый (заметно на любом фоне)
+                        weight: 3,
+                        opacity: 0.9,
+                        lineCap: "round",
+                        lineJoin: "round",
+                    };
+                },
+                onEachFeature: function (feature, layer) {
+                    const name = (feature.properties && feature.properties.name) || "Ж/Д линия";
+                    const osmId = feature.properties && feature.properties.osm_id;
+                    layer.bindTooltip(
+                        "<b>" + name + "</b><br>OSM: " + osmId,
+                        { sticky: true, className: "rail-tooltip", direction: "top" }
+                    );
+                },
+            }).addTo(_railLayer);
+
+            console.log("[rail] загружено:", geojson.features.length, "сегментов");
+        } catch (e) {
+            console.warn("[rail] ошибка:", e);
+        }
+    }
+
+    })();

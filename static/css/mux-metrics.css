@@ -1,0 +1,72 @@
+.mux-main-charts {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.mux-metrics-chart-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.mux-metrics-chart-head {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.mux-metrics-chart-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mux-metrics-chart-title i { color: var(--primary); font-size: 18px; }
+
+.mux-metrics-chart-body {
+    height: 320px;
+    position: relative;
+}
+
+.mux-ne-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.mux-ne-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.mux-ne-card:hover { border-color: var(--border-strong); }
+.mux-ne-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+}
+.mux-ne-card__name { font-size: 14px; font-weight: 600; color: var(--text-strong); }
+.mux-ne-card__id { font-size: 11px; color: var(--text-muted); font-family: ui-monospace, monospace; background: var(--bg-input); padding: 2px 6px; border-radius: 3px; }
+.mux-ne-card__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mux-ne-stat { background: var(--bg-input); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border); }
+.mux-ne-stat__label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.mux-ne-stat__value { font-size: 16px; font-weight: 700; font-family: ui-monospace, monospace; color: var(--text-strong); }
+.mux-ne-stat__value.val-ok { color: var(--ok); }
+.mux-ne-stat__value.val-warn { color: var(--warn); }
+.mux-ne-stat__value.val-crit { color: var(--crit); }
+.mux-port-switch { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; }
+.mux-port-switch button { padding: 4px 10px; font-size: 12px; background: transparent; border: 0; color: var(--text-muted); cursor: pointer; border-radius: 3px; }
+.mux-port-switch button.is-active { background: var(--primary); color: #1a0e00; font-weight: 600; }

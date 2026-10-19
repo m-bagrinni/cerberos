@@ -1,210 +1,275 @@
-/* Вкладка «Метрики»: графики всех NE (категориальная ось X, без time-adapter). */
 (function() {
     'use strict';
 
-    var charts = {};
+    var bigCharts = {};
+    var currentPort = "1";
     var currentHours = 1;
     var loadedOnce = false;
+    var allNeIds = [];
 
-    var PALETTE = [
-        '#ff780a', '#0abfbc', '#73bf69', '#f2cc0c', '#f2495c',
-        '#8e44ad', '#3498db', '#e67e22', '#1abc9c', '#e74c3c',
-        '#9b59b6', '#2ecc71', '#f39c12', '#16a085', '#c0392b',
-        '#d35400', '#27ae60', '#2980b9', '#9b59b6', '#2c3e50'
-    ];
-    function colorFor(i) { return PALETTE[i % PALETTE.length]; }
+    var COLOR_OK = '#73bf69';
+    var COLOR_WARN = '#f2cc0c';
+    var COLOR_CRIT = '#f2495c';
+    var COLOR_NEUTRAL = '#0abfbc';
+    var COLOR_TRAFFIC = '#3b82f6';
 
-    function fmtTs(iso) {
-        var d = new Date(iso);
-        return d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+    function fetchBulk(key) {
+        var gw = window.MUX_GATEWAY_IP || '';
+        if (!gw) return Promise.reject(new Error('MUX_GATEWAY_IP not set'));
+        var url = '/api/v1/ne/metrics-bulk/?gateway_ip=' + gw + '&key=' + key + '&instance=' + currentPort + '&hours=' + currentHours + '&limit=500';
+        return fetch(url).then(function(r) { return r.json(); });
+    }
+
+    // Получение истории для конкретного NE (для трафика)
+    function fetchNeTraffic(neId, key, port) {
+        var p = port || currentPort;
+        var url = '/api/v1/ne/' + neId + '/metric-history/?key=' + key + '&instance=' + p + '&hours=1&limit=100';
+        return fetch(url).then(function(r) { return r.json(); });
     }
 
     function load() {
-        var gatewayIp = window.MUX_GATEWAY_IP || '';
-        var key = document.getElementById('mux-metric-key').value;
-        var instance = document.getElementById('mux-metric-port').value;
-        if (!gatewayIp) { console.warn('MUX_GATEWAY_IP not set'); return; }
+        var gridEl = document.getElementById('mux-ne-grid');
+        if (gridEl) gridEl.innerHTML = '<div style="padding:20px; text-align:center;">Загрузка...</div>';
 
-        var url = '/api/v1/ne/metrics-bulk/?gateway_ip=' + gatewayIp +
-                  '&key=' + key + '&instance=' + instance +
-                  '&hours=' + currentHours + '&limit=500';
+        var keys = ['sfp_rx_dbm', 'sfp_tx_dbm', 'sfp_temp', 'sfp_bias'];
+        Promise.all(keys.map(fetchBulk)).then(function(results) {
+            var map = {};
+            keys.forEach(function(k, i) { map[k] = results[i]; });
+            
+            if (!map['sfp_rx_dbm'] || !map['sfp_rx_dbm'].ok) return;
 
-        fetch(url)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.ok) { console.error(data); return; }
-                console.log('[MuxMetrics] loaded:', data.nes.length, 'NE');
-                renderComparison(data);
-                renderPerNe(data);
-            })
-            .catch(function(e) { console.error('mux-metrics error', e); });
-    }
+            // SFP графики
+            drawBarChart('mux-chart-rx', 'sfp_rx_dbm', map, function(v) {
+                if (v < -25) return COLOR_CRIT;
+                if (v < -20) return COLOR_WARN;
+                return COLOR_OK;
+            }, -30, 5, true);
 
-    function buildLabels(nes) {
-        var longest = null;
-        nes.forEach(function(ne) {
-            if (!longest || ne.points.length > longest.points.length) longest = ne;
-        });
-        if (!longest) return [];
-        return longest.points.map(function(p) { return fmtTs(p.ts); });
-    }
+            drawBarChart('mux-chart-tx', 'sfp_tx_dbm', map, function(v) { return COLOR_NEUTRAL; }, -5, 5, true);
+            drawBarChart('mux-chart-temp', 'sfp_temp', map, function(v) {
+                if (v > 70) return COLOR_CRIT;
+                if (v > 65) return COLOR_WARN;
+                return COLOR_OK;
+            }, 20, 80, false);
+            drawBarChart('mux-chart-bias', 'sfp_bias', map, function(v) { return COLOR_NEUTRAL; }, 0, 45, true);
 
-    function baseOptions(showLegend) {
-        return {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            interaction: { intersect: false, mode: 'index' },
-            plugins: {
-                legend: showLegend ? {
-                    display: true,
-                    position: 'bottom',
-                    labels: {
-                        color: '#8e8e8e',
-                        boxWidth: 8,
-                        boxHeight: 8,
-                        padding: 6,
-                        font: { size: 10 },
-                        usePointStyle: true,
-                    }
-                } : { display: false },
-                tooltip: {
-                    backgroundColor: '#181b1f',
-                    borderColor: '#2c3235',
-                    borderWidth: 1,
-                    titleColor: '#ccc',
-                    bodyColor: '#ccc',
-                    padding: 8,
-                }
-            },
-            scales: {
-                x: {
-                    grid: { color: '#1f2226', drawTicks: false },
-                    border: { color: '#2c3235' },
-                    ticks: {
-                        color: '#6c6c6c',
-                        font: { size: 10 },
-                        maxTicksLimit: 6,
-                        padding: 6,
-                        autoSkip: true,
-                    }
-                },
-                y: {
-                    grid: { color: '#1f2226' },
-                    border: { color: '#2c3235' },
-                    ticks: {
-                        color: '#6c6c6c',
-                        font: { size: 10 },
-                        maxTicksLimit: 5,
-                        padding: 4,
-                        callback: function(v) { return typeof v === 'number' ? v.toFixed(1) : v; }
-                    }
-                }
-            }
-        };
-    }
+            renderNeGrid(map);
+            
+            // Трафик
+            allNeIds = map['sfp_rx_dbm'].nes.map(function(ne){ return { id: ne.id, name: ne.name }; });
+            loadTraffic(allNeIds);
 
-    function renderComparison(data) {
-        var canvas = document.getElementById('mux-chart-all');
-        if (!canvas) return;
-
-        var labels = buildLabels(data.nes);
-        var datasets = data.nes.map(function(ne, i) {
-            var color = colorFor(i);
-            return {
-                label: ne.name,
-                data: ne.points.map(function(p) { return p.value; }),
-                borderColor: color,
-                backgroundColor: color + '22',
-                borderWidth: 1.5,
-                pointRadius: 0,
-                pointHoverRadius: 3,
-                tension: 0.25,
-                spanGaps: true,
-            };
-        });
-
-        if (charts.all) {
-            charts.all.data.labels = labels;
-            charts.all.data.datasets = datasets;
-            charts.all.update('none');
-        } else {
-            charts.all = new Chart(canvas, {
-                type: 'line',
-                data: { labels: labels, datasets: datasets },
-                options: baseOptions(true),
-            });
-        }
-    }
-
-    function renderPerNe(data) {
-        var grid = document.getElementById('mux-metrics-grid');
-        if (!grid) return;
-
-        if (!loadedOnce) {
-            grid.innerHTML = '';
-            window.MUX_NE_LIST.forEach(function(ne) {
-                var div = document.createElement('div');
-                div.className = 'ne-chart-card';
-                div.innerHTML =
-                    '<h4 class="ne-chart-card__title">' + ne.name +
-                        ' <span class="text-muted">· NE-' + ne.ne_id + '</span></h4>' +
-                    '<div class="ne-chart-card__canvas"><canvas id="mux-chart-ne-' + ne.id + '"></canvas></div>';
-                grid.appendChild(div);
-            });
             loadedOnce = true;
+        }).catch(function(e) {
+            console.error('Ошибка загрузки SFP:', e);
+        });
+    }
+
+    function loadTraffic(neList) {
+        var PORTS = ['1', '2', '3', '4', '5', '6'];
+        
+        // Для каждого NE: 6 запросов (по портам)
+        var promisesIn = [];
+        neList.forEach(function(ne) {
+            PORTS.forEach(function(port) {
+                promisesIn.push(
+                    fetchNeTraffic(ne.id, 'eth_rx_bytes', port).then(function(r) {
+                        r._neId = ne.id;
+                        r._port = port;
+                        return r;
+                    })
+                );
+            });
+        });
+
+        Promise.all(promisesIn).then(function(results) {
+            // Группируем по NE: {id, name, total_kbps}
+            var byNe = {};
+            neList.forEach(function(ne) {
+                byNe[ne.id] = { id: ne.id, name: ne.name, total: 0 };
+            });
+            
+            results.forEach(function(r) {
+                var points = r.points || [];
+                if (points.length < 2) return;
+                
+                // Последние две точки (интервал 30-900 сек)
+                var p2 = points[points.length - 1];
+                var t2 = new Date(p2.ts).getTime();
+                var val2 = p2.value || 0;
+                
+                for (var j = points.length - 2; j >= 0; j--) {
+                    var p1 = points[j];
+                    var t1 = new Date(p1.ts).getTime();
+                    var dt = (t2 - t1) / 1000;
+                    if (dt >= 30 && dt <= 900) {
+                        var delta = val2 - (p1.value || 0);
+                        if (delta >= 0) {
+                            var kbps = (delta * 8) / dt / 1000;  // Кбит/с
+                            if (byNe[r._neId]) {
+                                byNe[r._neId].total += kbps;
+                            }
+                        }
+                        break;
+                    }
+                }
+            });
+            
+            // Формируем массив для графика (только NE с трафиком)
+            var trafficData = Object.values(byNe).filter(function(t) { return t.total > 0.001; });
+            
+            drawTrafficChart('mux-chart-lan-in', trafficData, neList, COLOR_TRAFFIC);
+            
+            // LAN Out скрыт (нет eth_tx_bytes)
+            var outCanvas = document.getElementById('mux-chart-lan-out');
+            if (outCanvas) {
+                var outCard = outCanvas.closest('.mux-metrics-chart-card');
+                if (outCard) outCard.style.display = 'none';
+            }
+        }).catch(function(e) {
+            console.error('[traffic] error:', e);
+        });
+    }
+
+    function drawTrafficChart(canvasId, trafficData, neList, color) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        
+        if (bigCharts[canvasId]) { try { bigCharts[canvasId].destroy(); } catch(e){} }
+        
+        if (trafficData.length === 0) {
+            var parent = canvas.parentElement;
+            parent.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:40px; font-size:13px;">Нет трафика за последний час (по всем портам).</div>';
+            return;
         }
-
-        data.nes.forEach(function(ne, i) {
-            var meta = window.MUX_NE_LIST.find(function(x) { return x.ne_id === ne.ne_id; });
-            if (!meta) return;
-            var canvas = document.getElementById('mux-chart-ne-' + meta.id);
-            if (!canvas) return;
-
-            var color = colorFor(i);
-            var labels = ne.points.map(function(p) { return fmtTs(p.ts); });
-            var values = ne.points.map(function(p) { return p.value; });
-
-            if (charts['ne-' + meta.id]) {
-                charts['ne-' + meta.id].data.labels = labels;
-                charts['ne-' + meta.id].data.datasets[0].data = values;
-                charts['ne-' + meta.id].update('none');
-            } else {
-                charts['ne-' + meta.id] = new Chart(canvas, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: ne.name,
-                            data: values,
-                            borderColor: color,
-                            backgroundColor: color + '22',
-                            borderWidth: 1.5,
-                            pointRadius: 0,
-                            pointHoverRadius: 3,
-                            tension: 0.25,
-                            fill: true,
-                            spanGaps: true,
-                        }]
-                    },
-                    options: baseOptions(false),
-                });
+        
+        // Сортируем по убыванию
+        trafficData.sort(function(a, b) { return b.total - a.total; });
+        
+        var labels = trafficData.map(function(t) { return t.name; });
+        var values = trafficData.map(function(t) { return t.total; });
+        
+        bigCharts[canvasId] = new Chart(canvas, {
+            type: 'bar',
+            data: { 
+                labels: labels, 
+                datasets: [{ 
+                    label: 'Кбит/с', 
+                    data: values, 
+                    backgroundColor: color, 
+                    borderRadius: 3 
+                }] 
+            },
+            options: {
+                responsive: true, 
+                maintainAspectRatio: false, 
+                animation: false, 
+                indexAxis: 'y',
+                plugins: { 
+                    legend: { display: false }, 
+                    tooltip: { 
+                        callbacks: { 
+                            label: function(ctx){ 
+                                return ctx.parsed.x.toFixed(1) + ' Кбит/с'; 
+                            } 
+                        } 
+                    } 
+                },
+                scales: {
+                    x: { ticks: { color: '#8e8e8e' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { ticks: { color: '#ccc', font: {size: 10} }, grid: { display: false } }
+                }
             }
         });
     }
 
-    document.querySelectorAll('.ne-range').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.ne-range').forEach(function(b){ b.classList.remove('is-active'); });
-            btn.classList.add('is-active');
-            currentHours = parseInt(btn.dataset.hours, 10);
-            load();
-        });
-    });
-    var keySelect = document.getElementById('mux-metric-key');
-    var portSelect = document.getElementById('mux-metric-port');
-    if (keySelect) keySelect.addEventListener('change', load);
-    if (portSelect) portSelect.addEventListener('change', load);
+    function drawBarChart(canvasId, key, map, colorFn, yMin, yMax, horizontal) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas || !map[key] || !map[key].ok) return;
+        if (bigCharts[canvasId]) { try { bigCharts[canvasId].destroy(); } catch(e){} }
 
-    window.MuxMetrics = { load: load, reload: load };
+        var data = map[key];
+        var items = data.nes.filter(function(ne) { return ne.points && ne.points.length > 0; }).map(function(ne) {
+            return { name: ne.name, neId: ne.ne_id, value: ne.points[ne.points.length - 1].value };
+        });
+
+        if (key === 'sfp_rx_dbm') items.sort(function(a,b) { return a.value - b.value; });
+        else items.sort(function(a,b) { return b.value - a.value; });
+
+        var labels = items.map(function(it) { return it.name; });
+        var values = items.map(function(it) { return it.value; });
+        var colors = items.map(function(it) { return colorFn(it.value); });
+
+        bigCharts[canvasId] = new Chart(canvas, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 3 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                indexAxis: horizontal ? 'y' : 'x',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(ctx) { var v = horizontal ? ctx.parsed.x : ctx.parsed.y; return v.toFixed(2); } } }
+                },
+                scales: horizontal ? {
+                    x: { suggestedMin: yMin, suggestedMax: yMax, ticks: { color: '#8e8e8e' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { ticks: { color: '#ccc', font: {size: 10} }, grid: { display: false } }
+                } : {
+                    x: { ticks: { color: '#ccc', font: {size: 10}, autoSkip: false, maxRotation: 60 }, grid: { display: false } },
+                    y: { suggestedMin: yMin, suggestedMax: yMax, ticks: { color: '#8e8e8e' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
+    }
+
+    function renderNeGrid(map) {
+        var grid = document.getElementById('mux-ne-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        var rxData = map['sfp_rx_dbm'];
+        var tempData = map['sfp_temp'];
+        
+        rxData.nes.forEach(function(ne) {
+            var lastRx = (ne.points && ne.points.length) ? ne.points[ne.points.length-1].value : null;
+            var tempNe = tempData.nes.find(function(n){ return n.ne_id === ne.ne_id; });
+            var lastTemp = (tempNe && tempNe.points && tempNe.points.length) ? tempNe.points[tempNe.points.length-1].value : null;
+
+            var rxStr = lastRx !== null ? lastRx.toFixed(1) + ' dBm' : '—';
+            var tempStr = lastTemp !== null ? lastTemp.toFixed(1) + ' °C' : '—';
+            var rxClass = lastRx < -25 ? 'val-crit' : (lastRx < -20 ? 'val-warn' : 'val-ok');
+            var tempClass = lastTemp > 70 ? 'val-crit' : (lastTemp > 65 ? 'val-warn' : 'val-ok');
+
+            var card = document.createElement('div');
+            card.className = 'mux-ne-card';
+            card.innerHTML = '<div class="mux-ne-card__head"><span class="mux-ne-card__name">' + ne.name + '</span><span class="mux-ne-card__id">NE-' + ne.ne_id + '</span></div>' +
+                             '<div class="mux-ne-card__stats"><div class="mux-ne-stat"><div class="mux-ne-stat__label">RX</div><div class="mux-ne-stat__value ' + rxClass + '">' + rxStr + '</div></div>' +
+                             '<div class="mux-ne-stat"><div class="mux-ne-stat__label">Temp</div><div class="mux-ne-stat__value ' + tempClass + '">' + tempStr + '</div></div></div>';
+            grid.appendChild(card);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var sw = document.getElementById('mux-port-switch');
+        if (sw) sw.addEventListener('click', function(e) {
+            var b = e.target.closest('button[data-port]'); if(!b) return;
+            sw.querySelectorAll('button').forEach(x=>x.classList.remove('is-active')); b.classList.add('is-active');
+            currentPort = b.dataset.port; load();
+        });
+        
+        var pw = document.getElementById('mux-period-switch');
+        if (pw) pw.addEventListener('click', function(e) {
+            var b = e.target.closest('button[data-hours]'); if(!b) return;
+            pw.querySelectorAll('button').forEach(x=>x.classList.remove('is-active')); b.classList.add('is-active');
+            currentHours = parseInt(b.dataset.hours); load();
+        });
+
+        var tab = document.querySelector('[data-mux-tab="metrics"]');
+        if (tab && tab.classList.contains('is-active')) setTimeout(function(){ if(!loadedOnce) load(); }, 100);
+    });
+    
+    document.addEventListener('click', function(e) { 
+        var tab = e.target.closest('[data-mux-tab]'); 
+        if (tab && tab.dataset.muxTab === 'metrics' && !loadedOnce) setTimeout(load, 50); 
+    });
+
+    window.MuxMetrics = { reload: function() { loadedOnce = false; load(); }, load: load };
 })();

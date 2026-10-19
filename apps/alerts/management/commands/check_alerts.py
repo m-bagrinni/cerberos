@@ -18,6 +18,7 @@ from django.utils import timezone
 from apps.alerts.models import Alert
 from apps.devices.models import Device, MetricDefinition, NeDevice
 from apps.monitoring.models import MetricValue
+from apps.subnets.models import IpAddress
 
 
 class Command(BaseCommand):
@@ -49,6 +50,14 @@ class Command(BaseCommand):
         ],
     }
     NE_INSTANCE_RE = r"^[12]?$"
+
+    # Правила для IpAddress (пинг-мониторинг): metric_key → (severity, threshold_sec)
+    # Если IP молчит дольше threshold_sec и is_monitored=True → firing Alert
+    IP_RULES = [
+        # (severity, silence_seconds, message)
+        ("crit", 120, "IP не отвечает более 2 минут"),
+        ("warn", 60,  "IP не отвечает более 1 минуты"),
+    ]
 
     def add_arguments(self, parser):
         parser.add_argument("--device", help="Только для одного устройства (IP)")
@@ -154,6 +163,12 @@ class Command(BaseCommand):
         still_firing += ne_stats["still_firing"]
         resolved += ne_stats["resolved"]
 
+        # --- 3. IP-адреса (пинг-мониторинг подсетей) ---
+        ip_stats = self._check_ip_addresses(dry=dry)
+        created += ip_stats["created"]
+        still_firing += ip_stats["still_firing"]
+        resolved += ip_stats["resolved"]
+
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(
             f"Итого: создано={created}, обновлено={still_firing}, закрыто={resolved}"
@@ -216,7 +231,7 @@ class Command(BaseCommand):
                                 active.state = Alert.STATE_OK
                                 active.resolved_at = timezone.now()
                                 active.save(update_fields=["state", "resolved_at", "updated_at"])
-                            resolved += 1
+                            stats["resolved"] += 1
                             self.stdout.write(f"  ✓ NE-{ne.ne_id} {alert_key}: {value} → OK")
                         continue
 
@@ -231,7 +246,7 @@ class Command(BaseCommand):
                             active.severity = severity
                             active.message = full_msg
                             active.save(update_fields=["value", "threshold", "severity", "message", "updated_at"])
-                        still_firing += 1
+                        stats["still_firing"] += 1
                         self.stdout.write(f"  • NE-{ne.ne_id} {alert_key}: {value} ({severity}) — обновлено")
                     else:
                         if not dry:
@@ -245,12 +260,107 @@ class Command(BaseCommand):
                                 threshold=threshold,
                                 message=full_msg,
                             )
-                        created += 1
+                        stats["created"] += 1
                         self.stdout.write(
                             self.style.WARNING(
                                 f"  🚨 NE-{ne.ne_id} {alert_key}: {value} ({severity}) — создан алерт"
                             )
                         )
+
+        return stats
+
+    # ============================================================
+    # IP-адреса (пинг-мониторинг подсетей)
+    # ============================================================
+
+    def _check_ip_addresses(self, dry=False):
+        """
+        Проверяет все IpAddress с is_monitored=True.
+
+        Логика:
+          - Если is_alive=True → закрываем алерт (если был)
+          - Если is_alive=False и IP молчит больше порога → создаём firing Alert
+          - Пороги: warn=60 сек, crit=120 сек (выбирается самый серьёзный)
+        """
+        stats = {"created": 0, "resolved": 0, "still_firing": 0}
+        now = timezone.now()
+
+        monitored = IpAddress.objects.filter(is_monitored=True).select_related("subnet")
+
+        for ip in monitored:
+            alert_key = f"ip_ping:{ip.id}"
+
+            active = Alert.objects.filter(
+                ip_address=ip,
+                metric_key=alert_key,
+                state=Alert.STATE_FIRING,
+            ).first()
+
+            # ── Живой → закрываем алерт ──
+            if ip.is_alive:
+                if active:
+                    if not dry:
+                        active.state = Alert.STATE_OK
+                        active.resolved_at = now
+                        active.save(update_fields=["state", "resolved_at", "updated_at"])
+                    stats["resolved"] += 1
+                    self.stdout.write(f"  ✓ IP {ip.ip}: OK (был алерт)")
+                continue
+
+            # ── Мёртвый → считаем молчание ──
+            if not ip.last_seen_at:
+                # Никогда не отвечал — не алертим
+                continue
+
+            silence = (now - ip.last_seen_at).total_seconds()
+
+            # Определяем severity (берём самое серьёзное сработавшее правило)
+            severity = threshold = msg = None
+            for sev, thr, message in self.IP_RULES:
+                if silence >= thr:
+                    severity, threshold, msg = sev, thr, message
+                    break
+
+            if severity is None:
+                # Ещё рано алертить
+                if active:
+                    # Алерт был, но теперь восстановился частично — не трогаем
+                    pass
+                continue
+
+            # ── Формируем сообщение ──
+            full_msg = f"IP {ip.ip} ({ip.subnet.cidr}): {msg} ({int(silence)} сек)"
+
+            if active:
+                # Обновляем существующий
+                if not dry:
+                    active.value = silence
+                    active.threshold = threshold
+                    active.severity = severity
+                    active.message = full_msg
+                    active.save(update_fields=[
+                        "value", "threshold", "severity", "message", "updated_at",
+                    ])
+                stats["still_firing"] += 1
+                self.stdout.write(f"  • IP {ip.ip}: молчит {int(silence)} сек ({severity}) — обновлено")
+            else:
+                # Создаём новый
+                if not dry:
+                    Alert.objects.create(
+                        ip_address=ip,
+                        metric_key=alert_key,
+                        severity=severity,
+                        state=Alert.STATE_FIRING,
+                        value=silence,
+                        threshold=threshold,
+                        message=full_msg,
+                    )
+                stats["created"] += 1
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  🚨 IP {ip.ip}: молчит {int(silence)} сек ({severity}) — создан алерт"
+                    )
+                )
 
         return stats
 

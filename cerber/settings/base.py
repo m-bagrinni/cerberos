@@ -39,12 +39,15 @@ INSTALLED_APPS = [
     "django_celery_beat",
 
     # свои
+    "apps.adminui",
     "apps.core",
     "apps.devices",
     "apps.monitoring",
     "apps.mibs",
     "apps.alerts",
-        "apps.stations",
+    "apps.stations",
+    "apps.subnets",
+    "apps.services",
     "apps.integrations",
 ]
 

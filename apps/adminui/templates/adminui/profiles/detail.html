@@ -1,0 +1,167 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}{{ profile.name }}{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:profiles' %}" class="btn--secondary">
+  <i class="bi bi-arrow-left"></i> К списку
+</a>
+<a href="{% url 'adminui:profile_update' profile.pk %}" class="btn--secondary">
+  <i class="bi bi-pencil"></i> Редактировать
+</a>
+<a href="{% url 'adminui:profile_clone' profile.pk %}" class="btn--secondary">
+  <i class="bi bi-files"></i> Клонировать
+</a>
+<a href="{% url 'adminui:profile_delete' profile.pk %}" class="btn--danger">
+  <i class="bi bi-trash"></i> Удалить
+</a>
+{% endblock %}
+
+{% block admin_content %}
+
+{# ===== Шапка профиля ===== #}
+<section class="panel" style="margin-bottom:16px">
+  <div class="panel__body">
+    <div class="profile-header">
+      <div>
+        <h2 class="device-header__name">{{ profile.name }}</h2>
+        <div class="device-header__meta">
+          <span class="mono">{{ profile.slug }}</span>
+          <span>·</span>
+          <span>{{ profile.vendor.name }}</span>
+          {% if profile.device_category %}
+            <span>·</span>
+            <span class="badge badge--info">{{ profile.device_category }}</span>
+          {% endif %}
+          <span>·</span>
+          <span>Priority: {{ profile.priority }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ===== Метрики профиля ===== #}
+<section class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Метрики ({{ metrics|length }})</h2>
+    <a href="{% url 'adminui:metric_create' profile.pk %}" class="btn--primary btn--sm">
+      <i class="bi bi-plus-lg"></i> Добавить метрику
+    </a>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if metrics %}
+    <table class="data-table" id="metrics-table">
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Название</th>
+          <th>OID</th>
+          <th>Тип</th>
+          <th>Ед.</th>
+          <th>Warn</th>
+          <th>Crit</th>
+          <th>Вкл.</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in metrics %}
+        <tr data-metric-id="{{ m.pk }}">
+          <td class="mono"><strong>{{ m.key }}</strong></td>
+          <td>{{ m.name }}</td>
+          <td class="mono text-muted" style="font-size:11px">{{ m.oid }}</td>
+          <td class="text-muted">{{ m.value_type }}</td>
+          <td class="text-muted">{{ m.unit|default:"—" }}</td>
+          <td class="text-muted">{{ m.warn|default:"—" }}</td>
+          <td class="text-muted">{{ m.crit|default:"—" }}</td>
+          <td>
+            {% if m.enabled %}
+              <span style="color:var(--ok)"><i class="bi bi-check-circle"></i></span>
+            {% else %}
+              <span class="text-muted"><i class="bi bi-x-circle"></i></span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="aui-row-actions">
+              {% if test_device %}
+              <button type="button"
+                      class="aui-icon-btn aui-icon-btn--test"
+                      data-metric-id="{{ m.pk }}"
+                      data-oid="{{ m.oid }}"
+                      title="Тест OID">
+                <i class="bi bi-plug"></i>
+              </button>
+              {% endif %}
+              <a href="{% url 'adminui:metric_update' profile.pk m.pk %}"
+                 class="aui-icon-btn" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'adminui:metric_delete' profile.pk m.pk %}"
+                 class="aui-icon-btn" title="Удалить">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-diagram-3"></i>
+      <p>У профиля нет метрик</p>
+      <a href="{% url 'adminui:metric_create' profile.pk %}" class="btn--primary" style="margin-top:12px">
+        <i class="bi bi-plus-lg"></i> Добавить первую метрику
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{# ===== Устройства профиля ===== #}
+{% if devices %}
+<section class="panel" style="margin-top:16px">
+  <div class="panel__header">
+    <h2 class="panel__title">Устройства этого профиля ({{ devices|length }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="data-table">
+      <thead>
+        <tr><th>Name</th><th>IP</th><th>Vendor</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for d in devices %}
+        <tr>
+          <td>{{ d.name }}</td>
+          <td class="mono text-muted">{{ d.ip }}</td>
+          <td>{{ d.vendor.name|default:"—" }}</td>
+          <td>
+            <span class="status-dot status-dot--{{ d.status }}"></span>
+            {{ d.status }}
+          </td>
+          <td>
+            <a href="{% url 'adminui:device_detail' d.pk %}" class="aui-icon-btn" title="Открыть">
+              <i class="bi bi-arrow-right"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.CERBER_TEST_OID_URL = "{% url 'adminui:test_oid' %}";
+  window.CERBER_TEST_DEVICE_IP = "{{ test_device.ip|default:'' }}";
+  window.CERBER_TEST_DEVICE_COMMUNITY = "{{ test_device.snmp_community|default:'' }}";
+  window.CERBER_TEST_DEVICE_VERSION = "{{ test_device.snmp_version|default:'2' }}";
+</script>
+<script src="{% static 'js/adminui-metrics.js' %}?v=1"></script>
+{% endblock %}

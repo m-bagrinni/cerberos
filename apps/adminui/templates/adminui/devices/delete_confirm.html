@@ -1,0 +1,27 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Удалить устройство{% endblock %}
+
+{% block admin_content %}
+<div class="panel" style="max-width:600px">
+  <div class="panel__header">
+    <h2 class="panel__title">Удалить устройство?</h2>
+  </div>
+  <div class="panel__body">
+    <p>Вы собираетесь удалить:</p>
+    <p style="font-size:18px;color:var(--text-strong);margin:12px 0">
+      <strong>{{ object.name }}</strong>
+      <span class="mono text-muted">({{ object.ip }})</span>
+    </p>
+    <p class="text-muted">Все связанные метрики, алерты и интерфейсы также будут удалены. Это действие необратимо.</p>
+
+    <form method="post" style="margin-top:20px;display:flex;gap:8px">
+      {% csrf_token %}
+      <button type="submit" class="btn--danger">
+        <i class="bi bi-trash"></i> Удалить
+      </button>
+      <a href="{% url 'adminui:device_detail' object.pk %}" class="btn--secondary">Отмена</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -449,6 +449,7 @@ def ne_metrics_bulk(request):
         points = [{"ts": r["ts"].isoformat(), "value": float(r["value"])} for r in qs]
         if points:
             result.append({
+                "id": ne.id,
                 "ne_id": ne.ne_id,
                 "name": ne.display_name,
                 "points": points,

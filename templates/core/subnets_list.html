@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Подсети — Cerberus{% endblock %}
+
+{% block content %}
+<div class="subnets-page">
+
+  <div class="subnets-header">
+    <h1><i class="bi bi-hdd-network"></i> Подсети</h1>
+    <div class="subnets-header__actions">
+      <button id="subnets-add-btn" class="btn btn--primary">
+        <i class="bi bi-plus-lg"></i> Добавить подсеть
+      </button>
+      <button id="subnets-scan-all" class="btn">
+        <i class="bi bi-arrow-clockwise"></i> Сканировать все
+      </button>
+    </div>
+  </div>
+
+  <div class="subnets-summary">
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">Подсетей</div>
+      <div class="subnet-stat__value">{{ summary.total }}</div>
+    </div>
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">Активных</div>
+      <div class="subnet-stat__value">{{ summary.active }}</div>
+    </div>
+    <div class="subnet-stat">
+      <div class="subnet-stat__label">Всего IP</div>
+      <div class="subnet-stat__value">{{ summary.total_ips }}</div>
+    </div>
+    <div class="subnet-stat subnet-stat--ok">
+      <div class="subnet-stat__label">Живых</div>
+      <div class="subnet-stat__value">{{ summary.total_alive }}</div>
+    </div>
+  </div>
+
+  <div class="subnets-grid" id="subnets-grid">
+    {% for s in subnets %}
+    {% with stats=s.stats %}
+    <a href="{% url 'subnet_detail' s.id %}" class="subnet-card" data-subnet-id="{{ s.id }}">
+      <div class="subnet-card__head">
+        <span class="subnet-card__cidr">{{ s.cidr }}</span>
+        {% if s.scan_status == "ok" %}
+          <span class="subnet-card__status subnet-card__status--ok" title="Скан: OK">
+            <i class="bi bi-check-circle-fill"></i>
+          </span>
+        {% elif s.scan_status == "running" %}
+          <span class="subnet-card__status subnet-card__status--running" title="Сканируется">
+            <i class="bi bi-arrow-repeat"></i>
+          </span>
+        {% elif s.scan_status == "error" %}
+          <span class="subnet-card__status subnet-card__status--error" title="{{ s.last_scan_error }}">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          </span>
+        {% else %}
+          <span class="subnet-card__status subnet-card__status--idle" title="Ожидает">
+            <i class="bi bi-dash-circle"></i>
+          </span>
+        {% endif %}
+      </div>
+
+      {% if s.name %}
+        <div class="subnet-card__name">{{ s.name }}</div>
+      {% endif %}
+
+      <div class="subnet-card__bar">
+        <div class="subnet-card__bar-alive"
+             style="width: {% widthratio stats.alive stats.total 100 %}%"></div>
+      </div>
+
+      <div class="subnet-card__stats">
+        <div class="subnet-card__stat">
+          <i class="bi bi-circle-fill" style="color: var(--ok)"></i>
+          <span>{{ stats.alive }}</span>
+          <small>живых</small>
+        </div>
+        <div class="subnet-card__stat">
+          <i class="bi bi-hdd"></i>
+          <span>{{ stats.used }}</span>
+          <small>занято</small>
+        </div>
+        <div class="subnet-card__stat">
+          <i class="bi bi-circle"></i>
+          <span>{{ stats.free }}</span>
+          <small>свободно</small>
+        </div>
+      </div>
+
+      <div class="subnet-card__footer">
+        {% if s.last_scan_at %}
+          <span title="Последнее сканирование">
+            <i class="bi bi-clock"></i> {{ s.last_scan_at|date:"H:i:s" }}
+          </span>
+        {% else %}
+          <span class="text-muted">Ещё не сканировалось</span>
+        {% endif %}
+      </div>
+    </a>
+    {% endwith %}
+    {% empty %}
+    <div class="subnets-empty">
+      <i class="bi bi-inbox"></i>
+      <p>Нет подсетей. Создай через <a href="/admin/subnets/subnet/add/">админку</a>.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+
+{# ─── Модалка: Добавить подсеть ─── #}
+<div class="subnet-modal-backdrop" id="subnet-modal-backdrop" hidden></div>
+<div class="subnet-modal" id="subnet-modal" hidden>
+  <div class="subnet-modal__head">
+    <h3><i class="bi bi-plus-circle"></i> Добавить подсеть</h3>
+    <button type="button" class="subnet-modal__close" id="subnet-modal-close">&times;</button>
+  </div>
+
+  <form id="subnet-form" class="subnet-modal__body">
+    <div class="form-row">
+      <label for="subnet-cidr">CIDR <span class="req">*</span></label>
+      <input type="text" id="subnet-cidr" name="cidr"
+             placeholder="192.168.7.0/24"
+             autocomplete="off" required>
+      <small class="form-hint">Подсеть в формате X.X.X.X/XX. Адрес хоста нормализуется к сети.</small>
+    </div>
+
+    <div class="form-row">
+      <label for="subnet-name">Название</label>
+      <input type="text" id="subnet-name" name="name"
+             placeholder="MANAGEMENT" autocomplete="off">
+    </div>
+
+    <div class="form-row">
+      <label for="subnet-desc">Описание</label>
+      <textarea id="subnet-desc" name="description" rows="2"
+                placeholder="Управление сетевым оборудованием"></textarea>
+    </div>
+
+    <div class="form-row form-row--half">
+      <div>
+        <label for="subnet-gw">Шлюз (опц.)</label>
+        <input type="text" id="subnet-gw" name="gateway_ip"
+               placeholder="192.168.7.1" autocomplete="off">
+      </div>
+      <div>
+        <label for="subnet-interval">Интервал скана (мин)</label>
+        <input type="number" id="subnet-interval" name="scan_interval_min"
+               value="15" min="1" max="1440">
+      </div>
+    </div>
+
+    <div class="form-row form-row--check">
+      <label>
+        <input type="checkbox" id="subnet-populate" name="populate_ips" checked>
+        Создать все IP в подсети (для карты)
+      </label>
+    </div>
+
+    <div class="form-row form-row--check">
+      <label>
+        <input type="checkbox" id="subnet-active" name="is_active" checked>
+        Активна (участвует в сканировании)
+      </label>
+    </div>
+
+    <div class="subnet-modal__error" id="subnet-form-error" hidden></div>
+  </form>
+
+  <div class="subnet-modal__actions">
+    <button type="button" class="btn" id="subnet-modal-cancel">Отмена</button>
+    <button type="submit" form="subnet-form" class="btn btn--primary" id="subnet-form-submit">
+      <i class="bi bi-check2"></i> Создать
+    </button>
+  </div>
+</div>
+
+<link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=241">
+<script src="{% static 'js/subnets.js' %}?v=241"></script>
+{% endblock %}

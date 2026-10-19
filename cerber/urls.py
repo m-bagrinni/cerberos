@@ -3,15 +3,25 @@ from django.contrib import admin
 from django.urls import include, path
 
 from apps.core import views as core_views
+from apps.core import proxy_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
+    # Кастомная админ-панель Cerberus (отдельный раздел)
+    path("admin-ui/", include("apps.adminui.urls", namespace="adminui")),
+
+    # Прокси для внешних тайлов (OpenRailwayMap)
+    path("tiles/orm/<str:style>/<int:z>/<int:x>/<int:y>.png",
+         proxy_views.orm_tile, name="orm_tile"),
 
     # REST API
     path("api/v1/", include("apps.devices.api_urls")),
 
     path("api/v1/", include("apps.stations.api_urls")),
     path("api/v1/", include("apps.monitoring.api_urls")),
+    path("api/v1/", include("apps.subnets.api_urls")),
+    path("api/v1/", include("apps.services.api_urls")),
 
     # Глобальные табы (верхний уровень)
     path("", core_views.dashboard, name="dashboard"),
@@ -20,6 +30,9 @@ urlpatterns = [
     path("sfp/", core_views.tab_sfp, name="tab_sfp"),
     path("multiplexers/", core_views.multiplexers_list, name="multiplexers_list"),
     path("stations/", core_views.stations_list, name="stations_list"),
+    path("subnets/", core_views.subnets_list, name="subnets_list"),
+    path("", include("apps.services.urls")),
+    path("subnets/<int:subnet_id>/", core_views.subnet_detail, name="subnet_detail"),
     path("modal/ne/<int:ne_id>/", core_views.ne_modal, name="ne_modal"),
     path("api/v1/ne/<int:ne_id>/rename/", core_views.ne_rename_api, name="ne_rename_api"),
 

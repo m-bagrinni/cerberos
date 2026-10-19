@@ -1,0 +1,75 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}{{ form_title }}{% endblock %}
+
+{% block admin_actions %}
+<a href="{% if profile %}{% url 'adminui:profile_detail' profile.pk %}{% else %}{% url 'adminui:profiles' %}{% endif %}"
+   class="btn--secondary">
+  <i class="bi bi-x-lg"></i> Отмена
+</a>
+{% endblock %}
+
+{% block admin_content %}
+
+<form method="post" class="aui-form">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div class="aui-form__errors">
+    {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="aui-form__grid">
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">Основное</h2>
+      </div>
+      <div class="panel__body">
+        {% for field in form %}
+          {% if field.name in "vendor,parent,slug,name,priority,device_category" %}
+          <div class="aui-form__field">
+            <label class="aui-form__label" for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">Match-правила (для автоопределения)</h2>
+      </div>
+      <div class="panel__body">
+        {% for field in form %}
+          {% if field.name in "match_sysobject_prefixes,match_sysdescr_regex,match_model_regex" %}
+          <div class="aui-form__field">
+            <label class="aui-form__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="aui-form__actions">
+    <button type="submit" class="btn--primary">
+      <i class="bi bi-check-lg"></i> {{ form_submit }}
+    </button>
+    <a href="{% url 'adminui:profiles' %}" class="btn--secondary">Отмена</a>
+    {% if profile %}
+    <a href="{% url 'adminui:profile_delete' profile.pk %}" class="btn--danger" style="margin-left:auto">
+      <i class="bi bi-trash"></i> Удалить
+    </a>
+    {% endif %}
+  </div>
+</form>
+
+{% endblock %}

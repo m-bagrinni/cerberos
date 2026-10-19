@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Cerberus — multi-vendor SNMP monitoring (D-Link / Eltex / MikroTik)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "networkx>=3.0",
     "django>=5.0,<5.1",
     "psycopg[binary]>=3.1",
     "redis>=5.0",

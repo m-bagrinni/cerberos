@@ -366,4 +366,126 @@
             });
     };
 
+
+    // ─────────────────────────────────────────────────────────
+    // openNeModal — открывает модалку NE по ID
+    // Вызывается из onclick на карточке
+    // ─────────────────────────────────────────────────────────
+    window.openNeModal = function(neIdValue) {
+        if (!neIdValue) return;
+
+        var modal = document.getElementById('ne-modal');
+        var body = document.getElementById('ne-modal-body');
+        var title = document.getElementById('ne-modal-title');
+        if (!modal || !body) {
+            console.error('[openNeModal] не найдены #ne-modal или #ne-modal-body');
+            return;
+        }
+
+        // Показываем модалку
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        // Показываем «Загрузка...»
+        body.innerHTML = '<div class="ne-modal__loading">Загрузка…</div>';
+        if (title) title.textContent = 'NE-' + neIdValue;
+
+        // Загружаем контент
+        fetch('/modal/ne/' + neIdValue + '/')
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                body.innerHTML = html;
+                // Привязываем вкладки и графики
+                if (window.NeModal && window.NeModal.bind) {
+                    window.NeModal.bind(neIdValue, body);
+                }
+            })
+            .catch(function(e) {
+                console.error('[openNeModal] error:', e);
+                body.innerHTML = '<div style="color:var(--crit);padding:20px">Ошибка загрузки: ' + e.message + '</div>';
+            });
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // closeNeModal — закрывает модалку
+    // ─────────────────────────────────────────────────────────
+    window.closeNeModal = function() {
+        var modal = document.getElementById('ne-modal');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // openNeRename / closeNeRename — модалка переименования
+    // ─────────────────────────────────────────────────────────
+    window.openNeRename = function(neIdValue, currentName) {
+        var modal = document.getElementById('ne-rename');
+        var input = document.getElementById('ne-rename-input');
+        if (!modal || !input) return;
+        window._renameNeId = neIdValue;
+        input.value = currentName || '';
+        modal.style.display = 'flex';
+        setTimeout(function() { input.focus(); input.select(); }, 50);
+    };
+
+    window.closeNeRename = function() {
+        var modal = document.getElementById('ne-rename');
+        if (modal) modal.style.display = 'none';
+        window._renameNeId = null;
+    };
+
+    window.submitNeRename = function() {
+        var neIdValue = window._renameNeId;
+        var input = document.getElementById('ne-rename-input');
+        if (!neIdValue || !input) return;
+
+        var newName = input.value.trim();
+        if (!newName) {
+            alert('Имя не может быть пустым');
+            return;
+        }
+
+        fetch('/api/v1/ne/' + neIdValue + '/rename/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (function() {
+                    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+                    return m ? m[1] : '';
+                })(),
+            },
+            body: JSON.stringify({ name: newName }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                window.closeNeRename();
+                // Обновим заголовок карточки
+                var card = document.querySelector('[data-ne-id="' + neIdValue + '"]');
+                if (card) {
+                    var nameEl = card.querySelector('.ne-card__name, .ne-name, h3');
+                    if (nameEl) nameEl.textContent = newName;
+                }
+                if (window.reloadNeCards) window.reloadNeCards();
+            } else {
+                alert('Ошибка: ' + (data.error || 'не удалось'));
+            }
+        })
+        .catch(function(e) {
+            console.error('[submitNeRename] error:', e);
+            alert('Ошибка: ' + e.message);
+        });
+    };
+
+    // Esc закрывает модалки
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (window.closeNeModal) window.closeNeModal();
+            if (window.closeNeRename) window.closeNeRename();
+        }
+    });
+
 })();

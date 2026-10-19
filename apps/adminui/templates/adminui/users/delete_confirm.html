@@ -1,0 +1,29 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Удалить пользователя{% endblock %}
+
+{% block admin_content %}
+<div class="panel" style="max-width:600px">
+  <div class="panel__header"><h2 class="panel__title">Удалить пользователя?</h2></div>
+  <div class="panel__body">
+    <p><strong>{{ object.username }}</strong></p>
+
+    {% if is_self %}
+    <div class="aui-snmp-test aui-snmp-test--error" style="margin-top:12px">
+      Нельзя удалить самого себя.
+    </div>
+    <div style="margin-top:20px">
+      <a href="{% url 'adminui:users' %}" class="btn--secondary">← Назад</a>
+    </div>
+    {% else %}
+    <form method="post" style="margin-top:20px;display:flex;gap:8px">
+      {% csrf_token %}
+      <button type="submit" class="btn--danger">
+        <i class="bi bi-trash"></i> Удалить
+      </button>
+      <a href="{% url 'adminui:users' %}" class="btn--secondary">Отмена</a>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

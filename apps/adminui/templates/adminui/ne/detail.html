@@ -1,0 +1,133 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}{{ ne.name }} (NE {{ ne.ne_id }}){% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:ne' %}" class="btn--secondary">
+  <i class="bi bi-arrow-left"></i> К списку
+</a>
+<a href="{% url 'adminui:device_detail' gateway.pk %}" class="btn--secondary">
+  <i class="bi bi-router"></i> Открыть шлюз
+</a>
+<button type="button" class="btn--secondary aui-icon-btn--poll" data-pk="{{ gateway.pk }}">
+  <i class="bi bi-arrow-clockwise"></i> Poll шлюз
+</button>
+{% endblock %}
+
+{% block admin_content %}
+
+<section class="panel" style="margin-bottom:16px">
+  <div class="panel__body">
+    <div class="device-header">
+      <div class="device-header__main">
+        <h2 class="device-header__name">{{ ne.name }}</h2>
+        <div class="device-header__meta">
+          <span>NE ID: <strong>{{ ne.ne_id }}</strong></span>
+          {% if ne.raw_name %}<span>·</span><span class="mono">{{ ne.raw_name }}</span>{% endif %}
+          <span>·</span>
+          <span>шлюз: <a href="{% url 'adminui:device_detail' gateway.pk %}" style="color:var(--primary)">{{ gateway.name }}</a></span>
+        </div>
+      </div>
+      <div class="device-header__status">
+        <span class="status-dot status-dot--{{ ne.status }}"></span>
+        <strong>{{ ne.status }}</strong>
+      </div>
+    </div>
+
+    <div class="device-header__details">
+      <div class="device-detail-item">
+        <span class="device-detail-item__label">Last seen</span>
+        <span class="device-detail-item__value">
+          {% if ne.last_seen %}{{ ne.last_seen|timesince }} назад{% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="device-detail-item">
+        <span class="device-detail-item__label">Last polled</span>
+        <span class="device-detail-item__value">
+          {% if ne.last_polled_at %}{{ ne.last_polled_at|timesince }} назад{% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="device-detail-item">
+        <span class="device-detail-item__label">Sort order</span>
+        <span class="device-detail-item__value">{{ ne.sort_order }}</span>
+      </div>
+      <div class="device-detail-item">
+        <span class="device-detail-item__label">Метрик</span>
+        <span class="device-detail-item__value">{{ metric_keys|length }}</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if metric_keys %}
+
+{# === ГЛАВНЫЕ графики: sfp_rx_dbm (по портам), sfp_temp:1, eth_rx_bytes (по портам) === #}
+{% with primary_keys=metric_keys %}
+<div class="aui-charts-grid" id="primary-charts">
+  {% for key in metric_keys %}
+    {% if ":1" in key and "sfp_rx_dbm" in key or ":2" in key and "sfp_rx_dbm" in key or ":3" in key and "sfp_rx_dbm" in key or "sfp_temp:1" == key or "eth_rx_bytes" in key %}
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">{{ key }}</h2>
+      </div>
+      <div class="panel__body">
+        <canvas id="chart-{{ key }}" height="180"></canvas>
+      </div>
+    </section>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endwith %}
+
+{# === Остальные графики — свёрнуты === #}
+<details class="aui-details" style="margin-top:16px">
+  <summary class="aui-details__summary">
+    <i class="bi bi-chevron-right"></i>
+    Показать остальные метрики (всего {{ metric_keys|length }})
+  </summary>
+  <div class="aui-charts-grid" style="margin-top:12px">
+    {% for key in metric_keys %}
+      {% if not ":1" in key or not "sfp_rx_dbm" in key %}
+        {% if not ":2" in key or not "sfp_rx_dbm" in key %}
+          {% if not ":3" in key or not "sfp_rx_dbm" in key %}
+            {% if not "sfp_temp:1" == key %}
+              {% if not "eth_rx_bytes" in key %}
+              <section class="panel">
+                <div class="panel__header">
+                  <h2 class="panel__title">{{ key }}</h2>
+                </div>
+                <div class="panel__body">
+                  <canvas id="chart-{{ key }}" height="180"></canvas>
+                </div>
+              </section>
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+</details>
+
+{% else %}
+<div class="panel">
+  <div class="panel__body">
+    <div class="empty-state">
+      <i class="bi bi-graph-up"></i>
+      <p>У этого NE пока нет метрик</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/js/chart.umd.min.js' %}"></script>
+<script>
+  window.CERBER_CHARTS = {{ charts_json|safe }};
+  window.CERBER_METRICS_META = {{ metrics_meta_json|safe }};
+</script>
+<script src="{% static 'js/adminui-device-detail.js' %}?v=7"></script>
+{% endblock %}

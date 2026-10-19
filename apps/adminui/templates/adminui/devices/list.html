@@ -1,0 +1,126 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Устройства{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:device_create' %}" class="btn--secondary">
+  <i class="bi bi-plus-lg"></i> Добавить устройство
+</a>
+{% endblock %}
+
+{% block admin_content %}
+
+{# ===== Фильтры ===== #}
+<form method="get" class="aui-filter-bar">
+  <div class="aui-filter-bar__field aui-filter-bar__field--grow">
+    {{ filter_form.q }}
+  </div>
+  <div class="aui-filter-bar__field">
+    {{ filter_form.vendor }}
+  </div>
+  <div class="aui-filter-bar__field">
+    {{ filter_form.category }}
+  </div>
+  <div class="aui-filter-bar__field">
+    {{ filter_form.status }}
+  </div>
+  <button type="submit" class="btn--secondary">
+    <i class="bi bi-funnel"></i> Фильтр
+  </button>
+  {% if request.GET %}
+  <a href="{% url 'adminui:devices' %}" class="btn--secondary">
+    <i class="bi bi-x-lg"></i> Сброс
+  </a>
+  {% endif %}
+</form>
+
+{# ===== Таблица ===== #}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Устройства ({{ total }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if devices %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>IP</th>
+          <th>Vendor</th>
+          <th>Model / Profile</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Last poll</th>
+          <th style="width:140px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in devices %}
+        <tr>
+          <td><strong>{{ d.name }}</strong></td>
+          <td class="mono text-muted">{{ d.ip }}</td>
+          <td>{{ d.vendor.name|default:"—" }}</td>
+          <td>
+            {% if d.ent_model %}<span class="mono">{{ d.ent_model }}</span>{% endif %}
+            {% if d.profile %}
+              <br><span class="text-muted" style="font-size:11px">{{ d.profile.name }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if d.profile.device_category %}
+              <span class="badge badge--info">{{ d.profile.device_category }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="status-dot status-dot--{{ d.status }}"></span>
+            {{ d.status }}
+          </td>
+          <td class="text-muted">
+            {% if d.last_polled_at %}{{ d.last_polled_at|timesince }} назад{% else %}—{% endif %}
+          </td>
+          <td>
+            <div class="aui-row-actions">
+              <a href="{% url 'adminui:device_detail' d.pk %}" class="aui-icon-btn" title="Детали">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{% url 'adminui:device_update' d.pk %}" class="aui-icon-btn" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <button type="button"
+                      class="aui-icon-btn aui-icon-btn--poll"
+                      data-ip="{{ d.ip }}" data-pk="{{ d.pk }}"
+                      title="Poll now">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-hdd-network"></i>
+      <p>Устройств не найдено</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ===== Пагинация ===== #}
+{% if is_paginated %}
+<div class="aui-pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+     class="btn--secondary">← Назад</a>
+  {% endif %}
+  <span class="text-muted">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+     class="btn--secondary">Вперёд →</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

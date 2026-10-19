@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Админ-панель · Cerberus{% endblock %}</title>
+
+  <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
+  <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="adminui-layout">
+
+  {# ===== Сайдбар админки ===== #}
+  <aside class="adminui-sidebar">
+    <div class="adminui-sidebar__title">
+      <i class="bi bi-shield-lock"></i>
+      <span>Админ-панель</span>
+    </div>
+
+    <nav class="adminui-nav">
+      <a href="{% url 'adminui:dashboard' %}"
+         class="adminui-nav__item {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
+        <i class="bi bi-speedometer2"></i> Обзор
+      </a>
+
+      <div class="adminui-nav__group">Мониторинг</div>
+      <a href="{% url 'adminui:devices' %}"
+         class="adminui-nav__item {% if 'devices' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-hdd-network"></i> Устройства
+      </a>
+      <a href="{% url 'adminui:profiles' %}"
+         class="adminui-nav__item {% if 'profiles' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-diagram-3"></i> Профили
+      </a>
+      <a href="{% url 'adminui:vendors' %}"
+         class="adminui-nav__item {% if 'vendors' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-building"></i> Вендоры
+      </a>
+      <a href="{% url 'adminui:ne' %}"
+         class="adminui-nav__item {% if request.resolver_match.url_name == 'ne' %}is-active{% endif %}">
+        <i class="bi bi-router"></i> NE
+      </a>
+
+      <div class="adminui-nav__group">Инфраструктура</div>
+      <a href="{% url 'adminui:subnets' %}"
+         class="adminui-nav__item {% if 'subnets' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-diagram-2"></i> Подсети
+      </a>
+      <a href="{% url 'adminui:alerts' %}"
+         class="adminui-nav__item {% if 'alerts' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-bell"></i> Алерты
+      </a>
+
+      <div class="adminui-nav__group">Система</div>
+      <a href="{% url 'adminui:users' %}"
+         class="adminui-nav__item {% if 'users' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-people"></i> Пользователи
+      </a>
+    </nav>
+
+    <div class="adminui-nav__group" style="margin-top:auto">Переходы</div>
+    <nav class="adminui-nav" style="margin-bottom:12px">
+      <a href="/" class="adminui-nav__item adminui-nav__item--external">
+        <i class="bi bi-arrow-left-circle"></i> Cerberus
+      </a>
+      <a href="/admin/" class="adminui-nav__item adminui-nav__item--external">
+        <i class="bi bi-box-arrow-up-right"></i> Django-admin
+      </a>
+    </nav>
+  </aside>
+
+  {# ===== Контент ===== #}
+  <main class="adminui-main">
+    <header class="adminui-header">
+      <h1 class="adminui-header__title">{% block admin_title %}Админ-панель{% endblock %}</h1>
+      <div class="adminui-header__actions">{% block admin_actions %}{% endblock %}</div>
+    </header>
+    <div class="adminui-content">
+      {% block admin_content %}{% endblock %}
+    </div>
+  </main>
+
+</div>
+
+<script src="{% static 'js/adminui-devices.js' %}?v=5"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
