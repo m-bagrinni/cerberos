@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ server.name }} — Cerberus{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/servers_grafana.css' %}?v={% now 'U' %}">
+
+<div class="g-wrapper">
+    <!-- ЛЕВАЯ ПАНЕЛЬ -->
+    <div class="g-sidebar">
+        <div class="g-sidebar-header">
+            <h2><i class="bi bi-hdd-rack"></i> Серверы</h2>
+        </div>
+        <div class="g-list">
+            {% for s in all_servers %}
+            <a href="{% url 'server_detail_page' s.id %}" class="g-server-item {% if s.id == server.id %}active{% endif %}">
+                <div>
+                    <div class="g-server-name">{{ s.name }}</div>
+                    <div class="g-server-ip">{{ s.ip_address }}</div>
+                </div>
+                <div>
+                    <span class="g-status-dot {% if s.last_seen %}online{% else %}offline{% endif %}"></span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ПРАВАЯ ПАНЕЛЬ -->
+    <div class="g-detail">
+        <div class="g-detail-header">
+            <div>
+                <h2 class="g-detail-title">{{ server.name }}</h2>
+                <div class="g-detail-subtitle">{{ server.ip_address }}</div>
+            </div>
+            <div>
+                {% if server.last_seen %}
+                    <span style="color: var(--green); font-weight: 500; font-size: 13px;">● Онлайн</span>
+                {% else %}
+                    <span style="color: var(--red); font-weight: 500; font-size: 13px;">● Недоступен</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="g-tabs">
+            <a href="#" class="g-tab active" data-tab="overview">Обзор</a>
+            <a href="#" class="g-tab" data-tab="users">Пользователи</a>
+        </div>
+
+        <div id="tab-overview" class="tab-pane">
+            <div class="g-card" style="padding: 24px;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-main);">Специфичные метрики DC</h3>
+                <p style="color: var(--text-muted); font-size: 14px;">Здесь будут отображаться метрики Active Directory.</p>
+            </div>
+        </div>
+
+        <div id="tab-users" class="tab-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-main);">Пользователи AD</h3>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-refresh-users" class="g-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+                    <button id="btn-add-user" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Добавить</button>
+                </div>
+            </div>
+            <div class="g-card">
+                <table class="g-table">
+                    <thead>
+                        <tr>
+                            <th>Логин</th>
+                            <th>ФИО</th>
+                            <th>Статус</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ad-users-body">
+                        <tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модалки -->
+<div id="user-modal" class="g-modal">
+    <div class="g-modal-content">
+        <h3>Редактирование</h3>
+        <input type="text" id="modal-login" disabled class="g-input">
+        <input type="text" id="modal-name" placeholder="ФИО" class="g-input">
+        <input type="email" id="modal-email" placeholder="Email" class="g-input">
+        <input type="password" id="modal-password" placeholder="Новый пароль" class="g-input">
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="modal-cancel" class="g-btn">Отмена</button>
+            <button id="modal-save" class="g-btn g-btn-primary">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div id="add-user-modal" class="g-modal">
+    <div class="g-modal-content">
+        <h3>Добавить пользователя</h3>
+        <input type="text" id="add-login" placeholder="Логин *" class="g-input">
+        <input type="text" id="add-name" placeholder="ФИО *" class="g-input">
+        <input type="email" id="add-email" placeholder="Email" class="g-input">
+        <input type="password" id="add-password" placeholder="Пароль *" class="g-input">
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="add-modal-cancel" class="g-btn">Отмена</button>
+            <button id="add-modal-save" class="g-btn g-btn-primary">Создать</button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/servers_dc.js' %}?v={% now 'U' %}"></script>
+{% endblock %}

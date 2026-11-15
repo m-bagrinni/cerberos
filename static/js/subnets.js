@@ -9,19 +9,13 @@
 
 
   
-  // ─── CSRF-хелпер ───
-  function getCookie(name) {
-    const m = document.cookie.match(new RegExp("(^|;\\s*)" + name + "=([^;]+)"));
-    return m ? decodeURIComponent(m[2]) : null;
-  }
+  // ─── Общие хелперы (static/js/core.js) ───
+  const esc = Cerber.escapeHtml;
 
   function csrfFetch(url, opts) {
     opts = opts || {};
-    opts.headers = opts.headers || {};
-    const tok = getCookie("csrftoken");
-    if (tok) opts.headers["X-CSRFToken"] = tok;
-    opts.headers["Accept"] = "application/json";
-    return fetch(url, opts);
+    opts.headers = Object.assign({ Accept: "application/json" }, opts.headers || {});
+    return Cerber.fetch(url, opts);
   }
 // ─── Страница списка подсетей ─────────────────────────────
 
@@ -31,9 +25,8 @@
       scanAllBtn.disabled = true;
       scanAllBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Запущено';
       try {
-        const r = await fetch("/api/v1/subnets/scan-all-now/", { method: "POST" });
+        const r = await csrfFetch("/api/v1/subnets/scan-all-now/", { method: "POST" });
         const d = await r.json();
-        console.log("scan-all-now →", d);
       } catch (e) {
         console.error(e);
       }
@@ -239,7 +232,7 @@
       applyFilters();
     } catch (e) {
       console.error("loadGrid:", e);
-      gridEl.innerHTML = `<div class="ip-grid__loading">Ошибка загрузки: ${e.message}</div>`;
+      gridEl.innerHTML = `<div class="ip-grid__loading">Ошибка загрузки: ${esc(e.message)}</div>`;
     }
   }
 
@@ -249,9 +242,9 @@
 
   function buildTooltipHtml(ip) {
     var parts = [];
-    parts.push('<div class="t-ip">' + ip.ip + '</div>');
+    parts.push('<div class="t-ip">' + esc(ip.ip) + '</div>');
     if (ip.hostname) {
-      parts.push('<div class="t-host">' + ip.hostname + '</div>');
+      parts.push('<div class="t-host">' + esc(ip.hostname) + '</div>');
     }
 
     var state = ip.state || "unknown";
@@ -261,11 +254,11 @@
     }[state] || state;
     var stateClass = "t-state";
     if (state === "reserved") stateClass += " t-reserved";
-    parts.push('<div class="' + stateClass + '">состояние: ' + stateLabel + '</div>');
+    parts.push('<div class="' + stateClass + '">состояние: ' + esc(stateLabel) + '</div>');
 
     if (ip.is_alive) {
       var rtt = (ip.last_rtt_ms != null) ? (ip.last_rtt_ms + " ms") : "?";
-      parts.push('<div class="t-rtt">RTT: ' + rtt + '</div>');
+      parts.push('<div class="t-rtt">RTT: ' + esc(rtt) + '</div>');
     } else if (ip.is_monitored) {
       parts.push('<div class="t-bad">❌ не отвечает</div>');
     }
@@ -460,11 +453,11 @@
 
   function startLive() {
     stopLive();
-    liveTimer = setInterval(loadGrid, 15000);
+    liveTimer = Cerber.poll(loadGrid, 15000);   // пауза в фоновой вкладке
   }
 
   function stopLive() {
-    if (liveTimer) clearInterval(liveTimer);
+    if (liveTimer) liveTimer.stop();
     liveTimer = null;
   }
 
@@ -501,7 +494,7 @@
       const url = `/api/v1/ip-addresses/${id}/`;
       const resp = await fetch(url);
       if (!resp.ok) {
-        modalBody.innerHTML = `<div style="color:var(--crit)">HTTP ${resp.status} — ${url}</div>`;
+        modalBody.innerHTML = `<div style="color:var(--crit)">HTTP ${esc(resp.status)} — ${esc(url)}</div>`;
         return;
       }
       const data = await resp.json();
@@ -512,7 +505,7 @@
         setTimeout(function () { drawRttChart(data.id); }, 50);
       }
     } catch (e) {
-      modalBody.innerHTML = `<div style="color:var(--crit)">Ошибка: ${e.message}</div>`;
+      modalBody.innerHTML = `<div style="color:var(--crit)">Ошибка: ${esc(e.message)}</div>`;
     }
   }
 
@@ -602,7 +595,7 @@
     } catch (e) {
       console.error("[chart] error:", e);
       canvas.parentElement.innerHTML =
-        '<div class="ip-modal__no-chart">Ошибка: ' + e.message + '</div>';
+        '<div class="ip-modal__no-chart">Ошибка: ' + esc(e.message) + '</div>';
     }
   }
 
@@ -622,8 +615,8 @@
       ["Последний ответ", fmtTime(d.last_seen_at)],
     ];
     let html = rows.map(r =>
-      '<div class="ip-modal__row"><span class="ip-modal__row-label">' + r[0] +
-      '</span><span class="ip-modal__row-value">' + r[1] + '</span></div>'
+      '<div class="ip-modal__row"><span class="ip-modal__row-label">' + esc(r[0]) +
+      '</span><span class="ip-modal__row-value">' + esc(r[1]) + '</span></div>'
     ).join("");
     // График RTT для monitored IP
     if (d.is_monitored) {

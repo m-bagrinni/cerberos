@@ -140,7 +140,15 @@ class OpticalLink(models.Model):
 
     # ── Кэш DDM ─────────────────────────────────────────────
     rx_a_dbm = models.FloatField(null=True, blank=True)
+    tx_a_dbm = models.FloatField(null=True, blank=True)
+    temp_a_c = models.FloatField(null=True, blank=True)
+    bias_a_ma = models.FloatField(null=True, blank=True)
+    volt_a_v = models.FloatField(null=True, blank=True)
     rx_b_dbm = models.FloatField(null=True, blank=True)
+    tx_b_dbm = models.FloatField(null=True, blank=True)
+    temp_b_c = models.FloatField(null=True, blank=True)
+    bias_b_ma = models.FloatField(null=True, blank=True)
+    volt_b_v = models.FloatField(null=True, blank=True)
     link_a_up = models.BooleanField(null=True, blank=True)
     link_b_up = models.BooleanField(null=True, blank=True)
     link_status = models.CharField(
@@ -159,7 +167,11 @@ class OpticalLink(models.Model):
         ]
 
     def __str__(self):
-        return self.label or f"Link #{self.pk}"
+        if self.label:
+            return self.label
+        a = self.station_a.name if self.station_a else "?"
+        b = self.station_b.name if self.station_b else "?"
+        return f"{a} — {b}"
 
     # ── Валидация ───────────────────────────────────────────
     def clean(self):
@@ -235,7 +247,10 @@ class OpticalLink(models.Model):
         if self.ne_a:
             return f"{self.station_a.name} · {self.ne_a.display_name} · {self.port_a_type.upper()}{self.port_a_num}"
         if self.device_a:
-            return f"{self.station_a.name} · {self.device_a.name} · if{self.port_a_num}"
+            # Для Ethernet-портов показываем тип и номер (LAN14), а не if_index
+            if self.port_a_type == "lan":
+                return f"{self.station_a.name} · {self.device_a.name} · LAN{self.port_a_num}"
+            return f"{self.station_a.name} · {self.device_a.name} · {self.port_a_type.upper()}{self.port_a_num}"
         return f"{self.station_a.name} · ?"
 
     @property
@@ -243,22 +258,37 @@ class OpticalLink(models.Model):
         if self.ne_b:
             return f"{self.station_b.name} · {self.ne_b.display_name} · {self.port_b_type.upper()}{self.port_b_num}"
         if self.device_b:
-            return f"{self.station_b.name} · {self.device_b.name} · if{self.port_b_num}"
+            if self.port_b_type == "lan":
+                return f"{self.station_b.name} · {self.device_b.name} · LAN{self.port_b_num}"
+            return f"{self.station_b.name} · {self.device_b.name} · {self.port_b_type.upper()}{self.port_b_num}"
         return f"{self.station_b.name} · ?"
 
     def recalc_status(self):
-        """Возвращает вычисленный link_status на основе кэша DDM."""
+        """Возвращает вычисленный link_status на основе кэша DDM и доступности устройств."""
+        # 1. Если порт явно упал (link down) — это авария
         if self.link_a_up is False or self.link_b_up is False:
             return "crit"
-        if self.rx_a_dbm is None or self.rx_b_dbm is None:
+            
+        # 2. Если устройство недоступно по SNMP/ICMP — это потеря сигнала.
+        if self.device_a and not self.device_a.is_reachable:
+            return "no_signal"
+        if self.device_b and not self.device_b.is_reachable:
+            return "no_signal"
+
+        # 3. Собираем доступные значения RX (игнорируя None, если на одной из сторон нет DDM)
+        rx_values = [rx for rx in (self.rx_a_dbm, self.rx_b_dbm) if rx is not None]
+        
+        # Если данных нет вообще ни с одной стороны (нет DDM) — это неизвестность
+        if not rx_values:
             return "unknown"
-        worst = min(self.rx_a_dbm, self.rx_b_dbm)
+            
+        # 4. Оцениваем по худшему из доступных RX
+        worst = min(rx_values)
         if worst < -25:
             return "crit"
         if worst < -20:
             return "warn"
         return "ok"
-
 
     # ── DDM: динамические свойства из MetricValue ─────────────
     def _last_metric(self, ne, key, instance):
@@ -289,6 +319,17 @@ class OpticalLink(models.Model):
         port = getattr(self, f"port_{side}_num")
         if ne is None:
             return None
+
+        # Возраст: последний sfp_ MetricValue для этого NE
+        from apps.monitoring.models import MetricValue
+        last_ts = (
+            MetricValue.objects
+            .filter(ne_device=ne, metric__key__startswith="sfp_")
+            .order_by("-ts")
+            .values_list("ts", flat=True)
+            .first()
+        )
+
         return {
             "rx_dbm": self._last_metric(ne, "sfp_rx_dbm", port),
             "tx_dbm": self._last_metric(ne, "sfp_tx_dbm", port),
@@ -296,4 +337,31 @@ class OpticalLink(models.Model):
             "bias_ma": self._last_metric(ne, "sfp_bias", port),
             "volt_v": self._last_metric(ne, "sfp_volt", port),
             "link":   self._last_metric(ne, "sfp_link", port),
+            "updated_at": last_ts.isoformat() if last_ts else None,
         }
+
+
+class OpticalClosure(models.Model):
+    """Оптическая муфта на линии (пассивная, только для визуализации)."""
+    link = models.ForeignKey(
+        OpticalLink, on_delete=models.CASCADE, related_name="closures",
+        help_text="Оптическая линия, на которой находится муфта"
+    )
+    name = models.CharField(max_length=128, help_text="Название муфты")
+    lat = models.FloatField(help_text="Широта")
+    lon = models.FloatField(help_text="Долгота")
+    description = models.TextField(blank=True)
+    expected_rx_dbm = models.FloatField(null=True, blank=True, help_text="Ожидаемый уровень сигнала (расчетный)")
+    total_loss_db = models.FloatField(null=True, blank=True, help_text="Суммарные потери от станции А (дБ)")
+    expected_rx_b_dbm = models.FloatField(null=True, blank=True, help_text="Ожидаемый RX от станции Б (дБм)")
+    total_loss_b_db = models.FloatField(null=True, blank=True, help_text="Суммарные потери от станции Б (дБ)")
+    segment_loss_db = models.FloatField(null=True, blank=True, help_text="Потери на участке от предыдущей муфты (дБ)")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("link", "name")
+        verbose_name = "Оптическая муфта"
+        verbose_name_plural = "Оптические муфты"
+
+    def __str__(self):
+        return f"{self.name} ({self.link})"

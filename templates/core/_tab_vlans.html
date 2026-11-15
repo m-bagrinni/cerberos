@@ -1,0 +1,53 @@
+{% load static %}
+
+{% if vlans %}
+<div class="vlan-grid">
+    {% for v in vlans %}
+    <div class="vlan-card">
+        <div class="vlan-card__id">{{ v.vlan_id }}</div>
+        <div class="vlan-card__name">{{ v.name|default:"—" }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="c-card">
+    <div class="c-empty" style="padding:48px">
+        <i class="bi bi-diagram-3" style="font-size:48px;opacity:0.4"></i>
+        <p style="margin-top:12px">Нет VLAN</p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.vlan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+.vlan-card {
+    background: #1a1d21;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    padding: 16px 12px;
+    text-align: center;
+    transition: all 0.2s;
+}
+.vlan-card:hover {
+    border-color: #ff780a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.vlan-card__id {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ff780a;
+    font-family: monospace;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+.vlan-card__name {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 500;
+}
+</style>

@@ -1,6 +1,11 @@
+from django.utils.html import format_html
+import json
+from django.shortcuts import get_object_or_404, render
+from django.http import JsonResponse
+from django.urls import path
 from django.contrib import admin
 
-from .models import OpticalLink, Station, StationDevice, StationNe
+from .models import OpticalClosure, OpticalLink, Station, StationDevice, StationNe
 
 
 class StationDeviceInline(admin.TabularInline):
@@ -17,7 +22,8 @@ class StationNeInline(admin.TabularInline):
 
 @admin.register(Station)
 class StationAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "sort_order", "x", "y", "devices_count", "nes_count")
+    list_display = (
+"name", "slug", "sort_order", "x", "y", "devices_count", "nes_count")
     search_fields = ("name", "slug", "description")
     list_editable = ("sort_order",)
     inlines = (StationDeviceInline, StationNeInline)
@@ -34,6 +40,7 @@ class StationAdmin(admin.ModelAdmin):
 @admin.register(OpticalLink)
 class OpticalLinkAdmin(admin.ModelAdmin):
     list_display = (
+        "draw_button",
         "label", "end_a_label", "end_b_label",
         "link_status", "rx_a_dbm", "rx_b_dbm", "is_active", "updated_at",
     )
@@ -62,6 +69,13 @@ class OpticalLinkAdmin(admin.ModelAdmin):
         }),
     )
 
+    def draw_button(self, obj):
+        if obj.path_geojson:
+            return format_html('<a class="button" href="/admin/stations/opticallink/{}/draw/">✏️ Редактировать</a>', obj.id)
+        return format_html('<a class="button" href="/admin/stations/opticallink/{}/draw/">🎨 Нарисовать</a>', obj.id)
+    draw_button.short_description = 'Маршрут'
+    draw_button.allow_tags = True
+
     def save_model(self, request, obj, form, change):
         obj.full_clean()
         super().save_model(request, obj, form, change)
@@ -76,6 +90,62 @@ class StationDeviceAdmin(admin.ModelAdmin):
 
 @admin.register(StationNe)
 class StationNeAdmin(admin.ModelAdmin):
-    list_display = ("station", "ne", "role")
+    list_display = (
+"station", "ne", "role")
     list_filter = ("station",)
     autocomplete_fields = ("ne",)
+
+
+@admin.register(OpticalClosure)
+class OpticalClosureAdmin(admin.ModelAdmin):
+    list_display = (
+"name", "link", "lat", "lon")
+    list_filter = ("link",)
+    search_fields = ("name", "description")
+
+
+# ── Рисование маршрута ──────────────────────────────────────
+from django.contrib.admin.views.decorators import staff_member_required
+
+@staff_member_required
+def draw_path_view(request, link_id):
+    link = get_object_or_404(OpticalLink, id=link_id)
+    
+    # Собираем координаты станций (если есть)
+    points = []
+    if link.station_a and link.station_a.latitude and link.station_a.longitude:
+        points.append({
+            'lat': float(link.station_a.latitude),
+            'lon': float(link.station_a.longitude),
+            'name': link.station_a.name,
+            'type': 'station_a'
+        })
+    if link.station_b and link.station_b.latitude and link.station_b.longitude:
+        points.append({
+            'lat': float(link.station_b.latitude),
+            'lon': float(link.station_b.longitude),
+            'name': link.station_b.name,
+            'type': 'station_b'
+        })
+    
+    return render(request, 'admin/stations/opticallink/draw_path.html', {
+        'link': link,
+        'stations': points
+    })
+
+@staff_member_required
+def save_path_view(request, link_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        path_geojson = data.get('path_geojson', [])
+        
+        link = get_object_or_404(OpticalLink, id=link_id)
+        link.path_geojson = path_geojson
+        link.save(update_fields=['path_geojson'])
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)

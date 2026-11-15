@@ -1,0 +1,186 @@
+{% load static %}
+
+{% if sfps %}
+<div class="sfp-grid">
+    {% for sfp in sfps %}
+    <div class="sfp-card sfp-card--{{ sfp.temp_state|default:'unknown' }}">
+        <div class="sfp-card__header">
+            <div class="sfp-card__port">
+                <i class="bi bi-usb-plug"></i>
+                {{ sfp.interface.name }}
+            </div>
+            <div class="sfp-card__state sfp-state--{{ sfp.temp_state|default:'unknown' }}">
+                {{ sfp.temp_state|default:"—"|upper }}
+            </div>
+        </div>
+
+        <div class="sfp-card__metrics">
+            <div class="sfp-metric">
+                <div class="sfp-metric__label">TEMP</div>
+                <div class="sfp-metric__value sfp-metric__value--{{ sfp.temp_state|default:'unknown' }}">
+                    {% if sfp.temperature_c is not None %}
+                        {{ sfp.temperature_c|floatformat:1 }} °C
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+            <div class="sfp-metric">
+                <div class="sfp-metric__label">VOLTAGE</div>
+                <div class="sfp-metric__value">
+                    {% if sfp.voltage_v is not None %}
+                        {{ sfp.voltage_v|floatformat:2 }} V
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+            <div class="sfp-metric">
+                <div class="sfp-metric__label">TX</div>
+                <div class="sfp-metric__value">
+                    {% if sfp.tx_power_dbm is not None %}
+                        {{ sfp.tx_power_dbm|floatformat:2 }} dBm
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+            <div class="sfp-metric">
+                <div class="sfp-metric__label">RX</div>
+                <div class="sfp-metric__value sfp-metric__value--{{ sfp.rx_state|default:'unknown' }}">
+                    {% if sfp.rx_power_dbm is not None %}
+                        {{ sfp.rx_power_dbm|floatformat:2 }} dBm
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+            <div class="sfp-metric">
+                <div class="sfp-metric__label">BIAS</div>
+                <div class="sfp-metric__value">
+                    {% if sfp.bias_current_ma is not None %}
+                        {{ sfp.bias_current_ma|floatformat:2 }} mA
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="sfp-card__footer">
+            <span class="c-muted">Обновлено: {{ sfp.updated_at|date:"d.m.Y H:i" }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="c-card">
+    <div class="c-empty" style="padding:48px">
+        <i class="bi bi-usb-plug" style="font-size:48px;opacity:0.4"></i>
+        <p style="margin-top:12px">SFP-модулей не найдено</p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.sfp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+.sfp-card {
+    background: #1a1d21;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+.sfp-card:hover {
+    border-color: #ff780a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.sfp-card--ok {
+    border-left: 3px solid #73bf69;
+}
+.sfp-card--warning {
+    border-left: 3px solid #f2cc0c;
+}
+.sfp-card--alarm {
+    border-left: 3px solid #f2495c;
+}
+.sfp-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+.sfp-card__port {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sfp-card__port i {
+    color: #0abfbc;
+}
+.sfp-card__state {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.sfp-state--ok {
+    background: rgba(115, 191, 105, 0.15);
+    color: #73bf69;
+    border: 1px solid rgba(115, 191, 105, 0.4);
+}
+.sfp-state--warning {
+    background: rgba(242, 204, 12, 0.15);
+    color: #f2cc0c;
+    border: 1px solid rgba(242, 204, 12, 0.4);
+}
+.sfp-state--alarm {
+    background: rgba(242, 73, 92, 0.15);
+    color: #f2495c;
+    border: 1px solid rgba(242, 73, 92, 0.4);
+}
+.sfp-state--unknown {
+    background: rgba(142, 142, 142, 0.15);
+    color: #475569;
+}
+.sfp-card__metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.sfp-metric {
+    background: #111217;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 4px;
+    padding: 8px 10px;
+}
+.sfp-metric__label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    margin-bottom: 2px;
+}
+.sfp-metric__value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ccc;
+    font-family: monospace;
+}
+.sfp-metric__value--ok {
+    color: #73bf69;
+}
+.sfp-metric__value--warning {
+    color: #f2cc0c;
+}
+.sfp-metric__value--alarm {
+    color: #f2495c;
+}
+.sfp-card__footer {
+    font-size: 10px;
+    border-top: 1px solid #2c3235;
+    padding-top: 8px;
+}
+</style>

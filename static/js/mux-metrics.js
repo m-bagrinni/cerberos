@@ -240,7 +240,7 @@
 
             var card = document.createElement('div');
             card.className = 'mux-ne-card';
-            card.innerHTML = '<div class="mux-ne-card__head"><span class="mux-ne-card__name">' + ne.name + '</span><span class="mux-ne-card__id">NE-' + ne.ne_id + '</span></div>' +
+            card.innerHTML = '<div class="mux-ne-card__head"><span class="mux-ne-card__name">' + Cerber.escapeHtml(ne.name) + '</span><span class="mux-ne-card__id">NE-' + Cerber.escapeHtml(ne.ne_id) + '</span></div>' +
                              '<div class="mux-ne-card__stats"><div class="mux-ne-stat"><div class="mux-ne-stat__label">RX</div><div class="mux-ne-stat__value ' + rxClass + '">' + rxStr + '</div></div>' +
                              '<div class="mux-ne-stat"><div class="mux-ne-stat__label">Temp</div><div class="mux-ne-stat__value ' + tempClass + '">' + tempStr + '</div></div></div>';
             grid.appendChild(card);

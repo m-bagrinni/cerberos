@@ -1,0 +1,65 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Оптические муфты{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:closure_create' %}" class="btn--secondary">
+  <i class="bi bi-plus-lg"></i> Добавить муфту
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Муфты ({{ closures|length }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    
+    <!-- Фильтры -->
+    <form method="get" class="panel__filters" style="padding: 16px; display: flex; gap: 12px; border-bottom: 1px solid var(--border);">
+      <input type="text" name="q" placeholder="Поиск по названию..." value="{{ q }}" class="input">
+      <select name="link" class="input">
+        <option value="">Все линии</option>
+        {% for l in links %}
+          <option value="{{ l.id }}" {% if selected_link == l.id|stringformat:"s" %}selected{% endif %}>{{ l.label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn--secondary">Фильтр</button>
+    </form>
+
+    {% if closures %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Линия</th>
+          <th>Широта</th>
+          <th>Долгота</th>
+          <th>Описание</th>
+          <th style="width:100px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in closures %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.name }}</td>
+          <td>{{ c.link.label }}</td>
+          <td>{{ c.lat|floatformat:5 }}</td>
+          <td>{{ c.lon|floatformat:5 }}</td>
+          <td>{{ c.description|truncatechars:40 }}</td>
+          <td>
+            <a href="{% url 'adminui:closure_update' c.pk %}" class="btn--icon" title="Редактировать"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:closure_delete' c.pk %}" class="btn--icon btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Нет муфт</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

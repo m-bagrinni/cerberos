@@ -77,7 +77,10 @@ class Command(BaseCommand):
             nearest_cache[key] = (best, best_d)
             return best, best_d
 
-        links = OpticalLink.objects.select_related("station_a", "station_b").all()
+        # Не трогаем локальные линии (с device_a/device_b) — они рисуются вручную
+        links = OpticalLink.objects.select_related("station_a", "station_b").filter(
+            device_a__isnull=True, device_b__isnull=True
+        )
         total = links.count()
         self.stdout.write(f"Обрабатываем {total} линков...")
 

@@ -18,9 +18,11 @@ class Alert(models.Model):
 
     SEVERITY_WARN = "warn"
     SEVERITY_CRIT = "crit"
+    SEVERITY_POWER = "power"
     SEVERITY_CHOICES = [
         (SEVERITY_WARN, "Warning"),
         (SEVERITY_CRIT, "Critical"),
+        (SEVERITY_POWER, "No Power"),
     ]
 
     STATE_FIRING = "firing"

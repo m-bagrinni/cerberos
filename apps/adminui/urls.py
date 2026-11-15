@@ -1,10 +1,21 @@
 from django.urls import path
 
+from apps.accounts import views as accounts_views
+
 from . import api, views
 
 app_name = "adminui"
 
 urlpatterns = [
+    # Категории
+    path("categories/", views.CategoryListView.as_view(), name="categories"),
+    path("categories/rename-api/", views.category_rename_api, name="category_rename_api"),
+    path("categories/delete-api/", views.category_delete_api, name="category_delete_api"),
+    path("subcategories/create-api/", views.subcategory_create_api, name="subcategory_create_api"),
+    path("categories/new/", views.CategoryCreateView.as_view(), name="category_create"),
+    path("categories/<int:pk>/edit/", views.CategoryUpdateView.as_view(), name="category_edit"),
+    path("categories/<int:pk>/delete/", views.CategoryDeleteView.as_view(), name="category_delete"),
+
     path("", views.DashboardView.as_view(), name="dashboard"),
 
     # ========== Devices ==========
@@ -27,6 +38,13 @@ urlpatterns = [
     path("profiles/<int:profile_pk>/metrics/<int:pk>/delete/", views.MetricDeleteView.as_view(), name="metric_delete"),
 
     # ========== Vendors ==========
+    # ========== Roles ==========
+    path("roles/", views.RoleListView.as_view(), name="roles"),
+    path("roles/new/", views.RoleCreateView.as_view(), name="role_create"),
+    path("roles/<int:pk>/edit/", views.RoleUpdateView.as_view(), name="role_update"),
+    path("roles/<int:pk>/delete/", views.RoleDeleteView.as_view(), name="role_delete"),
+    path("roles/<int:pk>/", views.RoleDetailView.as_view(), name="role_detail"),
+
     path("vendors/", views.VendorListView.as_view(), name="vendors"),
     path("vendors/new/", views.VendorCreateView.as_view(), name="vendor_create"),
     path("vendors/<int:pk>/edit/", views.VendorUpdateView.as_view(), name="vendor_update"),
@@ -44,6 +62,26 @@ urlpatterns = [
     path("subnets/<int:pk>/delete/", views.SubnetDeleteView.as_view(), name="subnet_delete"),
     path("subnets/<int:pk>/scan/", api.subnet_scan_now, name="subnet_scan"),
 
+    # Муфты
+    path("closures/", views.ClosureListView.as_view(), name="closures"),
+
+    # Станции
+    path("stations/", views.StationListView.as_view(), name="stations"),
+    path("stations/new/", views.StationCreateView.as_view(), name="station_create"),
+    path("stations/<int:pk>/edit/", views.StationUpdateView.as_view(), name="station_update"),
+    path("stations/<int:pk>/delete/", views.StationDeleteView.as_view(), name="station_delete"),
+
+    # Оптические линии
+    path("links/", views.OpticalLinkListView.as_view(), name="links"),
+    path("links/new/", views.OpticalLinkCreateView.as_view(), name="link_create"),
+    path("links/<int:pk>/edit/", views.OpticalLinkUpdateView.as_view(), name="link_update"),
+    path("links/<int:pk>/duplicate/", views.OpticalLinkDuplicateView.as_view(), name="link_duplicate"),
+    path("links/<int:pk>/delete/", views.OpticalLinkDeleteView.as_view(), name="link_delete"),
+    path("links/<int:link_id>/draw/", views.draw_path_adminui, name="link_draw"),
+    path("closures/new/", views.ClosureCreateView.as_view(), name="closure_create"),
+    path("closures/<int:pk>/edit/", views.ClosureUpdateView.as_view(), name="closure_update"),
+    path("closures/<int:pk>/delete/", views.ClosureDeleteView.as_view(), name="closure_delete"),
+
     # ========== Alerts ==========
     path("alerts/", views.AlertListView.as_view(), name="alerts"),
     path("alerts/<int:pk>/", views.AlertDetailView.as_view(), name="alert_detail"),
@@ -54,9 +92,20 @@ urlpatterns = [
     path("users/", views.UserListView.as_view(), name="users"),
     path("users/new/", views.UserCreateView.as_view(), name="user_create"),
     path("users/<int:pk>/edit/", views.UserUpdateView.as_view(), name="user_update"),
+    path("users/<int:pk>/roles/", views.UserRolesView.as_view(), name="user_roles"),
     path("users/<int:pk>/delete/", views.UserDeleteView.as_view(), name="user_delete"),
+    path("users/pending/", accounts_views.PendingUsersListView.as_view(), name="users_pending"),
+    path("users/<int:pk>/approve/", accounts_views.ApproveUserView.as_view(), name="user_approve"),
+    path("users/<int:pk>/reject/", accounts_views.RejectUserView.as_view(), name="user_reject"),
 
     # ========== AJAX API ==========
     path("api/test-snmp/", api.test_snmp, name="test_snmp"),
     path("api/test-oid/", api.test_oid, name="test_oid"),
+]
+
+# === Modules ===
+urlpatterns += [
+    path("modules/", views.ModuleListView.as_view(), name="modules"),
+    path("modules/new/", views.ModuleCreateView.as_view(), name="module_create"),
+    path("modules/<int:pk>/edit/", views.ModuleUpdateView.as_view(), name="module_update"),
 ]

@@ -2890,8 +2890,14 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .app-layout {
     display: grid;
     grid-template-columns: 220px 1fr;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     background: var(--bg-base);
+}
+
+.app-main {
+    height: 100vh;
+    overflow-y: auto;
 }
 
 /* ============================================================
@@ -4536,3 +4542,406 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     height: 100% !important;
 }
 
+
+/* ============================================================
+   Vendor tabs (фильтр по вендору на /local/)
+   ============================================================ */
+.vendor-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 16px 0 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.vendor-tabs a {
+    padding: 8px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    margin-bottom: -1px;
+    transition: all .12s;
+    white-space: nowrap;
+}
+
+.vendor-tabs a:hover {
+    color: var(--text);
+    border-bottom-color: var(--border-strong);
+}
+
+.vendor-tabs a.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 500;
+}
+
+/* Оптические алармы */
+.ne-alarm-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+.ne-alarm-badge--ok {
+    background: rgba(115,191,105,.15);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+}
+.ne-alarm-badge--crit {
+    background: rgba(242,73,92,.15);
+    color: var(--crit);
+    border: 1px solid var(--crit);
+}
+
+/* ===== Скрывающийся сайдбар (grid) ===== */
+.app-layout {
+    transition: grid-template-columns 0.3s ease;
+}
+
+.app-layout.is-sidebar-hidden {
+    grid-template-columns: 0px 1fr !important;
+}
+
+.app-layout.is-sidebar-hidden .app-sidebar {
+    padding: 0 !important;
+    /* overflow: hidden убран — иначе кнопка-стрелочка обрезается и сайдбар не развернуть */
+    overflow: visible;
+    border-right: none;
+}
+
+.app-layout.is-sidebar-hidden .app-sidebar > *:not(.sidebar-toggle) {
+    display: none;
+}
+
+/* При скрытом сайдбаре — контент сдвигается, кнопка сверху */
+.app-layout.is-sidebar-hidden .app-main {
+    padding-left: 32px;
+}
+
+/* Кнопка скрытия */
+.sidebar-toggle {
+    position: absolute;
+    top: 12px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    z-index: 100;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.sidebar-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.app-layout.is-sidebar-hidden .sidebar-toggle {
+    position: fixed;
+    top: 12px;
+    left: 8px;
+    background: var(--bg-panel);
+    border-color: var(--primary);
+    color: var(--primary);
+    z-index: 1000;
+}
+
+.app-layout.is-sidebar-hidden .sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
+.app-sidebar {
+    position: relative;
+}
+
+/* ===== Вкладки в правой панели ===== */
+.detail-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #2c3235;
+    padding-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.detail-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #8e8e8e;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.detail-tab:hover {
+    background: #1f2226;
+    color: #ff780a;
+}
+
+.detail-tab.is-active {
+    background: #ff780a;
+    color: #fff;
+}
+
+/* ===== Кастомное контекстное меню для дерева устройств ===== */
+.device-ctx-menu {
+    position: fixed;
+    z-index: 100000;
+    background: #181b1f;
+    border: 1px solid #2c3235;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    padding: 6px 0;
+    min-width: 240px;
+    display: none;
+}
+.device-ctx-menu.is-open {
+    display: block;
+}
+.device-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #ccccdc;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.device-ctx-item:hover {
+    background: #22252b;
+    color: #fff;
+}
+.device-ctx-item i {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+    color: #8e8e8e;
+}
+.device-ctx-item:hover i {
+    color: #ff780a;
+}
+.device-ctx-menu hr {
+    border: none;
+    border-top: 1px solid #2c3235;
+    margin: 4px 0;
+}
+.device-ctx-item--danger:hover i {
+    color: #f2495c;
+}
+
+/* ===== LAN карточки в правой панели мультиплексоров ===== */
+.lan-section {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #2c3235;
+}
+.lan-section__title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8e8e8e;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.lan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+}
+.lan-card {
+    background: #1a1d21;
+    border: 1px solid #2c3235;
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+}
+.lan-card--up {
+    border-left: 2px solid #73bf69;
+}
+.lan-card--down {
+    border-left: 2px solid #555;
+}
+.lan-card__num {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    font-family: monospace;
+    margin-bottom: 4px;
+}
+.lan-card__pvid {
+    font-size: 10px;
+    color: #8e8e8e;
+}
+
+/* ===== Подменю в контекстном меню ===== */
+.device-ctx-item--has-submenu {
+    position: relative;
+}
+.device-ctx-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    min-width: 200px;
+    background: #181b1f;
+    border: 1px solid #2c3235;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    padding: 4px 0;
+    z-index: 100001;
+}
+.device-ctx-item--has-submenu:hover .device-ctx-submenu {
+    display: block;
+}
+.device-ctx-submenu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #ccccdc;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.device-ctx-submenu__item:hover {
+    background: #22252b;
+    color: #fff;
+}
+.device-ctx-submenu__item i {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+    color: #8e8e8e;
+}
+.device-ctx-submenu__item:hover i {
+    color: #ff780a;
+}
+
+/* ===== Фикс подменю (открывать влево, если не хватает места) ===== */
+.device-ctx-submenu {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Если меню близко к правому краю — открываем влево */
+.device-ctx-item--has-submenu.is-flipped .device-ctx-submenu {
+    left: auto;
+    right: 100%;
+}
+
+/* ===== Переворот подменю (если не хватает места справа) ===== */
+.device-ctx-item--has-submenu.is-flipped .device-ctx-submenu {
+    left: auto;
+    right: 100%;
+}
+
+/* ===== Контекстное меню для NE ===== */
+.ne-ctx-menu {
+    position: fixed !important;
+    z-index: 10000 !important;
+    background: #181b1f !important;
+    border: 1px solid #2c3235 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+    padding: 4px 0 !important;
+    min-width: 200px !important;
+    display: none !important;
+}
+.ne-ctx-menu.is-open {
+    display: block !important;
+}
+.ne-ctx-item {
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    color: #ccccdc !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: background 0.15s !important;
+}
+.ne-ctx-item:hover {
+    background: #22252b !important;
+    color: #fff !important;
+}
+.ne-ctx-item i {
+    color: #8e8e8e !important;
+    width: 16px !important;
+    text-align: center !important;
+}
+.ne-ctx-item:hover i {
+    color: #ff780a !important;
+}
+.ne-ctx-menu hr {
+    border: none !important;
+    border-top: 1px solid #2c3235 !important;
+    margin: 4px 0 !important;
+}
+
+/* ===== Подкатегории в дереве ===== */
+.tree-subcategory {
+    margin: 2px 0 2px 12px;
+}
+.tree-subcategory__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    color: #ccccdc;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.15s;
+}
+.tree-subcategory__title:hover {
+    background: #1f2226;
+}
+.tree-subcategory__title i.bi-chevron-right {
+    font-size: 10px;
+    color: #555;
+    transition: transform 0.2s;
+}
+.tree-subcategory.is-open .tree-subcategory__title i.bi-chevron-right {
+    transform: rotate(90deg);
+}
+.tree-subcategory__devices {
+    display: none;
+    padding-left: 20px;
+}
+.tree-subcategory.is-open .tree-subcategory__devices {
+    display: block;
+}
+.tree-subcategory__dot,
+.tree-category__dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.tree-subcategory__dot--ok,
+.tree-category__dot--ok { background: #73bf69; box-shadow: 0 0 4px rgba(115,191,105,0.5); }
+.tree-subcategory__dot--crit,
+.tree-category__dot--crit { background: #f2495c; box-shadow: 0 0 4px rgba(242,73,92,0.5); }
+.tree-subcategory__dot--warn,
+.tree-category__dot--warn { background: #f2cc0c; box-shadow: 0 0 4px rgba(242,204,12,0.5); }
+.tree-subcategory__dot--unknown,
+.tree-category__dot--unknown { background: #8e8e8e; }
+
+/* ===== Ограничение высоты контекстного меню ===== */
+.device-ctx-submenu {
+    max-height: 300px;
+    overflow-y: auto;
+}

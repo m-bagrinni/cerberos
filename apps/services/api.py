@@ -12,6 +12,21 @@ from django_celery_beat.models import PeriodicTask
 from .models import ServiceEvent
 
 
+def _admin_required(view):
+    """Только администраторы (is_admin_access): действия меняют инфраструктуру (docker, beat)."""
+    import functools
+
+    @functools.wraps(view)
+    def wrapper(request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({"ok": False, "error": "authentication required"}, status=401)
+        if not getattr(user, "is_admin_access", False):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+        return view(request, *args, **kwargs)
+    return wrapper
+
+
 # ═══════════════════════════════════════════════════════════
 # Контейнеры
 # ═══════════════════════════════════════════════════════════
@@ -56,10 +71,15 @@ def containers_list(request):
 
 
 @require_POST
+@_admin_required
 def container_action(request, name, action):
     """Действие над контейнером (start/stop/restart)."""
     if action not in ("start", "stop", "restart"):
         return JsonResponse({"ok": False, "error": "invalid action"}, status=400)
+    # Только контейнеры проекта из `docker ps` — не произвольное имя (иначе можно
+    # остановить чужой контейнер на хосте или передать docker опцию вида «--…»).
+    if name not in {c["name"] for c in _docker_ps()}:
+        return JsonResponse({"ok": False, "error": "unknown container"}, status=404)
     
     try:
         result = subprocess.run(
@@ -143,6 +163,7 @@ def tasks_list(request):
 
 
 @require_POST
+@_admin_required
 def task_action(request, task_id, action):
     """Включить/выключить/запустить задачу."""
     try:
@@ -250,15 +271,41 @@ def health(request):
 
 @require_GET
 def events_list(request):
-    """Последние 50 событий."""
+    """Последние 50 событий (ручные + автоматические)."""
+    from django_celery_beat.models import PeriodicTask
+    from django.utils import timezone
+    from datetime import timedelta
+
     events = []
-    for e in ServiceEvent.objects.all()[:50]:
+
+    # 1. Ручные события (ServiceEvent)
+    for e in ServiceEvent.objects.all()[:25]:
         events.append({
-            "id": e.id,
+            "id": f"manual-{e.id}",
             "target_type": e.target_type,
             "target_name": e.target_name,
             "action": e.action,
             "success": e.success,
             "created_at": e.created_at.isoformat(),
+            "is_system": False,
         })
+
+    # 2. Автоматические события (PeriodicTask, у которых last_run_at < 5 минут назад)
+    now = timezone.now()
+    five_min_ago = now - timedelta(minutes=5)
+    for t in PeriodicTask.objects.filter(enabled=True, last_run_at__gte=five_min_ago).order_by("-last_run_at")[:25]:
+        events.append({
+            "id": f"system-{t.id}",
+            "target_type": "periodic_task",
+            "target_name": t.name,
+            "action": t.task,
+            "success": True,
+            "created_at": t.last_run_at.isoformat(),
+            "is_system": True,
+        })
+
+    # Сортируем по времени (новые сверху)
+    events.sort(key=lambda x: x["created_at"], reverse=True)
+    events = events[:50]
+
     return JsonResponse({"events": events})

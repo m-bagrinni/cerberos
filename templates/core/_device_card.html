@@ -5,7 +5,7 @@
          data-device-name="{{ item.device.name }}"
          data-device-status="{{ item.device.status }}"
          data-device-subtitle="{{ item.device.vendor.name|default:'' }} · {{ item.device.ent_model|default:item.device.sys_descr|default:''|truncatechars:40 }}"
-         data-device-full-url="/devices/{{ item.device.ip }}/">
+         data-device-full-url="/local/devices/{{ item.device.ip }}/">
 
     <header class="device-card__header">
         <div class="device-card__status device-card__status--{% if item.device.status == 'ok' %}ok{% elif item.device.status == 'unreachable' %}crit{% else %}unknown{% endif %}"></div>

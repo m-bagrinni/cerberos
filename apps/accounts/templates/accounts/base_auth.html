@@ -1,0 +1,101 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Cerberus{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
+  <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 40%), radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 40%), #f3f4f6 !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.75) !important; backdrop-filter: blur(24px) saturate(180%) !important; -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.9) !important;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+    }
+    .auth-card__logo { text-align: center; margin-bottom: 20px; }
+    .auth-card__logo i { font-size: 48px; color: var(--primary, #ff780a); }
+    .auth-card__title {
+      font-size: 20px; font-weight: 600; color: #1f2937 !important;
+      text-align: center; margin: 0 0 4px;
+    }
+    .auth-card__subtitle {
+      font-size: 13px; color: #6b7280 !important;
+      text-align: center; margin: 0 0 24px;
+    }
+    .auth-card .aui-form__field { margin-bottom: 16px; }
+    .auth-card .aui-form__label {
+      display: block; color: #6b7280 !important; font-size: 12px;
+      text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px;
+    }
+    .auth-card .aui-input {
+      width: 100%; box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.9) !important;
+      border: 1px solid rgba(255, 255, 255, 0.9) !important;
+      border-radius: 4px; color: #111827 !important;
+      padding: 10px 12px; font-size: 14px;
+    }
+    .auth-card .aui-input:focus {
+      outline: none; border-color: var(--primary, #ff780a);
+    }
+    .auth-card .aui-form__error {
+      color: var(--crit, #f2495c); font-size: 12px; margin-top: 4px;
+    }
+    .auth-card .btn--primary {
+      width: 100%; justify-content: center; padding: 10px; margin-top: 8px;
+    }
+    .auth-messages { margin-bottom: 16px; }
+    .auth-messages .msg {
+      padding: 10px 14px; border-radius: 4px; font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .auth-messages .msg--success { background: rgba(115,191,105,.15); color: #73bf69; border: 1px solid #73bf69; }
+    .auth-messages .msg--error   { background: rgba(242,73,92,.15); color: #f2495c; border: 1px solid #f2495c; }
+    .auth-messages .msg--warning { background: rgba(242,204,12,.15); color: #f2cc0c; border: 1px solid #f2cc0c; }
+    .auth-messages .msg--info    { background: rgba(10,191,188,.15); color: #0abfbc; border: 1px solid #0abfbc; }
+    .auth-footer {
+      text-align: center; margin-top: 16px; font-size: 13px; color: #8e8e8e;
+    }
+    .auth-footer a { color: #ff780a; text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
+  </style>
+    <script src="{% static 'js/core.js' %}?v=1"></script>
+</head>
+<body class="auth-page{% if ui_theme_glass %} theme-glass{% endif %}">
+  <div class="auth-card">
+    <div class="auth-card__logo"><i class="bi bi-shield-lock-fill"></i></div>
+    <h1 class="auth-card__title">{% block auth_title %}Cerberus{% endblock %}</h1>
+    <p class="auth-card__subtitle">{% block auth_subtitle %}Multi-vendor SNMP monitoring{% endblock %}</p>
+
+    {% if messages %}
+    <div class="auth-messages">
+      {% for m in messages %}
+      <div class="msg msg--{{ m.tags }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block auth_content %}{% endblock %}
+
+    <div class="auth-footer">{% block auth_footer %}{% endblock %}</div>
+  </div>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="{% static 'js/telegram-webapp-auth.js' %}?v=12"></script>
+    <script src="{% static 'js/glass.js' %}"></script>
+</body>
+</html>

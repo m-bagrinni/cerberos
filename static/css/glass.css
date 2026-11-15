@@ -1,0 +1,5480 @@
+/* ============================================================
+   Cerberus — Glassy Dashboard V2 (Premium Light)
+   ============================================================ */
+
+:root {
+  /* Блюр и прозрачность */
+  --glass-blur: 24px;
+  --glass-saturate: 180%;
+  
+  /* Светлое стекло */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+  
+  /* Радиусы как на скрине */
+  --glass-radius: 24px;
+  --glass-radius-sm: 16px;
+  --glass-radius-btn: 12px;
+  
+  /* Акценты */
+  --accent-primary: #6366f1; /* Индиго */
+  --accent-success: #10b981; /* Изумруд */
+  --accent-danger: #f43f5e;  /* Роза */
+  --accent-warning: #f59e0b; /* Оранж */
+  
+  /* Фон приложения (светлый, с легкими цветными пятнами) */
+  --glass-page-bg: 
+    radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.08), transparent 40%),
+    #f3f4f6;
+}
+
+body {
+  background: var(--glass-page-bg) !important;
+  background-attachment: fixed !important;
+  color: #1f2937 !important; /* Темно-серый текст вместо черного */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* ============================================================
+   СТЕКЛЯННЫЕ КАРТОЧКИ (Основной стиль)
+   ============================================================ */
+.card, .glass, .modal-content, .dropdown-menu, .toast {
+  background: var(--glass-bg) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
+  box-shadow: var(--glass-shadow) !important;
+  color: #1f2937 !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.card:hover {
+  box-shadow: 0 15px 50px -10px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-2px);
+}
+
+/* Заголовки внутри карточек */
+.card h1, .card h2, .card h3, .card h4, .card h5 {
+  color: #111827 !important;
+  font-weight: 700 !important;
+}
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+.btn {
+  border-radius: var(--glass-radius-btn) !important;
+  font-weight: 600 !important;
+  padding: 0.6rem 1.2rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-primary {
+  background: var(--accent-primary) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4) !important;
+}
+.btn-primary:hover {
+  background: #4f46e5 !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-success {
+  background: var(--accent-success) !important;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* ============================================================
+   ФОРМЫ И ИНПУТЫ
+   ============================================================ */
+.form-control, .form-select, input, textarea {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  padding: 0.75rem 1rem !important;
+  color: #1f2937 !important;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
+}
+.form-control:focus, .form-select:focus {
+  background: #ffffff !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* ============================================================
+   НАВБАР И САЙДБАР
+   ============================================================ */
+.navbar, .sidebar {
+  background: rgba(255, 255, 255, 0.7) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+  backdrop-filter: blur(30px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* ============================================================
+   ТАБЛИЦЫ (как в блоке Recent Activities)
+   ============================================================ */
+.table {
+  color: #374151 !important;
+}
+.table thead th {
+  background: rgba(255,255,255,0.4) !important;
+  color: #6b7280 !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+.table tbody tr {
+  border-bottom: 1px solid rgba(0,0,0,0.03) !important;
+}
+.table tbody tr:hover {
+  background: rgba(255,255,255,0.6) !important;
+}
+/* ============================================================
+   СТЕКЛО ДЛЯ ЛОГИНА (Более прозрачное)
+   ============================================================ */
+.auth-card {
+    background: rgba(255, 255, 255, 0.55) !important;
+    backdrop-filter: blur(30px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 24px !important;
+}
+
+/* ============================================================
+   ФИНАЛЬНЫЙ ФИКС: НАСТОЯЩЕЕ СТЕКЛО (Glassmorphism)
+   ============================================================ */
+body.auth-page {
+    /* Контрастный фон, чтобы блюр было видно */
+    background: radial-gradient(circle at 20% 30%, #4a5568 0%, transparent 50%), radial-gradient(circle at 80% 70%, #718096 0%, transparent 50%), linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
+    background-attachment: fixed !important;
+}
+
+.auth-card {
+    /* Прозрачность 35% — карточка станет по-настоящему стеклянной */
+    background: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(30px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
+    /* Светлая полупрозрачная рамка со всех сторон */
+    border: 1px solid rgba(255, 255, 255, 0.7) !important;
+    /* Глубокая тень для объема */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 24px !important;
+}
+
+/* Делаем поля ввода тоже полупрозрачными */
+.auth-card input,
+.auth-card .aui-input {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: #1e293b !important;
+}
+
+
+   СТИЛИ ДЛЯ HOME.HTML (Настоящее матовое стекло V2)
+   ============================================================ */
+
+/* 1. Делаем фон насыщенным, чтобы стекло размывало цвета, а не серость */
+
+
+/* 2. Карточки делаем реально прозрачными (30% белого) */
+.module-card {
+    background: rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(30px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 24px !important;
+}
+
+/* 3. При наведении делаем чуть плотнее, как на макбуке */
+.module-card:hover {
+    background: rgba(255, 255, 255, 0.55) !important;
+    transform: translateY(-4px) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 4. Шапку тоже делаем прозрачной */
+.home-header {
+    background: rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(30px) !important;
+    -webkit-backdrop-filter: blur(30px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.7) !important;
+    border-radius: 24px !important;
+}
+
+/* ============================================================
+   HOME.HTML: ТЁМНОЕ КОНТРАСТНОЕ СТЕКЛО (как на втором скрине)
+   ============================================================ */
+
+/* 1. Делаем общий фон тёмно-серым с цветными пятнами */
+
+
+/* 2. Шапка (top bar) — как на скрине, полупрозрачная */
+.home-header {
+    background: rgba(30, 35, 45, 0.6) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 3. Карточки модулей — плотное стекло, чтобы не сливались */
+.module-card {
+    background: rgba(35, 40, 50, 0.5) !important;
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    transition: all 0.3s ease !important;
+}
+
+.module-card:hover {
+    background: rgba(45, 50, 60, 0.7) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* 4. Текст внутри карточек — светлый */
+.module-card__title { color: #ffffff !important; }
+.module-card__desc { color: #94a3b8 !important; }
+.module-stat__label { color: #64748b !important; }
+.module-stat__value { color: #ffffff !important; }
+.module-stat__value--crit { color: #ef4444 !important; } /* Красный для алертов */
+
+/* 5. Иконки модулей */
+.module-card__icon {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+}
+
+/* 6. Карточка профиля */
+.profile-card {
+    background: rgba(40, 45, 55, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+}
+.profile-card span { color: #ffffff !important; }
+
+/* 7. Заголовок "Модули" */
+.home-title { color: #94a3b8 !important; font-weight: 600 !important; }
+
+/* 8. Текст в шапке */
+.home-header__logo span { color: #ffffff !important; }
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   СТИЛЬ GRAFANA ДЛЯ HOME.HTML (Светло-серый фон, графит, оранжевый)
+   ============================================================ */
+
+/* 1. Фон страницы с графитовыми разводами */
+body {
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(40, 45, 55, 0.6), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(25, 28, 34, 0.8), transparent 50%),
+        #e2e8f0 !important;
+    background-attachment: fixed !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    margin: 0;
+    padding: 0;
+}
+
+.home-container {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+/* 2. Шапка (Стеклянная, как в Grafana, но с оранжевым акцентом) */
+.home-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.5) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 16px !important;
+    padding: 16px 24px !important;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}
+
+.home-header__logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.home-header__logo i { font-size: 28px; }
+
+/* 3. Профиль в шапке (Тёмный графит) */
+.profile-card {
+    display: flex;
+    align-items: center;
+    background: #252932 !important;
+    border: 1px solid #3f4552 !important;
+    border-radius: 12px;
+    padding: 8px 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+.profile-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+}
+.profile-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 120, 10, 0.15); /* Оранжевый фон аватара */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #ff780a;
+}
+.profile-name { font-weight: 600; font-size: 14px; color: #ffffff; }
+.profile-role { font-size: 11px; color: #94a3b8; }
+.profile-logout {
+    color: #94a3b8;
+    text-decoration: none;
+    margin-left: 16px;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.profile-logout:hover { color: #ff780a; background: rgba(255, 120, 10, 0.1); }
+
+/* 4. Сетка и карточки */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+}
+
+.module-card {
+    display: flex;
+    flex-direction: column;
+    background: rgba(25, 28, 34, 0.85) !important; /* Тёмный графит */
+    backdrop-filter: blur(30px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px !important;
+    padding: 24px;
+    text-decoration: none;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.3s ease !important;
+}
+
+.module-card:not(.module-card--disabled):hover {
+    transform: translateY(-4px) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.3) !important;
+    background: rgba(35, 40, 48, 0.9) !important;
+}
+
+/* Оранжевая полоска слева у карточек (стиль Grafana) */
+.module-card:not(.module-card--disabled) {
+    border-left: 3px solid #ff780a !important; 
+}
+
+/* Карточка "В разработке" */
+.module-card--disabled {
+    opacity: 0.6 !important;
+    background: rgba(25, 28, 34, 0.5) !important;
+    border-left: 3px solid #475569 !important;
+}
+
+/* 5. Элементы внутри карточек */
+.module-card__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.module-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.module-card__icon i { font-size: 24px; color: var(--module-color, #ff780a); }
+
+.module-card__title { font-size: 18px; font-weight: 600; color: #ffffff !important; margin: 0 0 4px; }
+.module-card__desc { font-size: 13px; color: #94a3b8 !important; margin: 0; line-height: 1.4; }
+.module-card__badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.module-card__stats {
+    display: flex;
+    gap: 24px;
+    padding: 16px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 16px;
+}
+.module-stat { display: flex; flex-direction: column; }
+.module-stat__label { font-size: 11px; color: #64748b !important; text-transform: uppercase; letter-spacing: 0.5px; }
+.module-stat__value { font-size: 20px; font-weight: 700; color: #ffffff !important; margin-top: 4px; }
+.module-stat__value--crit { color: #ef4444 !important; }
+
+.module-card__action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ff780a !important; /* Оранжевый цвет ссылки */
+}
+.module-card__action i { transition: transform 0.2s; }
+.module-card:hover .module-card__action i { transform: translateX(4px); }
+
+/* 6. Заголовок "Модули" */
+.home-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #475569 !important;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+/* ============================================================
+   УСИЛЕНИЕ ЭФФЕКТА СТЕКЛА ДЛЯ КАРТОЧЕК
+   ============================================================ */
+
+/* Делаем карточки более прозрачными (55% вместо 85%) */
+.module-card {
+    background: rgba(30, 34, 42, 0.55) !important; 
+    
+    /* Усиливаем размытие, чтобы фон красиво "плыл" под карточкой */
+    backdrop-filter: blur(40px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+    
+    /* Делаем рамку чуть более заметной для объема */
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-left: 3px solid #ff780a !important; /* Оставляем оранжевую полоску */
+    
+    /* Добавляем внутренний блик (сверху светлее, снизу темнее) */
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%) !important;
+}
+
+/* При наведении карточка становится чуть плотнее, чтобы текст было легче читать */
+.module-card:not(.module-card--disabled):hover {
+    background: rgba(40, 45, 55, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    border-left-color: #ff9d4d !important; /* Оранжевый становится ярче */
+}
+
+/* Карточка "В разработке" (Huawei) — тоже прозрачная, но тусклая */
+.module-card--disabled {
+    background: rgba(30, 34, 42, 0.35) !important;
+    border-left: 3px solid #475569 !important;
+}
+
+/* ============================================================
+   ФИКС ЦВЕТА ТЕКСТА (Темный на светлом фоне)
+   ============================================================ */
+
+/* Заголовки и цифры делаем темными */
+.module-card__title, 
+.module-stat__value { 
+    color: #0f172a !important; 
+    text-shadow: none !important; /* Убираем тень, она не нужна для темного текста */
+}
+
+/* Описание делаем темно-серым */
+.module-card__desc { 
+    color: #475569 !important; 
+}
+
+/* Мелкие подписи (УСТРОЙСТВ, АЛЕРТОВ) */
+.module-stat__label { 
+    color: #64748b !important; 
+}
+
+/* Оранжевая ссылка "Открыть модуль" и иконка стрелки */
+.module-card__action span { 
+    color: #ff780a !important; 
+    font-weight: 700;
+}
+.module-card__action i { 
+    color: #ff780a !important; 
+}
+
+/* Иконки внутри карточек (сделаем их фон чуть темнее для контраста) */
+.module-card__icon {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Чтобы красная цифра алертов оставалась яркой и читаемой */
+.module-stat__value--crit {
+    color: #ef4444 !important;
+}
+
+/* ============================================================
+   ФИКС ТЕКСТА (Только цвета шрифтов, без изменения карточек)
+   ============================================================ */
+
+/* 1. Заголовки карточек ("Локальная сеть") — делаем темно-черными */
+.module-card__title {
+    color: #111827 !important; /* Почти черный */
+    text-shadow: none !important;
+    font-weight: 700 !important;
+}
+
+/* 2. Описание (SNMP-мониторинг...) — делаем темно-серым, чтобы читалось */
+.module-card__desc {
+    color: #374151 !important;
+    text-shadow: none !important;
+}
+
+/* 3. Подписи "УСТРОЙСТВ" и "АЛЕРТОВ" — темный серый */
+.module-stat__label {
+    color: #4b5563 !important;
+    font-weight: 600 !important;
+}
+
+/* 4. Цифры (26 и 3) — темный черный */
+.module-stat__value {
+    color: #111827 !important;
+    text-shadow: none !important;
+}
+
+/* 5. Ссылка "Открыть модуль" — яркий оранжевый */
+.module-card__action span,
+.module-card__action i {
+    color: #ea580c !important; /* Яркий оранжевый (Grafana) */
+    font-weight: 700 !important;
+}
+
+/* ============================================================
+   ЖЕСТКИЙ БЕЛЫЙ ТЕКСТ (БЕЗ ПРОЗРАЧНОСТИ)
+   ============================================================ */
+
+/* 1. Убираем прозрачность (opacity) у карточек, чтобы текст внутри не тускнел */
+.module-card {
+    opacity: 1 !important; 
+}
+
+/* 2. Сбрасываем прозрачность у неактивной карточки (Huawei) */
+.module-card--disabled {
+    opacity: 1 !important; 
+    background: rgba(30, 34, 42, 0.6) !important;
+}
+.module-card--disabled .module-card__title,
+.module-card--disabled .module-card__desc {
+    opacity: 0.8 !important; /* Чуть тусклее, но текст видно */
+}
+
+/* 3. ВЕСЬ ТЕКСТ ДЕЛАЕМ ЧИСТО БЕЛЫМ */
+.module-card__title {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+.module-card__desc {
+    color: #ffffff !important; /* Белый, как ты просил */
+    opacity: 1 !important;
+}
+
+.module-stat__label {
+    color: #ffffff !important; /* Белый */
+    opacity: 0.8 !important; /* Чуть прозрачный только для подписей */
+}
+
+.module-stat__value {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+/* 4. Оранжевые ссылки оставляем без изменений */
+.module-card__action span,
+.module-card__action i {
+    color: #ff780a !important;
+    opacity: 1 !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ LOCAL (Устройства)
+   ============================================================ */
+
+/* 1. Общий фон страницы */
+body {
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(255, 120, 10, 0.15), transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(50, 100, 255, 0.15), transparent 45%),
+        #14161a !important;
+    background-attachment: fixed !important;
+}
+
+/* 2. Левое боковое меню (Sidebar) */
+.sidebar, nav.sidebar, .sidebar-nav {
+    background: rgba(25, 28, 34, 0.6) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 3. Ссылки в боковом меню */
+.sidebar a, .sidebar-nav a {
+    color: #94a3b8 !important;
+    transition: all 0.2s;
+}
+.sidebar a:hover, .sidebar-nav a:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px;
+}
+/* Активный пункт (Обзор) */
+.sidebar a.active, .sidebar-nav a.active {
+    color: #ffffff !important;
+    background: rgba(255, 120, 10, 0.15) !important;
+    border-left: 3px solid #ff780a !important;
+}
+
+/* 4. Центральная панель со списком устройств */
+/* (Обычно это класс .content, .main, или container) */
+.device-list-container, .main-content, .content-area {
+    background: rgba(25, 28, 34, 0.5) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    padding: 16px;
+}
+
+/* 5. Правая панель (пустая) */
+.device-detail-panel, .detail-panel {
+    background: rgba(25, 28, 34, 0.3) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* 6. Текст в дереве устройств */
+.device-tree, .tree-root {
+    color: #e2e8f0 !important;
+}
+.device-tree span, .tree-root span {
+    color: #e2e8f0 !important;
+}
+/* Заголовки групп (ЯДРО СЕТИ) */
+.device-tree .group-title, .tree-root .group-title {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* 7. Заголовок "Устройства" */
+.page-title, h1, h2 {
+    color: #ffffff !important;
+}
+/* Подзаголовок "25 всего 25 онлайн" */
+.page-subtitle, .text-muted {
+    color: #94a3b8 !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ DASHBOARD.HTML (Локальная сеть / Дерево устройств)
+   ============================================================ */
+
+/* 1. Левое меню (Sidebar) — делаем его тёмным стеклом */
+.app-sidebar {
+    background: rgba(20, 22, 26, 0.7) !important;
+    backdrop-filter: blur(30px) !important;
+    -webkit-backdrop-filter: blur(30px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.app-sidebar__brand span { color: #ffffff !important; }
+.app-sidebar__link { color: #94a3b8 !important; }
+.app-sidebar__link:hover { background: rgba(255, 255, 255, 0.05) !important; color: #fff !important; }
+.app-sidebar__link.is-active { 
+    background: rgba(255, 120, 10, 0.15) !important; 
+    color: #ff780a !important; 
+    border-left: 3px solid #ff780a !important; 
+}
+
+/* 2. Панель с деревом устройств (Левая колонка) */
+.devices-tree {
+    background: rgba(25, 28, 34, 0.6) !important; /* Прозрачный фон */
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+}
+
+/* 3. Правая панель (Детали) */
+.device-detail-panel {
+    background: rgba(25, 28, 34, 0.4) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* 4. Текст в дереве */
+.tree-category__title, .tree-device { color: #e2e8f0 !important; }
+.tree-category__title:hover, .tree-device:hover { background: rgba(255, 255, 255, 0.05) !important; }
+.tree-category__title span { color: #ffffff !important; }
+.tree-device span { color: #e2e8f0 !important; }
+.tree-device.is-active {
+    background: rgba(255, 120, 10, 0.15) !important;
+    border-left-color: #ff780a !important;
+    color: #ff780a !important;
+}
+
+/* 5. Заголовок "Устройства" */
+.dash-header h1 { color: #ffffff !important; }
+.dash-header__subtitle span { color: #94a3b8 !important; }
+.dash-header__stat--ok { color: #73bf69 !important; } /* Зеленый для "онлайн" */
+
+/* 6. Вкладки и пустое состояние */
+.detail-empty { color: #94a3b8 !important; }
+.detail-title { color: #ffffff !important; }
+.detail-section__title { color: #64748b !important; }
+.detail-row__label { color: #94a3b8 !important; }
+.detail-row__value { color: #e2e8f0 !important; }
+
+/* ============================================================
+   ФОН ДЛЯ DASHBOARD (Как на главной)
+   ============================================================ */
+body {
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(40, 45, 55, 0.6), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(25, 28, 34, 0.8), transparent 50%),
+        #e2e8f0 !important; /* Светло-серый базовый */
+    background-attachment: fixed !important;
+}
+
+/* Чтобы шапка и меню не сливались с белым фоном */
+.app-sidebar {
+    background: rgba(20, 22, 26, 0.85) !important; /* Темное стекло для меню */
+}
+.dash-header h1 {
+    color: #0f172a !important; /* Темный текст для заголовка "Устройства" */
+}
+.dash-header__subtitle span {
+    color: #475569 !important;
+}
+.dash-header__stat--ok {
+    color: #10b981 !important; /* Зеленый для "25 онлайн" */
+}
+
+/* ============================================================
+   ЖЁСТКИЙ ФИКС ДЛЯ DASHBOARD (ФОН И КАРТОЧКИ)
+   ============================================================ */
+
+/* 1. Фон всей страницы (светло-серый с графитовыми разводами) */
+html, body, .app-layout, .app-main {
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(40, 45, 55, 0.6), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(25, 28, 34, 0.8), transparent 50%),
+        #e2e8f0 !important; 
+    background-attachment: fixed !important;
+}
+
+/* 2. Левая панель с деревом и правая панель */
+.devices-tree, .device-detail-panel {
+    background: rgba(255, 255, 255, 0.5) !important; /* Белое стекло */
+    backdrop-filter: blur(30px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 3. Боковое меню оставляем тёмным для контраста */
+.app-sidebar {
+    background: rgba(20, 22, 26, 0.9) !important;
+}
+
+/* 4. ТЕКСТ (Делаем всё читаемым на светлом фоне) */
+.dash-header h1 {
+    color: #0f172a !important; /* Тёмный заголовок "Устройства" */
+}
+
+/* Дерево устройств */
+.tree-category__title span, 
+.tree-category__title {
+    color: #1e293b !important; /* Тёмный текст для категорий */
+}
+.tree-device span {
+    color: #1e293b !important; /* Тёмный текст для устройств */
+}
+.tree-device:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+.tree-device.is-active {
+    background: rgba(255, 120, 10, 0.15) !important;
+    color: #ea580c !important; /* Оранжевый активный */
+}
+.tree-device.is-active span {
+    color: #ea580c !important;
+}
+
+/* Пустое состояние правой панели */
+.detail-empty, .detail-empty div {
+    color: #475569 !important; /* Тёмный текст "Выберите устройство" */
+}
+
+/* Мелкий текст (25 всего, онлайн) */
+.dash-header__subtitle span {
+    color: #475569 !important;
+}
+
+/* ============================================================
+   СТИЛИ ДЛЯ ВКЛАДОК УСТРОЙСТВА (_tab_*.html)
+   ============================================================ */
+
+/* 1. Контейнер вкладок */
+#device-tab-content {
+    color: #1e293b !important;
+}
+
+/* 2. Таблицы внутри вкладок (Интерфейсы, SFP, VLAN) */
+#device-tab-content table {
+    background: transparent !important;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+}
+#device-tab-content th {
+    background: rgba(0, 0, 0, 0.05) !important; /* Легкий серый фон для шапки */
+    color: #475569 !important; /* Темный текст */
+    font-weight: 600;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1) !important;
+    padding: 12px;
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+#device-tab-content td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    padding: 12px;
+    color: #1e293b !important; /* Темный текст для данных */
+    font-size: 13px;
+}
+#device-tab-content tbody tr:hover {
+    background: rgba(255, 255, 255, 0.6) !important; /* Подсветка при наведении */
+}
+
+/* 3. Все заголовки внутри вкладок */
+#device-tab-content h1, 
+#device-tab-content h2, 
+#device-tab-content h3, 
+#device-tab-content h4 {
+    color: #0f172a !important;
+}
+
+/* 4. Бейджи статусов (UP, NO LINK) */
+#device-tab-content .badge, 
+#device-tab-content [class*="status"] {
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none !important;
+}
+/* Перекрашиваем "NO LINK" в мягкий красный */
+#device-tab-content .badge-danger, 
+#device-tab-content .bg-red-100 { 
+    background: rgba(239, 68, 68, 0.15) !important; 
+    color: #ef4444 !important; 
+}
+/* Перекрашиваем "UP" в мягкий зеленый */
+#device-tab-content .badge-success, 
+#device-tab-content .bg-green-100 { 
+    background: rgba(16, 185, 129, 0.15) !important; 
+    color: #10b981 !important; 
+}
+
+/* 5. Мелкие ссылки и кнопки внутри таблиц */
+#device-tab-content a:not(.detail-tab) {
+    color: #ff780a !important; /* Оранжевый для ссылок */
+    text-decoration: none;
+}
+#device-tab-content a:not(.detail-tab):hover {
+    text-decoration: underline;
+}
+
+/* 6. Вкладки сверху (Обзор, Метрики...) */
+.detail-tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    padding-bottom: 0;
+}
+.detail-tab {
+    padding: 10px 16px;
+    color: #475569 !important;
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+}
+.detail-tab:hover {
+    background: rgba(255, 255, 255, 0.5);
+    color: #0f172a !important;
+}
+.detail-tab.is-active {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* 7. Информационные блоки (например, "Всего: 28 интерфейсов") */
+#device-tab-content .info-text, 
+#device-tab-content .text-muted {
+    color: #64748b !important;
+}
+
+/* ============================================================
+   ЖЁСТКИЙ ФИКС ДЛЯ ТАБЛИЦ ВКЛАДОК (Убираем черноту)
+   ============================================================ */
+
+/* Перебиваем любые стили внутри контента вкладок */
+#device-tab-content table,
+#device-tab-content .table {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #1e293b !important;
+}
+
+/* Строки таблицы */
+#device-tab-content tr,
+#device-tab-content .table tr {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Ячейки таблицы (текст) */
+#device-tab-content td,
+#device-tab-content th {
+    background: transparent !important;
+    color: #1e293b !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Заголовки таблицы */
+#device-tab-content th {
+    background: rgba(0, 0, 0, 0.03) !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+}
+
+/* При наведении на строку */
+#device-tab-content tbody tr:hover,
+#device-tab-content tr:hover {
+    background: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Если таблица обернута в контейнер с темным фоном */
+#device-tab-content .table-responsive,
+#device-tab-content .table-container,
+#device-tab-content .interfaces-table {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* ============================================================
+   СТИЛИ ДЛЯ ВКЛАДКИ ИНТЕРФЕЙСОВ (.c-card и .iface-table)
+   ============================================================ */
+
+/* 1. Карточка, в которой лежит таблица (делаем её прозрачной) */
+.c-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 2. Сама таблица */
+.iface-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent !important;
+}
+
+/* 3. Заголовки таблицы (ИМЯ, ОПИСАНИЕ и т.д.) */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.05) !important; /* Легкий серый фон */
+    color: #475569 !important; /* Темный текст */
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    font-size: 12px;
+    padding: 12px 8px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1) !important;
+    text-align: left;
+}
+
+/* 4. Ячейки таблицы */
+.iface-table td {
+    background: transparent !important;
+    color: #1e293b !important; /* Темный текст для данных */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    padding: 10px 8px;
+}
+
+/* 5. Строки при наведении */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 6. Ссылки и выделение внутри таблицы */
+.iface-table a {
+    color: #ff780a !important;
+    text-decoration: none;
+}
+.iface-table a:hover {
+    text-decoration: underline;
+}
+
+/* 7. Исправляем цвет текста "Всего: 28 интерфейсов" */
+.iface-toolbar__info {
+    color: #475569 !important;
+    font-size: 13px;
+}
+.iface-toolbar__info b {
+    color: #0f172a !important;
+}
+
+/* 8. Если используются классы c-muted или c-mono */
+.c-muted {
+    color: #64748b !important;
+}
+.c-mono {
+    font-family: monospace;
+}
+
+/* ============================================================
+   ФИКС БЕЙДЖЕЙ СКОРОСТИ И VLAN (.iface-speed, .iface-vlan)
+   ============================================================ */
+
+/* 1. Бейджи скорости (100M, 1G, 10M) */
+.iface-speed {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+/* Желтый для 100M (делаем насыщеннее) */
+.iface-speed--100m {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #b45309 !important;
+    border: 1px solid rgba(245, 158, 11, 0.5) !important;
+}
+
+/* Зеленый для 1G */
+.iface-speed--1g {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(16, 185, 129, 0.5) !important;
+}
+
+/* Оранжевый для 10M */
+.iface-speed--10m {
+    background: rgba(249, 115, 22, 0.2) !important;
+    color: #c2410c !important;
+    border: 1px solid rgba(249, 115, 22, 0.5) !important;
+}
+
+/* 2. Бейджи VLAN (бирюзовые) */
+.iface-vlan {
+    display: inline-block;
+    background: rgba(14, 165, 233, 0.15) !important; /* Плотный синий фон */
+    color: #0369a1 !important; /* Темно-синий текст */
+    border: 1px solid rgba(14, 165, 233, 0.4) !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-bottom: 2px;
+}
+
+/* 3. Статусы UP / NO LINK */
+.iface-status--up {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+.iface-status--down {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #b91c1c !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+/* ============================================================
+   СТИЛИ ДЛЯ МЕТРИК (.c-stat, .c-card)
+   ============================================================ */
+
+/* 1. Карточки с цифрами (CPU, DRAM, Uptime) */
+.c-stat {
+    background: rgba(255, 255, 255, 0.4) !important; /* Светлое стекло */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05) !important;
+    padding: 16px !important;
+}
+
+/* 2. Заголовки внутри карточек (CPU 1 min, DRAM total) */
+.c-stat__label {
+    color: #475569 !important;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* 3. Большие цифры (20%, 1039872 KB) */
+.c-stat__value {
+    color: #0f172a !important; /* Темные цифры */
+    font-weight: 700 !important;
+}
+
+/* 4. Иконки в карточках */
+.c-stat__icon {
+    color: #ff780a !important; /* Оранжевый акцент */
+}
+
+/* 5. Карточки с графиками (.c-card) */
+.c-card {
+    background: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 6. Заголовок внутри карточки с графиком */
+.c-card__title {
+    color: #0f172a !important;
+    font-weight: 600;
+}
+
+/* 7. Кнопки переключения времени (1ч, 6ч, 24ч, 7д) */
+.c-btn[data-hours] {
+    background: rgba(255, 255, 255, 0.5) !important;
+    color: #475569 !important;
+    border: 1px solid rgba(0,0,0,0.05) !important;
+}
+.c-btn[data-hours]:hover {
+    background: rgba(255, 255, 255, 0.8) !important;
+}
+/* Активная кнопка (оранжевая) */
+.c-btn[data-hours="24"] {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+/* ============================================================
+   ФИКС ЧЕРНЫХ БЛОКОВ С ГРАФИКАМИ
+   ============================================================ */
+
+/* 1. Убираем черный фон у контейнеров с графиками */
+.c-chart, 
+.c-card__body, 
+.c-card__header,
+.chart-container {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* 2. Заголовки над графиками (CPU Total, CPU Softnet) */
+.c-card__title, 
+.c-card__header h3 {
+    color: #0f172a !important; /* Темный текст */
+    font-weight: 700 !important;
+}
+
+/* 3. Сами карточки с графиками делаем светлым стеклом */
+.c-card {
+    background: rgba(255, 255, 255, 0.6) !important; 
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 4. Если внутри графика есть canvas, убираем у него тень */
+.c-chart canvas {
+    background: transparent !important;
+}
+
+/* ============================================================
+   ВОЗВРАТ К ТЁМНОМУ СТЕКЛУ (Без белых пятен)
+   ============================================================ */
+
+/* 1. Карточки с цифрами (CPU, DRAM) и графиками (.c-stat, .c-card) */
+.c-stat, .c-card {
+    background: rgba(25, 28, 34, 0.75) !important; /* Тёмный графит, 75% */
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 2. Текст внутри карточек метрик */
+.c-stat__label, .c-card__title {
+    color: #94a3b8 !important; /* Светло-серый */
+}
+.c-stat__value {
+    color: #ffffff !important; /* Белый для цифр */
+}
+
+/* 3. Контейнер таблицы интерфейсов (`.c-card` внутри `_tab_interfaces`) */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.3) !important; /* Темная шапка таблицы */
+    color: #94a3b8 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.iface-table td {
+    color: #e2e8f0 !important; /* Светлый текст в строках */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important; /* Легкая подсветка */
+}
+
+/* 4. Вкладки сверху (Обзор, Метрики, Интерфейсы...) */
+.detail-tab {
+    color: #94a3b8 !important;
+}
+.detail-tab:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+}
+.detail-tab.is-active {
+    background: #ff780a !important;
+    color: #ffffff !important;
+}
+
+/* 5. Бейджи (100M, VLAN, UP, NO LINK) */
+.iface-speed--100m { background: rgba(245, 158, 11, 0.15) !important; color: #f59e0b !important; border: 1px solid rgba(245, 158, 11, 0.3) !important; }
+.iface-vlan { background: rgba(14, 165, 233, 0.15) !important; color: #38bdf8 !important; border: 1px solid rgba(14, 165, 233, 0.3) !important; }
+.iface-status--up { background: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; }
+.iface-status--down { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; }
+
+/* 6. Мелкий текст (Всего: 29 интерфейсов) */
+.iface-toolbar__info {
+    color: #94a3b8 !important;
+}
+
+
+/* ============================================================
+   СТАБИЛЬНЫЙ ФОН ДЛЯ ВКЛАДОК (Как в начале, тёмный графит)
+   ============================================================ */
+
+/* 1. Карточки (таблица и метрики) — тёмно-серые */
+.c-card, .c-stat, #device-tab-content .c-card {
+    background: #1e2128 !important; /* Плотный тёмный цвет */
+    border: 1px solid #2c3235 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 2. Таблица интерфейсов (заголовки) */
+.iface-table th {
+    background: #252932 !important;
+    color: #8e8e8e !important;
+    border-bottom: 1px solid #2c3235 !important;
+}
+
+/* 3. Таблица интерфейсов (ячейки) */
+.iface-table td {
+    background: transparent !important;
+    color: #ccccdc !important; /* Светлый текст */
+    border-bottom: 1px solid #2c3235 !important;
+}
+
+/* 4. Наведение на строку */
+.iface-table tbody tr:hover {
+    background: #252932 !important;
+}
+
+/* 5. Карточки метрик (цифры) */
+.c-stat__label, .c-card__title { color: #8e8e8e !important; }
+.c-stat__value { color: #ffffff !important; }
+
+/* 6. Бейджи (100M, UP, VLAN) */
+.iface-speed--100m, .iface-speed--1g { 
+    background: rgba(245, 158, 11, 0.1) !important; 
+    color: #f59e0b !important; 
+    border: none !important;
+}
+.iface-vlan { 
+    background: rgba(14, 165, 233, 0.1) !important; 
+    color: #38bdf8 !important; 
+    border: none !important;
+}
+.iface-status--up { 
+    background: rgba(16, 185, 129, 0.1) !important; 
+    color: #34d399 !important; 
+    border: none !important;
+}
+.iface-status--down { 
+    background: rgba(239, 68, 68, 0.1) !important; 
+    color: #f87171 !important; 
+    border: none !important;
+}
+
+/* 7. Текст вкладок */
+.detail-title { color: #ffffff !important; }
+.detail-subtitle { color: #8e8e8e !important; }
+.iface-toolbar__info { color: #8e8e8e !important; }
+
+/* ============================================================
+   ВОЗВРАТ К СВЕТЛО-СЕРОМУ СТЕКЛУ (С фоном страницы как сейчас)
+   ============================================================ */
+
+/* 1. Убираем жесткий черный фон у таблиц и карточек */
+.c-card, .c-stat, #device-tab-content .c-card {
+    background: rgba(255, 255, 255, 0.4) !important; /* Полупрозрачное светлое стекло */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important; /* Белая грань */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05) !important; /* Мягкая тень */
+    border-radius: 12px !important;
+}
+
+/* 2. Шапка таблицы (ИМЯ, ОПИСАНИЕ) */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.03) !important; /* Легкий серый */
+    color: #475569 !important; /* Темный текст */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 3. Ячейки таблицы */
+.iface-table td {
+    background: transparent !important;
+    color: #1e293b !important; /* Темный текст */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 4. Наведение на строку */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 5. Текст внутри метрик */
+.c-stat__label, .c-card__title {
+    color: #475569 !important; /* Темный */
+}
+.c-stat__value {
+    color: #0f172a !important; /* Темный */
+}
+
+/* 6. Заголовок и подзаголовок устройства (opt.LAZ, IP) */
+.detail-title { color: #0f172a !important; }
+.detail-subtitle { color: #475569 !important; }
+
+/* 7. Текст "Всего: 28 интерфейсов" */
+.iface-toolbar__info { color: #475569 !important; }
+
+/* ============================================================
+   ФИКС: СЕРЫЙ ПРОЗРАЧНЫЙ ФОН ДЛЯ КАРТОЧЕК (Вкладки)
+   ============================================================ */
+
+/* 1. Делаем общий фон страницы чуть темнее (как в Grafana) */
+body, html, .app-layout, .app-main {
+    background: #cfd3d6 !important; /* Темно-серый (графит) */
+    background-image: radial-gradient(circle at 50% 0%, #d9dde0 0%, #cbd0d4 100%) !important;
+}
+
+/* 2. Карточки с таблицей и метриками — серые и прозрачные */
+.c-card, .c-stat, #device-tab-content .c-card {
+    background: rgba(255, 255, 255, 0.3) !important; /* 30% белого (полупрозрачное стекло) */
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important; /* Четкая белая грань */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 3. Шапка таблицы — делаем её чуть темнее, чтобы выделялась */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.05) !important; 
+    color: #334155 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 4. Ячейки таблицы */
+.iface-table td {
+    background: transparent !important;
+    color: #1e293b !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ============================================================
+   СТИЛЬ ВКЛАДОК "КАК МОДУЛИ НА ГЛАВНОЙ"
+   ============================================================ */
+
+/* 1. Карточки с таблицей и метриками (делаем как карточки модулей) */
+.c-card, .c-stat, #device-tab-content .c-card {
+    background: rgba(30, 34, 42, 0.75) !important; /* Тёмный графит с прозрачностью */
+    backdrop-filter: blur(30px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 2. Заголовки таблицы */
+.iface-table th {
+    background: rgba(255, 255, 255, 0.03) !important; 
+    color: #94a3b8 !important; /* Серый текст */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+/* 3. Ячейки таблицы */
+.iface-table td {
+    background: transparent !important;
+    color: #ffffff !important; /* БЕЛЫЙ ТЕКСТ (как в модулях) */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Наведение на строку (как на главной) */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Карточки метрик (цифры и подписи) */
+.c-stat__label, .c-card__title { 
+    color: #94a3b8 !important; /* Серый для подписей */
+}
+.c-stat__value { 
+    color: #ffffff !important; /* Белый для цифр */
+}
+
+/* 6. Заголовок устройства (opt.LAZ) */
+.detail-title { 
+    color: #ffffff !important; 
+}
+.detail-subtitle { 
+    color: #94a3b8 !important; 
+}
+
+/* 7. Текст "Всего: 28 интерфейсов" */
+.iface-toolbar__info { 
+    color: #94a3b8 !important; 
+}
+
+/* 8. Бейджи (100M, UP, VLAN) в стиле Grafana */
+.iface-speed--100m, .iface-speed--1g { 
+    background: rgba(245, 158, 11, 0.15) !important; 
+    color: #f59e0b !important; 
+    border: none !important;
+}
+.iface-vlan { 
+    background: rgba(14, 165, 233, 0.15) !important; 
+    color: #38bdf8 !important; 
+    border: none !important;
+}
+.iface-status--up { 
+    background: rgba(16, 185, 129, 0.15) !important; 
+    color: #34d399 !important; 
+    border: none !important;
+}
+.iface-status--down { 
+    background: rgba(239, 68, 68, 0.15) !important; 
+    color: #f87171 !important; 
+    border: none !important;
+}
+
+/* ============================================================
+   ОСВЕТЛЕНИЕ ТАБЛИЦЫ НА 30% (Светло-серый графит)
+   ============================================================ */
+
+/* 1. Карточка с таблицей и метриками — делаем светлее */
+.c-card, .c-stat, #device-tab-content .c-card {
+    /* Увеличиваем прозрачность белого до 45% для осветления */
+    background: rgba(255, 255, 255, 0.45) !important; 
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 2. Шапка таблицы (ИМЯ, ОПИСАНИЕ) — чуть темнее основного фона */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.1) !important; /* Легкое затемнение для контраста */
+    color: #334155 !important; /* Темно-серый текст */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 3. Ячейки таблицы (основной фон) */
+.iface-table td {
+    background: transparent !important; 
+    color: #1e293b !important; /* Темный текст для читаемости */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 4. Наведение на строку — делаем ещё светлее */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* 5. Возвращаем тёмный текст для заголовков и цифр метрик */
+.c-stat__label, .c-card__title { 
+    color: #475569 !important; 
+}
+.c-stat__value { 
+    color: #0f172a !important; 
+}
+
+/* 6. Заголовок устройства (opt.LAZ) и подписи */
+.detail-title { 
+    color: #0f172a !important; 
+}
+.detail-subtitle, .iface-toolbar__info { 
+    color: #475569 !important; 
+}
+
+/* 7. Бейджи делаем более контрастными */
+.iface-speed--100m, .iface-speed--1g { 
+    background: rgba(245, 158, 11, 0.2) !important; 
+    color: #b45309 !important; 
+}
+.iface-vlan { 
+    background: rgba(14, 165, 233, 0.2) !important; 
+    color: #0369a1 !important; 
+}
+.iface-status--up { 
+    background: rgba(16, 185, 129, 0.2) !important; 
+    color: #047857 !important; 
+}
+.iface-status--down { 
+    background: rgba(239, 68, 68, 0.2) !important; 
+    color: #b91c1c !important; 
+}
+
+/* ============================================================
+   ФИКС: ПЛОТНЫЙ СВЕТЛО-СЕРЫЙ ФОН (Убираем белизну)
+   ============================================================ */
+
+/* 1. Возвращаем карточкам и таблицам светло-серый полупрозрачный фон */
+.c-card, .c-stat, #device-tab-content .c-card {
+    /* Уменьшаем прозрачность белого до 15% и накладываем на серый */
+    background: rgba(40, 45, 55, 0.5) !important; 
+    backdrop-filter: blur(30px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 2. Шапка таблицы (ИМЯ, ОПИСАНИЕ) - делаем чуть темнее фона */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.2) !important; 
+    color: #94a3b8 !important; /* Светло-серый текст */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 3. Ячейки таблицы - возвращаем белый текст */
+.iface-table td {
+    background: transparent !important; 
+    color: #e2e8f0 !important; /* Белый/светлый текст */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Наведение на строку */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Возвращаем белый текст для метрик и заголовков */
+.c-stat__label, .c-card__title { 
+    color: #94a3b8 !important; 
+}
+.c-stat__value { 
+    color: #ffffff !important; 
+}
+
+/* 6. Заголовок устройства и подписи */
+.detail-title { 
+    color: #0f172a !important; /* Темный для заголовка над карточкой */
+}
+.detail-subtitle, .iface-toolbar__info { 
+    color: #475569 !important; 
+}
+
+/* ============================================================
+   ВОЗВРАТ ПРОЗРАЧНОСТИ (Эффект стекла)
+   ============================================================ */
+
+/* 1. Возвращаем прозрачность карточкам (уменьшаем плотность фона) */
+.c-card, .c-stat, #device-tab-content .c-card {
+    background: rgba(30, 34, 42, 0.4) !important; /* Прозрачность 40% */
+    backdrop-filter: blur(30px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 2. Восстанавливаем прозрачность для левой панели (дерево устройств) */
+.devices-tree {
+    background: rgba(30, 34, 42, 0.4) !important;
+    backdrop-filter: blur(30px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 3. Восстанавливаем прозрачность для правой панели (где вкладки) */
+.device-detail-panel {
+    background: rgba(30, 34, 42, 0.4) !important;
+    backdrop-filter: blur(30px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 4. Чтобы текст не терялся на прозрачном фоне, добавляем ему тень */
+.iface-table td, .c-stat__value, .detail-title {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 5. Текст в таблице делаем белым, чтобы он контрастировал с прозрачным фоном */
+.iface-table td {
+    color: #ffffff !important;
+}
+.c-stat__value {
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   ЧЁТКИЙ ТЕКСТ (Убираем размытие и делаем его белым)
+   ============================================================ */
+
+/* 1. Убираем размытую тень у всех элементов таблицы и метрик */
+.iface-table td, 
+.iface-table th, 
+.c-stat__value, 
+.detail-title, 
+.iface-toolbar__info,
+.detail-tab {
+    text-shadow: none !important;
+    -webkit-font-smoothing: antialiased !important; /* Делает шрифт четким */
+}
+
+/* 2. Делаем текст в таблице чисто белым и плотным */
+.iface-table td {
+    color: #ffffff !important;
+    font-weight: 500 !important; /* Чуть жирнее для читаемости */
+}
+
+/* 3. Заголовки таблицы делаем светло-серыми */
+.iface-table th {
+    color: #cbd5e1 !important;
+    font-weight: 600 !important;
+}
+
+/* 4. Название устройства (opt.LAZ) и IP делаем четкими */
+.detail-title {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+.detail-subtitle {
+    color: #cbd5e1 !important;
+}
+
+/* 5. Цифры в метриках (CPU, DRAM) */
+.c-stat__value {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* 6. Подписи в метриках (CPU 1 min) */
+.c-stat__label, .c-card__title {
+    color: #cbd5e1 !important;
+}
+
+/* ============================================================
+   ЖЁСТКИЙ ФИКС: БЕЛЫЙ ТЕКСТ ВЕЗДЕ В ТАБЛИЦЕ
+   ============================================================ */
+
+/* Принудительно делаем текст белым во всех ячейках таблицы */
+#device-tab-content .iface-table td,
+#device-tab-content .iface-table td span,
+#device-tab-content .iface-table td div,
+#device-tab-content .iface-table .c-muted,
+#device-tab-content .iface-table .c-mono {
+    color: #ffffff !important;
+    opacity: 1 !important; /* Убираем прозрачность текста, если она есть */
+    font-weight: 500 !important;
+}
+
+/* Делаем заголовки таблицы светло-серыми (чтобы отличались от данных) */
+#device-tab-content .iface-table th,
+#device-tab-content .iface-table th span {
+    color: #cbd5e1 !important;
+    font-weight: 600 !important;
+}
+
+/* Название устройства (ag.LAZ) и IP делаем чисто белыми */
+.detail-title {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+.detail-subtitle {
+    color: #e2e8f0 !important;
+}
+
+/* Текст "Всего: 29 интерфейсов" */
+.iface-toolbar__info {
+    color: #e2e8f0 !important;
+}
+.iface-toolbar__info b {
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   ОРАНЖЕВАЯ КНОПКА "ВЕБ-ИНТЕРФЕЙС"
+   ============================================================ */
+
+/* Ищем ссылку по тексту и задаем ей оранжевый цвет */
+.detail-tab[href^="http"],
+.detail-tabs a[target="_blank"] {
+    color: #ff780a !important;
+    font-weight: 600 !important;
+    transition: all 0.2s;
+}
+
+/* Добавляем эффект при наведении (подсветка) */
+.detail-tab[href^="http"]:hover,
+.detail-tabs a[target="_blank"]:hover {
+    color: #ff9d4d !important;
+    text-shadow: 0 0 8px rgba(255, 120, 10, 0.5) !important;
+}
+
+/* ============================================================
+   ФИКС ЧИТАЕМОСТИ ДЛЯ ВКЛАДКИ "ОБЗОР"
+   ============================================================ */
+
+/* 1. Заголовки секций (ОСНОВНОЕ, SNMP, ИНВЕНТАРЬ) */
+.detail-section__title {
+    color: #94a3b8 !important; /* Светло-серый, чтобы выделялся */
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    letter-spacing: 1px !important;
+}
+
+/* 2. Названия полей (Статус, Вендор, Профиль) */
+.detail-row__label {
+    color: #cbd5e1 !important; /* Светло-серый */
+    font-weight: 500 !important;
+}
+
+/* 3. Значения полей (Доступно, 2, 1, —) */
+.detail-row__value {
+    color: #ffffff !important; /* Белый текст */
+    font-weight: 600 !important;
+}
+
+/* 4. Кнопка "Открыть полностью" (оранжевая внизу) */
+.c-btn.c-btn--primary {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 10px 16px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.c-btn.c-btn--primary:hover {
+    background: #ff9d4d !important;
+}
+
+/* 5. Вкладки, которые неактивны (Обзор, Метрики и т.д.) */
+.detail-tab:not(.is-active) {
+    color: #94a3b8 !important;
+}
+
+.detail-tab.is-active {
+    color: #ffffff !important; /* Белый текст на оранжевой кнопке */
+}
+
+/* ============================================================
+   ТАБЛИЦА ЧУТЬ ТЕМНЕЕ ФОНА (Светло-серый полупрозрачный)
+   ============================================================ */
+
+/* 1. Карточка с таблицей — делаем её светло-серой */
+.c-card {
+    background: rgba(255, 255, 255, 0.15) !important; /* Легкая белая вуаль */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 2. Шапка таблицы — чуть темнее самой карточки */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.08) !important; /* Легкое затемнение */
+    color: #475569 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 3. Ячейки таблицы */
+.iface-table td {
+    background: transparent !important;
+    color: #1e293b !important; /* Темный текст для контраста */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 4. Наведение на строку */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.3) !important; /* Подсветка при наведении */
+}
+
+/* 5. Кнопка "Открыть полностью" — оставляем оранжевой */
+.c-btn--primary {
+    background: #ff780a !important;
+    color: #ffffff !important;
+}
+
+/* 6. Кнопка "Веб-интерфейс" — оставляем оранжевой */
+.detail-tab[href^="http"] {
+    color: #ff780a !important;
+}
+
+/* ============================================================
+   ТАБЛИЦА СВЕТЛЕЕ ФОНА (Светлое стекло)
+   ============================================================ */
+
+/* 1. Карточка с таблицей — светлая и прозрачная */
+.c-card {
+    background: rgba(255, 255, 255, 0.65) !important; /* 65% белого (светлое стекло) */
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 2. Шапка таблицы — чуть темнее карточки, чтобы выделялась */
+.iface-table th {
+    background: rgba(0, 0, 0, 0.04) !important; /* Легкий серый */
+    color: #475569 !important; /* Темный текст */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 3. Ячейки таблицы */
+.iface-table td {
+    background: transparent !important;
+    color: #1e293b !important; /* Темный текст */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 4. Наведение на строку */
+.iface-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* ============================================================
+   СКРЫВАЕМ КНОПКУ "ОТКРЫТЬ ПОЛНОСТЬЮ"
+   ============================================================ */
+
+/* Скрываем кнопку внутри панели с деталями устройства */
+#device-detail-panel .c-btn--primary,
+#device-detail-panel a[href^="/local/devices/"] {
+    display: none !important;
+}
+
+/* ============================================================
+   СТИЛЬ ПЛИТОК VLAN (.vlan-card)
+   ============================================================ */
+
+/* 1. Сама плитка VLAN */
+.vlan-card {
+    background: rgba(30, 34, 42, 0.75) !important; /* Тёмный графит с прозрачностью */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* При наведении */
+.vlan-card:hover {
+    background: rgba(45, 49, 57, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* 2. Цифра VLAN (ID) */
+.vlan-card__id {
+    color: #ff780a !important; /* Оранжевый акцент */
+    font-weight: 700 !important;
+    font-size: 22px !important;
+    margin-bottom: 4px;
+}
+
+/* 3. Название VLAN */
+.vlan-card__name {
+    color: #e2e8f0 !important; /* Светло-серый */
+    font-size: 12px !important;
+    font-weight: 500 !important;
+}
+
+/* ============================================================
+   НАСТОЯЩЕЕ СТЕКЛО ДЛЯ ПЛИТОК VLAN
+   ============================================================ */
+
+/* 1. Сама плитка VLAN (делаем прозрачной) */
+.vlan-card {
+    background: rgba(30, 34, 42, 0.45) !important; /* Прозрачность 45% */
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important; /* Чёткая рамка */
+    border-radius: 14px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+    
+    /* Внутренний блик сверху (создает объем) */
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* При наведении */
+.vlan-card:hover {
+    background: rgba(45, 49, 57, 0.7) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 2. Чтобы оранжевый текст не терялся, добавим ему легкое свечение */
+.vlan-card__id {
+    color: #ff780a !important;
+    text-shadow: 0 0 10px rgba(255, 120, 10, 0.4) !important; 
+}
+
+/* 3. Белый текст названия */
+.vlan-card__name {
+    color: #e2e8f0 !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ ВКЛАДКИ SFP
+   ============================================================ */
+
+/* 1. Основная карточка SFP */
+.sfp-card, 
+.sfp-item,
+#device-tab-content .sfp-card {
+    background: rgba(30, 34, 42, 0.6) !important; /* Тёмное стекло */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 2. Внутренние блоки (TEMP, VOLTAGE, TX, RX) */
+.sfp-metric, 
+.sfp-data,
+.sfp-card__body div {
+    background: rgba(0, 0, 0, 0.2) !important; /* Чуть темнее основного фона */
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px !important;
+    color: #e2e8f0 !important;
+}
+
+/* 3. Заголовки внутри блоков (TEMP, VOLTAGE) */
+.sfp-metric__label,
+.sfp-data__label {
+    color: #94a3b8 !important;
+}
+
+/* 4. Значения (39,0 °C, -4,68 dBm) */
+.sfp-metric__value,
+.sfp-data__value {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* 5. Бейдж "OK" (зеленый) */
+.sfp-status--ok,
+.sfp-card .badge-ok {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+/* 6. Время обновления внизу карточки */
+.sfp-updated,
+.sfp-card__footer {
+    color: #64748b !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ============================================================
+   ЦВЕТОВАЯ ИНДИКАЦИЯ ДЛЯ SFP (Django states)
+   ============================================================ */
+
+/* 1. Значения, которые в норме (ok) — ЗЕЛЕНЫЕ */
+.sfp-metric__value--ok,
+.sfp-state--ok {
+    color: #34d399 !important; /* Яркий зеленый */
+    text-shadow: 0 0 8px rgba(52, 211, 153, 0.4) !important;
+}
+
+/* 2. Предупреждение (warn) — ЖЕЛТЫЕ */
+.sfp-metric__value--warn,
+.sfp-state--warn {
+    color: #fbbf24 !important; /* Желтый */
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.4) !important;
+}
+
+/* 3. Критично (crit) — КРАСНЫЕ */
+.sfp-metric__value--crit,
+.sfp-state--crit {
+    color: #f87171 !important; /* Красный */
+    text-shadow: 0 0 8px rgba(248, 113, 113, 0.4) !important;
+}
+
+/* 4. Неизвестно (unknown) — СЕРЫЕ */
+.sfp-metric__value--unknown,
+.sfp-state--unknown {
+    color: #94a3b8 !important;
+}
+
+/* 5. Карточки с ошибкой (рамка красная) */
+.sfp-card--crit {
+    border-color: rgba(248, 113, 113, 0.4) !important;
+    box-shadow: 0 0 20px rgba(248, 113, 113, 0.1) !important;
+}
+
+/* 6. Карточки с предупреждением (рамка желтая) */
+.sfp-card--warn {
+    border-color: rgba(251, 191, 36, 0.4) !important;
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.1) !important;
+}
+
+/* 7. Карточки в норме (рамка зеленая) */
+.sfp-card--ok {
+    border-color: rgba(52, 211, 153, 0.2) !important;
+}
+
+/* 8. Общие стили для значений SFP (если состояние не задано) */
+.sfp-metric__value {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================================
+   ЖЁСТКИЙ ФИКС: ЗЕЛЁНЫЕ ЦИФРЫ ДЛЯ НОРМЫ SFP
+   ============================================================ */
+
+/* Перебиваем любые цвета, задавая зеленый для состояний ОК */
+.sfp-metric__value.sfp-metric__value--ok {
+    color: #34d399 !important; 
+    text-shadow: 0 0 10px rgba(52, 211, 153, 0.4) !important;
+}
+
+/* На случай, если у бейджа "OK" тоже есть специфичный класс */
+.sfp-card__state.sfp-state--ok {
+    background: rgba(52, 211, 153, 0.15) !important;
+    color: #34d399 !important;
+    border-color: rgba(52, 211, 153, 0.4) !important;
+}
+
+/* А также на всякий случай красим карточку в зеленоватый оттенок, если она ОК */
+.sfp-card.sfp-card--ok {
+    border: 1px solid rgba(52, 211, 153, 0.2) !important;
+}
+
+/* ============================================================
+   ЦВЕТОВОЙ СТИЛЬ ДЛЯ ВКЛАДКИ СОБЫТИЙ (.alert-card)
+   ============================================================ */
+
+/* 1. Сама карточка события */
+.alert-card {
+    background: rgba(30, 34, 42, 0.7) !important; /* Тёмное стекло */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    margin-bottom: 12px !important;
+}
+
+/* 2. Цветные полоски слева в зависимости от важности (severity) */
+.alert-card--crit { border-left: 4px solid #f87171 !important; }
+.alert-card--major { border-left: 4px solid #fb923c !important; }
+.alert-card--warn { border-left: 4px solid #fbbf24 !important; }
+.alert-card--info { border-left: 4px solid #38bdf8 !important; }
+.alert-card--ok { border-left: 4px solid #34d399 !important; }
+
+/* 3. Текст сообщения */
+.alert-card__message {
+    color: #e2e8f0 !important; /* Светлый текст */
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+/* 4. Статус (Firing / Resolved) */
+.alert-card__state {
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    text-transform: uppercase !important;
+    font-weight: 600 !important;
+}
+/* Если событие активно (Firing) — красный */
+.alert-card__state--firing {
+    background: rgba(248, 113, 113, 0.15) !important;
+    color: #f87171 !important;
+}
+/* Если событие решено (Resolved) — зеленый */
+.alert-card__state--resolved {
+    background: rgba(52, 211, 153, 0.15) !important;
+    color: #34d399 !important;
+}
+
+/* 5. Время и метаданные */
+.alert-card__meta {
+    color: #64748b !important;
+    font-size: 12px !important;
+    margin-top: 8px !important;
+}
+
+/* 6. Уровень важности (если он выводится текстом) */
+.alert-card__severity {
+    color: #ff780a !important; /* Оранжевый акцент */
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+}
+
+/* ============================================================
+   ЖЁСТКИЙ ФИКС ДЛЯ ВКЛАДОК (Читаемость)
+   ============================================================ */
+
+/* 1. Неактивные вкладки (Обзор, Метрики, Интерфейсы...) */
+.detail-tab:not(.is-active) {
+    color: #ffffff !important; /* Делаем БЕЛЫМИ, чтобы было видно */
+    opacity: 0.7 !important; /* Чуть приглушаем, чтобы активная выделялась */
+    font-weight: 500 !important;
+}
+
+/* При наведении на неактивную вкладку */
+.detail-tab:not(.is-active):hover {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 2. Активная вкладка (События, Интерфейсы и т.д.) */
+.detail-tab.is-active,
+.detail-tab.is-active span {
+    background: #ff780a !important;
+    color: #ffffff !important; /* ЧИСТО БЕЛЫЙ ТЕКСТ */
+    font-weight: 700 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+/* 3. Чтобы текст внутри кнопки не перебивался другими стилями */
+.detail-tab.is-active * {
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   ОРАНЖЕВАЯ КНОПКА "ВЕБ-ИНТЕРФЕЙС" (Glass Style)
+   ============================================================ */
+
+/* Ищем ссылку по тексту и задаем ей оранжевый фон */
+.detail-tab[href^="http"],
+.detail-tabs a[target="_blank"] {
+    background: #ff780a !important; /* Оранжевый фон */
+    color: #ffffff !important; /* Белый текст */
+    font-weight: 600 !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important; /* Скругленные углы */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important; /* Легкая рамка */
+    box-shadow: 0 4px 10px rgba(255, 120, 10, 0.3) !important; /* Оранжевая тень */
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    text-decoration: none !important;
+}
+
+/* Эффект при наведении (светлеет) */
+.detail-tab[href^="http"]:hover,
+.detail-tabs a[target="_blank"]:hover {
+    background: #ff9d4d !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 15px rgba(255, 120, 10, 0.5) !important;
+}
+
+/* ============================================================
+   ПОДНЯТЬ КНОПКУ "ВЕБ-ИНТЕРФЕЙС" ВЫШЕ НА 10PX
+   ============================================================ */
+
+.detail-tab[href^="http"],
+.detail-tabs a[target="_blank"] {
+    position: relative !important;
+    top: -10px !important; /* Поднимаем кнопку на 10 пикселей вверх */
+}
+
+/* ============================================================
+   ВОЗВРАТ ФОНА С ГРАФИТОВЫМИ РАЗВОДАМИ
+   ============================================================ */
+
+/* Принудительно задаем фон с пятнами для всей страницы */
+html, body, .app-layout, .app-main {
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(40, 45, 55, 0.6), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(25, 28, 34, 0.8), transparent 50%),
+        #e2e8f0 !important; /* Светло-серый базовый */
+    background-attachment: fixed !important;
+    background-color: #e2e8f0 !important;
+}
+
+/* ============================================================
+   КАСТОМНЫЙ СКРОЛЛБАР В СТИЛЕ GRAFANA
+   ============================================================ */
+
+/* Для всего сайта (Webkit-браузеры: Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+    width: 8px;  /* Ширина вертикального скролла */
+    height: 8px; /* Высота горизонтального скролла */
+}
+
+/* Фон скроллбара (дорожка) */
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05) !important; /* Легкая тень */
+    border-radius: 4px;
+}
+
+/* Ползунок (то, что мы таскаем) */
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2) !important; /* Полупрозрачный серый */
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* При наведении на ползунок делаем его оранжевым (акцент) */
+::-webkit-scrollbar-thumb:hover {
+    background: #ff780a !important; 
+}
+
+/* Для Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ СТРАНИЦЫ АЛЕРТОВ (/alerts)
+   ============================================================ */
+
+/* 1. Заголовки и хлебные крошки сверху */
+.breadcrumb, .breadcrumb a, 
+.page-header h1, 
+h1, h2 {
+    color: #0f172a !important; /* Тёмный текст для светлого фона */
+}
+.breadcrumb a:hover {
+    color: #ff780a !important;
+}
+
+/* 2. Счётчики (1 critical, 2 warning) */
+.text-muted, .alerts-summary {
+    color: #475569 !important;
+}
+
+/* 3. Карточки активных алертов (ВНИМАНИЕ, КРИТИЧНО) */
+.alert-card {
+    background: rgba(30, 34, 42, 0.85) !important; /* Плотный тёмный графит */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+/* Текст внутри карточек алертов делаем белым */
+.alert-card__message, 
+.alert-card .c-mono, 
+.alert-card div {
+    color: #ffffff !important;
+}
+
+/* 4. Таблица истории (делаем её светлее и прозрачнее) */
+.c-table {
+    background: rgba(255, 255, 255, 0.4) !important; /* Светлое стекло */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+}
+
+/* 5. Заголовки таблицы истории */
+.c-table th {
+    background: rgba(0, 0, 0, 0.05) !important; /* Легкий серый */
+    color: #475569 !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 6. Ячейки таблицы истории */
+.c-table td {
+    background: transparent !important;
+    color: #1e293b !important; /* Тёмный текст */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 7. При наведении на строку истории */
+.c-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* 8. Кнопка "Очистить все" */
+.btn-clear-all, button[onclick*="clear"] {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: #475569 !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 6px !important;
+}
+.btn-clear-all:hover {
+    background: #ff780a !important;
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   ВОЗВРАТ ТЁМНОГО СТЕКЛА ДЛЯ ТАБЛИЦЫ ИСТОРИИ АЛЕРТОВ
+   ============================================================ */
+
+/* 1. Карточка с таблицей истории — тёмное стекло */
+.c-table {
+    background: rgba(30, 34, 42, 0.6) !important; /* Тёмный графит с прозрачностью */
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 2. Шапка таблицы (УРОВЕНЬ, УСТРОЙСТВО...) */
+.c-table th {
+    background: rgba(0, 0, 0, 0.2) !important; /* Чуть темнее */
+    color: #94a3b8 !important; /* Светло-серый текст */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 3. Ячейки таблицы */
+.c-table td {
+    background: transparent !important;
+    color: #e2e8f0 !important; /* Белый/светлый текст */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Наведение на строку */
+.c-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Кнопка "Очистить все" */
+button[onclick*="clear"], .btn-clear-all {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ============================================================
+   ФИКС ШАПКИ И РАМКИ ТАБЛИЦЫ АЛЕРТОВ
+   ============================================================ */
+
+/* 1. Убираем белую рамку у карточки с таблицей */
+.c-table {
+    border: 1px solid rgba(0, 0, 0, 0.1) !important; /* Тёмная, едва заметная рамка */
+    box-shadow: none !important; /* Убираем лишнюю тень, если она есть */
+}
+
+/* 2. Шапка таблицы — просто на тон темнее фона */
+.c-table th {
+    background: rgba(0, 0, 0, 0.15) !important; /* Легкое затемнение */
+    color: #cbd5e1 !important; /* Светло-серый текст */
+    border-bottom: none !important; /* Убираем нижнюю границу */
+}
+
+/* 3. Убираем белые линии между строками (если они есть) */
+.c-table td {
+    border-bottom: none !important; 
+}
+
+/* 4. Добавляем едва заметную тонкую линию между строками для читаемости */
+.c-table tbody tr {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ============================================================
+   ИДЕАЛЬНЫЙ СТИЛЬ ДЛЯ СТРАНИЦЫ АЛЕРТОВ (/alerts)
+   ============================================================ */
+
+/* 1. Таблица истории (тёмное стекло) */
+.c-card {
+    background: rgba(30, 34, 42, 0.6) !important; /* Тёмный графит */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important; /* Едва заметная тёмная рамка */
+    box-shadow: none !important;
+    border-radius: 12px !important;
+}
+
+/* 2. Шапка таблицы (на тон темнее фона) */
+.c-table th {
+    background: rgba(0, 0, 0, 0.15) !important; /* Легкое затемнение */
+    color: #cbd5e1 !important; /* Светло-серый текст */
+    border-bottom: none !important;
+    text-transform: uppercase;
+    font-size: 11px;
+}
+
+/* 3. Ячейки таблицы */
+.c-table td {
+    background: transparent !important;
+    color: #e2e8f0 !important; /* Белый текст */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Наведение на строку */
+.c-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Бейджи статусов (ВНИМ, КРИТ) */
+.c-status {
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+}
+.c-status--warn {
+    background: rgba(251, 191, 36, 0.15) !important;
+    color: #fbbf24 !important;
+}
+.c-status--crit {
+    background: rgba(248, 113, 113, 0.15) !important;
+    color: #f87171 !important;
+}
+
+/* 6. Бейджи NE-11, NE-37 */
+.alert-card__ne-badge {
+    background: rgba(14, 165, 233, 0.15) !important;
+    color: #38bdf8 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    margin-right: 6px;
+}
+
+/* 7. Кнопка "Очистить все" */
+.btn--secondary {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: #475569 !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 6px !important;
+    transition: all 0.2s;
+}
+.btn--secondary:hover {
+    background: #ff780a !important;
+    color: #ffffff !important;
+}
+
+/* 8. Заголовки */
+.dash-header h1, h2 {
+    color: #0f172a !important; /* Тёмные для светлого фона */
+}
+
+/* ============================================================
+   ЦВЕТА ЗНАЧЕНИЙ В ТАБЛИЦЕ ПО КРИТИЧНОСТИ
+   ============================================================ */
+
+/* 1. Сначала делаем все значения белыми по умолчанию */
+.c-table td.c-mono {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* 2. Если в строке есть бейдж ВНИМ (Warning) — красим значение (колонка 4) в желтый */
+.c-table tr:has(.c-status--warn) td:nth-child(4) {
+    color: #fbbf24 !important; /* Желтый */
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.3) !important;
+}
+
+/* 3. Если в строке есть бейдж КРИТ (Critical) — красим значение (колонка 4) в красный */
+.c-table tr:has(.c-status--crit) td:nth-child(4) {
+    color: #f87171 !important; /* Красный */
+    text-shadow: 0 0 8px rgba(248, 113, 113, 0.3) !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ СТРАНИЦЫ МЕТРИК (/local/metrics/)
+   ============================================================ */
+
+/* 1. Фильтры (Устройство, Группа, Период) — делаем стеклянными */
+.metrics-filters {
+    background: rgba(255, 255, 255, 0.4) !important; /* Светлое стекло */
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 16px !important;
+    padding: 16px 24px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+    margin-bottom: 24px !important;
+}
+
+/* Селекты внутри фильтров */
+.metrics-filters__select {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #1e293b !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+}
+.metrics-filters__label {
+    color: #475569 !important;
+    font-weight: 600 !important;
+}
+
+/* 2. Карточки с графиками */
+.metrics-chart-card {
+    background: rgba(30, 34, 42, 0.6) !important; /* Тёмный графит */
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+    overflow: hidden;
+}
+
+/* 3. Заголовок внутри карточки (Имя устройства · Группа) */
+.metrics-chart-card__header {
+    background: rgba(0, 0, 0, 0.2) !important; /* Легкое затемнение */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 12px 16px !important;
+}
+
+.metrics-chart-card__device {
+    color: #ffffff !important; /* Белый текст для устройства */
+    font-weight: 600 !important;
+}
+.metrics-chart-card__group {
+    color: #94a3b8 !important; /* Серый для группы */
+}
+.metrics-chart-card__link {
+    color: #ff780a !important; /* Оранжевая ссылка */
+}
+
+/* 4. Легенда графика (CPU 1 min, DRAM used) */
+.metrics-chart-card__legend {
+    background: transparent !important;
+    padding: 12px 16px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.metrics-chart-card__legend-item {
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+}
+
+/* 5. Заголовок страницы "Метрики" */
+.dash-header h1 {
+    color: #0f172a !important;
+}
+.dash-header__subtitle span {
+    color: #475569 !important;
+}
+
+/* ============================================================
+   ЦВЕТА DDM ЗНАЧЕНИЙ (Temp, Vcc, Rx, Tx, Bias)
+   ============================================================ */
+
+/* 1. ОБЩИЙ ЦВЕТ (по умолчанию белый) */
+.sfp-card__row-value {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 2. ЗЕЛЕНЫЙ (Норма, OK) 
+   Ищем строку, где иконка имеет зеленый цвет (например, bi-check-circle или стиль color) */
+.sfp-card__row:has(.text-success) .sfp-card__row-value,
+.sfp-card__row:has(.text-ok) .sfp-card__row-value,
+.sfp-card__row:has(.bi-check-circle) .sfp-card__row-value {
+    color: #34d399 !important;
+    text-shadow: 0 0 8px rgba(52, 211, 153, 0.3) !important;
+}
+
+/* 3. ЖЕЛТЫЙ (Внимание, WARN) */
+.sfp-card__row:has(.text-warning) .sfp-card__row-value,
+.sfp-card__row:has(.text-warn) .sfp-card__row-value,
+.sfp-card__row:has(.bi-exclamation-triangle) .sfp-card__row-value {
+    color: #fbbf24 !important;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.3) !important;
+}
+
+/* 4. КРАСНЫЙ (Критично, CRIT) */
+.sfp-card__row:has(.text-danger) .sfp-card__row-value,
+.sfp-card__row:has(.text-crit) .sfp-card__row-value,
+.sfp-card__row:has(.bi-x-circle) .sfp-card__row-value {
+    color: #f87171 !important;
+    text-shadow: 0 0 8px rgba(248, 113, 113, 0.3) !important;
+}
+
+/* 5. ФИКС ДЛЯ ИКОНОК (чтобы они светились в тон тексту) */
+.sfp-card__row-icon i.bi-check-circle { color: #34d399 !important; }
+.sfp-card__row-icon i.bi-exclamation-triangle { color: #fbbf24 !important; }
+.sfp-card__row-icon i.bi-x-circle { color: #f87171 !important; }
+
+/* ============================================================
+   ЖЁСТКИЙ ФИКС: КРАСИМ ЗНАЧЕНИЯ ПО ЦВЕТУ ИКОНКИ
+   ============================================================ */
+
+/* 1. Если иконка зеленая (bi-check-circle или text-success) — текст зеленый */
+.sfp-card__row:has(.text-success) .sfp-card__row-value,
+.sfp-card__row:has(.bi-check-circle) .sfp-card__row-value,
+.sfp-card__row:has(.text-ok) .sfp-card__row-value {
+    color: #34d399 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 8px rgba(52, 211, 153, 0.4) !important;
+}
+
+/* 2. Если иконка желтая (bi-exclamation-triangle или text-warning) — текст желтый */
+.sfp-card__row:has(.text-warning) .sfp-card__row-value,
+.sfp-card__row:has(.bi-exclamation-triangle) .sfp-card__row-value {
+    color: #fbbf24 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.4) !important;
+}
+
+/* 3. Если иконка красная (bi-x-circle или text-danger) — текст красный */
+.sfp-card__row:has(.text-danger) .sfp-card__row-value,
+.sfp-card__row:has(.bi-x-circle) .sfp-card__row-value {
+    color: #f87171 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 8px rgba(248, 113, 113, 0.4) !important;
+}
+
+/* 4. Если у иконки нет класса состояния — оставляем белым */
+.sfp-card__row:not(:has(.text-success)):not(:has(.text-warning)):not(:has(.text-danger)):not(:has(.bi-check-circle)):not(:has(.bi-exclamation-triangle)):not(:has(.bi-x-circle)) .sfp-card__row-value {
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ СТРАНИЦЫ МУЛЬТИПЛЕКСОРОВ (/local/multiplexers/)
+   ============================================================ */
+
+/* 1. Левая панель (дерево NE) */
+.mux-tree {
+    background: rgba(30, 34, 42, 0.6) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 2. Правая панель (детали) */
+.mux-detail {
+    background: rgba(30, 34, 42, 0.6) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 3. Элементы дерева */
+.mux-gateway__title {
+    color: #94a3b8 !important;
+}
+.mux-gateway__title:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+.mux-ne {
+    color: #e2e8f0 !important;
+}
+.mux-ne:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+.mux-ne.is-active {
+    background: rgba(255, 120, 10, 0.15) !important;
+    border-left-color: #ff780a !important;
+    color: #ff780a !important;
+}
+
+/* 4. SFP-карточки внутри правой панели */
+.sfp-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+}
+.sfp-card--ok { border-left: 3px solid #34d399 !important; }
+.sfp-card--crit { border-left: 3px solid #f87171 !important; }
+.sfp-card--unknown { border-left: 3px solid #94a3b8 !important; }
+
+.sfp-card__title {
+    color: #ffffff !important;
+}
+.sfp-card__title i {
+    color: #ff780a !important;
+}
+
+/* 5. Метрики внутри SFP (RX, TX, TEMP) */
+.sfp-metric {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px !important;
+}
+.sfp-metric__label {
+    color: #94a3b8 !important;
+}
+.sfp-metric__value {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* 6. LAN-карточки (если они есть) */
+.lan-card {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px !important;
+    color: #e2e8f0 !important;
+}
+.lan-card--up {
+    border-left: 3px solid #34d399 !important;
+}
+.lan-card--down {
+    border-left: 3px solid #f87171 !important;
+}
+
+/* 7. Заголовок страницы */
+.app-main__title {
+    color: #0f172a !important;
+}
+.app-main__subtitle {
+    color: #475569 !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ СТРАНИЦЫ СТАНЦИЙ (/local/stations/)
+   ============================================================ */
+
+/* 1. Основной контейнер сетки */
+.dispatch-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr 300px;
+    gap: 16px;
+    height: calc(100vh - 120px);
+}
+
+/* 2. Панели (Левая, Центральная, Правая) */
+.dispatch-panel {
+    background: rgba(30, 34, 42, 0.6) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 3. Заголовки панелей */
+.dispatch-panel-header {
+    background: rgba(0, 0, 0, 0.2) !important;
+    color: #94a3b8 !important;
+    padding: 12px 16px !important;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 4. Контент внутри панелей (чтобы не было лишних отступов) */
+.dispatch-station-details, 
+.dispatch-right-content {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* 5. Карточки статистики справа (Онлайн, Офлайн, Алерты, Линий) */
+.dispatch-stat-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 16px;
+    text-align: center;
+}
+.dispatch-stat-value {
+    color: #ffffff !important;
+    font-size: 24px;
+    font-weight: 700;
+}
+.dispatch-stat-label {
+    color: #94a3b8 !important;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+/* 6. Карта */
+.stations-map-wrap {
+    flex: 1;
+    border-radius: 0 0 16px 16px;
+    overflow: hidden;
+}
+/* Убираем белую рамку у Leaflet */
+.leaflet-container {
+    background: #14161a !important;
+}
+
+/* 7. Верхние вкладки (Карта / Список) */
+.stations-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.stations-tab {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #94a3b8 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.stations-tab.is-active {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border-color: #ff780a !important;
+}
+
+/* 8. Заголовок страницы */
+.page-title {
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   ФИКС ЧЁРНЫХ БЛОКОВ ВНУТРИ ДИСПЕТЧЕРСКОЙ
+   ============================================================ */
+
+/* 1. Блоки с графиками (Порт 1, Порт 2, Трафик сети) */
+.dispatch-chart-wrap,
+.ne-sfp-block, 
+.mux-port-card,
+div[style*="background: #111217"],
+div[style*="background: #181b1f"] {
+    background: rgba(255, 255, 255, 0.05) !important; /* Легкое стекло */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+}
+
+/* 2. Заголовки внутри этих блоков (NE-5, Порт 1) */
+.ne-sfp-block__title,
+.mux-port-card__title,
+.dispatch-chart-wrap > div:first-child {
+    color: #e2e8f0 !important;
+}
+
+/* 3. Текст внутри блоков (RX, TX) */
+.ne-sfp-block__footer,
+.mux-port-card__footer {
+    color: #94a3b8 !important;
+}
+
+/* 4. Карточки статистики (Онлайн, Офлайн и т.д.) */
+.dispatch-stat-card {
+    background: rgba(255, 255, 255, 0.08) !important; /* Чуть светлее */
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* 5. Левая панель: блок "МУЛЬТИПЛЕКСОРЫ (1)" */
+.dispatch-station-details > div > div[style*="text-transform: uppercase"] {
+    color: #94a3b8 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 6. Блок "IP-АДРЕСА" */
+.dispatch-station-details div[style*="IP-АДРЕСА"] {
+    color: #94a3b8 !important;
+}
+
+/* 7. Убираем черный фон у canvas графиков (если он есть) */
+canvas {
+    background: transparent !important;
+}
+
+/* ============================================================
+   ФИКС ЧЁРНЫХ БЛОКОВ, КОТОРЫЕ РИСУЕТ JS (dispatch-chart-card)
+   ============================================================ */
+
+/* 1. Сами карточки с графиками (Порт 1, Порт 2) */
+.dispatch-chart-card,
+div[id^="chart-ne-"] {
+    background: rgba(30, 34, 42, 0.6) !important; /* Тёмное стекло */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+    margin-bottom: 12px !important;
+    overflow: hidden;
+}
+
+/* 2. Внутренние блоки (если они есть внутри JS) */
+.dispatch-chart-card__header,
+.dispatch-chart-card__body {
+    background: transparent !important;
+}
+
+/* 3. Заголовки NE-5, Порт 1 */
+.dispatch-chart-card__title,
+.dispatch-chart-card__header span {
+    color: #e2e8f0 !important;
+}
+
+/* 4. Текст RX / TX внизу */
+.dispatch-chart-card__footer,
+.dispatch-chart-card__values {
+    background: rgba(0, 0, 0, 0.2) !important;
+    color: #94a3b8 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Убираем черный фон у canvas внутри этих карточек */
+.dispatch-chart-card canvas {
+    background: transparent !important;
+}
+
+/* ============================================================
+   ЦВЕТА ЦИФР В СВОДКЕ ПО СЕТИ
+   ============================================================ */
+
+/* 1. Онлайн (Зеленый) */
+#stat-online {
+    color: #34d399 !important;
+    text-shadow: 0 0 10px rgba(52, 211, 153, 0.3) !important;
+}
+
+/* 2. Офлайн (Красный) */
+#stat-offline {
+    color: #f87171 !important;
+    text-shadow: 0 0 10px rgba(248, 113, 113, 0.3) !important;
+}
+
+/* 3. Алерты (Желтый) */
+#stat-alerts {
+    color: #fbbf24 !important;
+    text-shadow: 0 0 10px rgba(251, 191, 36, 0.3) !important;
+}
+
+/* 4. Линий (Оранжевый) */
+#stat-links {
+    color: #ff780a !important;
+    text-shadow: 0 0 10px rgba(255, 120, 10, 0.3) !important;
+}
+
+/* ============================================================
+   ФИКС ВЕРХНИХ ВКЛАДОК (Карта / Список)
+   ============================================================ */
+
+/* 1. Поднимаем весь блок вкладок выше */
+.stations-tabs {
+    margin-top: -10px !important; /* Поднимаем вверх */
+    margin-bottom: 20px !important;
+    display: flex;
+    gap: 8px;
+}
+
+/* 2. Неактивная кнопка (Список) */
+.stations-tab {
+    background: rgba(255, 255, 255, 0.15) !important; /* Делаем светлее */
+    color: #ffffff !important; /* Белый текст */
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    opacity: 0.8;
+}
+.stations-tab:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    opacity: 1;
+}
+
+/* 3. Активная кнопка (Карта) */
+.stations-tab.is-active {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border: 1px solid #ff780a !important;
+    opacity: 1;
+    box-shadow: 0 4px 15px rgba(255, 120, 10, 0.4) !important;
+}
+
+/* 4. Иконки внутри кнопок */
+.stations-tab i {
+    color: inherit !important;
+}
+
+/* ============================================================
+   ФИКС ВЕРХНИХ ВКЛАДОК (Карта / Список)
+   ============================================================ */
+
+/* 1. Поднимаем весь блок вкладок выше */
+.stations-tabs {
+    margin-top: -10px !important; /* Поднимаем вверх */
+    margin-bottom: 20px !important;
+    display: flex;
+    gap: 8px;
+}
+
+/* 2. Неактивная кнопка (Список) */
+.stations-tab {
+    background: rgba(255, 255, 255, 0.15) !important; /* Делаем светлее */
+    color: #ffffff !important; /* Белый текст */
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    opacity: 0.8;
+}
+.stations-tab:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    opacity: 1;
+}
+
+/* 3. Активная кнопка (Карта) */
+.stations-tab.is-active {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border: 1px solid #ff780a !important;
+    opacity: 1;
+    box-shadow: 0 4px 15px rgba(255, 120, 10, 0.4) !important;
+}
+
+/* 4. Иконки внутри кнопок */
+.stations-tab i {
+    color: inherit !important;
+}
+
+/* ============================================================
+   ФИНАЛЬНЫЙ ОТСТУП ДЛЯ ВКЛАДОК
+   ============================================================ */
+
+.stations-tabs {
+    margin-top: 10px !important; /* Опускаем чуть ниже заголовка */
+    margin-bottom: 24px !important; /* Отступ до контента */
+    padding-bottom: 8px !important; /* Внутренний отступ */
+}
+
+/* Убираем линию, если она перебивает дизайн */
+.stations-tabs::after {
+    display: none !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ СТРАНИЦЫ ПОДСЕТЕЙ (/local/subnets/)
+   ============================================================ */
+
+/* 1. Левая панель (Дерево подсетей) */
+.devices-sidebar {
+    background: rgba(30, 34, 42, 0.6) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 2. Правая панель (Детали) */
+.device-detail-panel {
+    background: rgba(30, 34, 42, 0.4) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+}
+
+/* 3. Элементы дерева подсетей */
+.tree-subnet {
+    color: #e2e8f0 !important;
+}
+.tree-subnet:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+.tree-subnet.active {
+    background: rgba(255, 120, 10, 0.15) !important; /* Оранжевый акцент */
+    border-left: 3px solid #ff780a !important;
+}
+
+/* 4. Текст внутри дерева */
+.tree-subnet__title { color: #ffffff !important; }
+.tree-subnet__name { color: #94a3b8 !important; }
+.tree-subnet__stats { 
+    background: rgba(52, 211, 153, 0.15) !important; 
+    color: #34d399 !important; 
+}
+
+/* 5. Кнопки (Сканировать все, +) */
+.btn {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+.btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+.btn--primary {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+}
+
+/* 6. Заголовок "Подсети" */
+.devices-sidebar h2 {
+    color: #ffffff !important;
+}
+
+/* 7. МОДАЛЬНОЕ ОКНО */
+.subnet-modal__content {
+    background: rgba(30, 34, 42, 0.9) !important;
+    backdrop-filter: blur(30px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 16px !important;
+    color: #ffffff !important;
+}
+.subnet-modal__header h2 { color: #ffffff !important; }
+.subnet-modal__form label { color: #94a3b8 !important; }
+.subnet-modal__form input {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}
+.subnet-modal__backdrop {
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+}
+
+/* 8. Вкладки внутри правой панели (Карта / Список) */
+.subnet-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.subnet-tab {
+    color: #94a3b8 !important;
+}
+.subnet-tab.is-active {
+    color: #ff780a !important;
+    border-bottom: 2px solid #ff780a !important;
+}
+
+/* ============================================================
+   ФИКС ЧЁРНЫХ БЛОКОВ НА СТРАНИЦЕ ПОДСЕТЕЙ
+   ============================================================ */
+
+/* 1. Карточки статистики (ВСЕГО IP, ЖИВЫХ и т.д.) */
+.subnet-stat-card,
+div[style*="background: #161b22"],
+div[style*="background: #0d1117"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+}
+
+/* 2. Значения внутри карточек (254, 12, 9, 245) */
+.subnet-stat-card__value,
+div[style*="font-size: 24px"] {
+    color: #ffffff !important;
+}
+.subnet-stat-card__label,
+div[style*="font-size: 12px"][style*="color: #8a94a6"] {
+    color: #94a3b8 !important;
+}
+
+/* 3. Сетка IP-адресов (квадратики) */
+.subnets-grid,
+.ip-grid {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+}
+
+/* 4. Квадратики IP */
+.ip-cell,
+.subnet-ip-cell {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+    border-radius: 6px !important;
+    transition: all 0.2s;
+}
+
+.ip-cell:hover,
+.subnet-ip-cell:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: #ff780a !important;
+}
+
+/* 5. Занятые IP (зелёные) */
+.ip-cell--alive,
+.subnet-ip-cell--alive {
+    background: rgba(52, 211, 153, 0.2) !important;
+    border-color: rgba(52, 211, 153, 0.4) !important;
+    color: #34d399 !important;
+}
+
+/* 6. Фильтр и легенда */
+.subnet-filter input {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+}
+
+/* 7. Кнопка "Захват трафика (tcpdump)" */
+.subnet-tcpdump-btn {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 15px rgba(255, 120, 10, 0.3) !important;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ МОДАЛЬНОГО ОКНА IP (ip-modal)
+   ============================================================ */
+
+/* 1. Само окно (когда открыто) */
+#ip-modal:not([hidden]) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: fixed !important;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10000 !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+}
+
+/* 2. Контент модалки (карточка) */
+#ip-modal .modal__content,
+#ip-modal > div {
+    background: rgba(30, 34, 42, 0.95) !important;
+    backdrop-filter: blur(30px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+    color: #ffffff !important;
+    padding: 24px !important;
+    width: 100%;
+    max-width: 500px;
+}
+
+/* 3. Заголовок модалки */
+#ip-modal h2,
+#ip-modal .modal-title,
+#modal-title {
+    color: #ffffff !important;
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+/* 4. Тело модалки (текст, кнопки) */
+#modal-body {
+    color: #e2e8f0 !important;
+}
+#modal-body p, #modal-body div {
+    color: #e2e8f0 !important;
+}
+
+/* 5. Кнопки внутри модалки */
+#modal-body .btn {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px;
+}
+#modal-body .btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+#modal-body .btn--primary {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+}
+
+/* 6. Кнопка закрытия */
+#ip-modal .modal-close,
+#ip-modal .btn-close {
+    color: #94a3b8 !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: 20px;
+}
+
+/* ============================================================
+   СТИЛЬ ДЛЯ ПАНЕЛИ TCPDUMP
+   ============================================================ */
+
+/* 1. Сама панель (когда открыта) */
+.tcpdump-panel {
+    background: rgba(30, 34, 42, 0.9) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    color: #e2e8f0 !important;
+    margin-top: 16px;
+    padding: 20px !important;
+}
+
+/* 2. Заголовок панели */
+.tcpdump-panel__title {
+    color: #ff780a !important;
+    font-weight: 700 !important;
+}
+
+/* 3. Поля ввода (BPF-фильтр) */
+.tcpdump-field label,
+.tcpdump-label {
+    color: #94a3b8 !important;
+    font-size: 12px;
+}
+
+.tcpdump-field input,
+.tcpdump-field select {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+}
+
+.tcpdump-field input:focus,
+.tcpdump-field select:focus {
+    border-color: #ff780a !important;
+    outline: none !important;
+}
+
+/* 4. Кнопки в панели */
+.tcpdump-panel button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s;
+}
+
+.tcpdump-panel button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.tcpdump-panel button[type="submit"],
+.tcpdump-panel .btn--primary {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+}
+
+.tcpdump-panel button[type="submit"]:hover,
+.tcpdump-panel .btn--primary:hover {
+    background: #ff9d4d !important;
+}
+
+/* 5. Кнопка закрытия панели */
+.tcpdump-panel__close {
+    background: transparent !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+/* 6. Основная кнопка "Захват трафика (tcpdump)" */
+.tcpdump-section button {
+    background: #ff780a !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 10px 20px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 15px rgba(255, 120, 10, 0.4) !important;
+}
+.tcpdump-section button:hover {
+    background: #ff9d4d !important;
+    transform: translateY(-2px);
+}
+
+/* ============================================================
+   ФИКС: ВОЗВРАТ ТЁМНОГО СТЕКЛА ДЛЯ КАРТОЧЕК SFP
+   ============================================================ */
+
+/* 1. Сама карточка (тёмный графит с прозрачностью) */
+.sfp-card {
+    background: rgba(30, 34, 42, 0.65) !important; /* Плотный тёмный фон */
+    backdrop-filter: blur(20px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 2. Заголовок внутри карточки (Порт 1, gi1/0/1) */
+.sfp-card__header {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #e2e8f0 !important;
+}
+
+/* 3. Блоки с метриками (TEMP, RX, TX) */
+.sfp-metric {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #e2e8f0 !important;
+}
+
+/* 4. Подписи внутри метрик */
+.sfp-metric__label {
+    color: #94a3b8 !important;
+}
+
+/* 5. Значения (цифры) — оставляем белыми/цветными, но без белого фона */
+.sfp-metric__value {
+    color: #ffffff !important;
+}
+
+/* 6. Футер с датой */
+.sfp-card__footer {
+    background: transparent !important;
+    color: #64748b !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ============================================================
+   ФИКС ШАПОК КАРТОЧЕК SFP
+   ============================================================ */
+
+/* Убираем тёмную полосу, делаем шапку прозрачной */
+.sfp-card__header {
+    background: transparent !important; /* Убираем серый фон */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; /* Тонкая линия */
+    color: #ffffff !important;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+/* Название порта (gi1/0/1) */
+.sfp-card__port {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+/* Бейдж статуса (OK) */
+.sfp-card__state {
+    background: rgba(52, 211, 153, 0.15) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(52, 211, 153, 0.3) !important;
+}
+
+/* ============================================================
+   УБИРАЕМ АНИМАЦИЮ ЦВЕТА ДЛЯ SFP (Чтобы не моргало)
+   ============================================================ */
+
+.sfp-metric__value,
+.sfp-card__row-value {
+    transition: none !important; /* Мгновенная смена цвета */
+}
+
+/* ============================================================
+   ФИКС СЕТКИ IP (Подсети) — Glassmorphism
+   ============================================================ */
+
+/* Контейнер сетки */
+.ip-grid-wrap {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    margin-top: 16px !important;
+}
+
+/* Сетка */
+.ip-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)) !important;
+    gap: 8px !important;
+}
+
+/* Ячейка по умолчанию (свободный IP) */
+.ip-cell {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    color: #d1d5db !important; /* Светло-серый текст */
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+    padding: 8px 4px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 36px !important;
+}
+
+/* Наведение на ячейку */
+.ip-cell:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 120, 10, 0.5) !important;
+    transform: scale(1.05) !important;
+}
+
+/* Ячейка занята / на мониторинге (зелёная) */
+.ip-cell--alive,
+.ip-cell--alive-mon {
+    background: rgba(52, 211, 153, 0.15) !important;
+    border-color: rgba(52, 211, 153, 0.4) !important;
+    color: #34d399 !important;
+    font-weight: 700 !important;
+}
+
+/* Ячейка мертвая / офлайн (красная) */
+.ip-cell--dead {
+    background: rgba(248, 113, 113, 0.15) !important;
+    border-color: rgba(248, 113, 113, 0.4) !important;
+    color: #f87171 !important;
+}
+
+/* Ячейка reserved (жёлтая) */
+.ip-cell--reserved {
+    background: rgba(251, 191, 36, 0.15) !important;
+    border-color: rgba(251, 191, 36, 0.4) !important;
+    color: #fbbf24 !important;
+}
+
+/* ============================================================
+   ФИКС МОДАЛКИ IP (принудительное отображение)
+   ============================================================ */
+.ip-modal[style*="display: flex"],
+.ip-modal[style*="display:flex"] {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Если modal.hidden = false, но CSS его скрывает */
+.ip-modal:not([hidden]) {
+    display: flex !important;
+}
+
+/* ============================================================
+   КРАСОТА ДЛЯ ШАПКИ ПОДСЕТИ (subnet_detail)
+   ============================================================ */
+
+/* Главный контейнер */
+.subnet-detail-page {
+    padding: 24px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Шапка с названием и кнопками */
+.subnet-detail__header {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    padding: 20px 24px !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.subnet-detail__header h1,
+.subnet-detail__header h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+/* Кнопки в шапке */
+.subnet-detail__actions {
+    display: flex;
+    gap: 12px;
+}
+
+.subnet-detail__actions .btn {
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #d1d5db;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.subnet-detail__actions .btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.subnet-detail__actions .btn--primary {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+    color: #fff !important;
+}
+
+.subnet-detail__actions .btn--primary:hover {
+    background: #ff8f33 !important;
+}
+
+/* Блок со статистикой */
+.subnet-detail__summary {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 16px !important;
+}
+
+.subnet-stat {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.subnet-stat__label {
+    font-size: 13px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.subnet-stat__value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+
+.subnet-stat--ok .subnet-stat__value {
+    color: #34d399; /* Зелёный для живых */
+}
+
+/* Легенда */
+.subnet-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 13px;
+    color: #9ca3af;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+/* Фильтры */
+.subnet-filters {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+}
+
+.subnet-filters input[type="text"],
+.subnet-filters input[type="search"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    min-width: 250px;
+    outline: none;
+}
+
+.subnet-filters input[type="text"]::placeholder {
+    color: #6b7280;
+}
+
+.subnet-filters input[type="text"]:focus {
+    border-color: #ff780a !important;
+    box-shadow: 0 0 0 2px rgba(255, 120, 10, 0.2);
+}
+
+/* Чекбоксы и переключатели (Норма/Плотно/Микро) */
+.subnet-filters label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #d1d5db;
+    cursor: pointer;
+}
+
+.subnet-filters .btn-group {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.subnet-filters .btn-group button {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.subnet-filters .btn-group button.is-active,
+.subnet-filters .btn-group button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* Разделитель */
+.subnet-detail__divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 8px 0;
+}
+
+/* ============================================================
+   ЛЕГЕНДА ПОДСЕТИ (исправленные классы)
+   ============================================================ */
+
+.subnet-detail__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 12px;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #d1d5db;
+    white-space: nowrap;
+}
+
+.legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Цвета квадратиков */
+.legend-swatch--alive {
+    background: #34d399; /* Зелёный */
+}
+
+.legend-swatch--alive-mon {
+    background: #60a5fa; /* Голубой */
+}
+
+.legend-swatch--dead {
+    background: #fbbf24; /* Жёлтый */
+}
+
+.legend-swatch--reserved {
+    background: #f97316; /* Оранжевый */
+}
+
+.legend-swatch--free {
+    background: #9ca3af; /* Серый */
+}
+
+.legend-swatch--unknown {
+    background: #4b5563; /* Тёмно-серый */
+}
+
+/* ============================================================
+   ТОЧНЫЙ ФИКС ФИЛЬТРОВ (по реальным id)
+   ============================================================ */
+
+/* Обёртка фильтров (если есть, иначе просто отступы) */
+.subnet-detail__filters,
+.subnet-filters,
+div:has(> #ip-filter) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 12px 0;
+}
+
+/* Поле поиска */
+#ip-filter {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    min-width: 240px;
+    outline: none;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+#ip-filter::placeholder {
+    color: #6b7280;
+}
+
+#ip-filter:focus {
+    border-color: #ff780a !important;
+    box-shadow: 0 0 0 2px rgba(255, 120, 10, 0.2);
+}
+
+/* Чекбоксы */
+#only-alive,
+#only-monitored {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+#only-alive:checked,
+#only-monitored:checked {
+    background: #ff780a;
+    border-color: #ff780a;
+}
+
+#only-alive:checked::after,
+#only-monitored:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+/* Лейблы для чекбоксов */
+label:has(> #only-alive),
+label:has(> #only-monitored) {
+    display: inline-flex;
+    align-items: center;
+    color: #d1d5db;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    gap: 4px;
+}
+
+/* Переключатель размера (норма/плотно/микро) */
+.grid-size-switch {
+    display: inline-flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.grid-size-switch button,
+.grid-size-switch > button,
+.grid-size-switch > span {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.grid-size-switch button:hover,
+.grid-size-switch > button:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.grid-size-switch button.is-active,
+.grid-size-switch > button.is-active,
+.grid-size-switch [data-size].is-active {
+    background: #ff780a;
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Если кнопки размера — это чекбоксы/радио, скрываем их */
+.grid-size-switch input[type="radio"],
+.grid-size-switch input[type="checkbox"] {
+    display: none;
+}
+
+/* ============================================================
+   ПАНЕЛЬ TCPDUMP (Захват трафика)
+   ============================================================ */
+.tcpdump-panel {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    margin: 16px 0 !important;
+    display: none; /* Скрыта по умолчанию */
+}
+
+.tcpdump-panel.is-open {
+    display: block;
+}
+
+.tcpdump-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.tcpdump-panel__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.tcpdump-panel__close {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+}
+
+.tcpdump-panel__close:hover {
+    color: #fff;
+}
+
+.tcpdump-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 768px) {
+    .tcpdump-form {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.tcpdump-form label {
+    display: block;
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+
+.tcpdump-form input,
+.tcpdump-form select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.tcpdump-form input:focus,
+.tcpdump-form select:focus {
+    border-color: #ff780a;
+}
+
+.tcpdump-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.tcpdump-actions button {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #d1d5db;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.tcpdump-actions button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.tcpdump-actions button.btn--primary {
+    background: #ff780a;
+    border-color: #ff780a;
+    color: #fff;
+}
+
+.tcpdump-actions button.btn--primary:hover {
+    background: #ff8f33;
+}
+
+.tcpdump-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Окно лога (терминал) */
+.tcpdump-log {
+    background: #0b0c0e;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 12px;
+    color: #d1d5db;
+    height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+}
+
+.tcpdump-log:empty::before {
+    content: 'Вывод появится здесь...';
+    color: #4b5563;
+    font-style: italic;
+}
+
+/* ============================================================
+   ПРЕСЕТЫ BPF — красивые кнопки
+   ============================================================ */
+.tcpdump-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.tcpdump-presets .bpf-preset {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #9ca3af;
+    padding: 5px 12px;
+    border-radius: 20px; /* Таблетка */
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tcpdump-presets .bpf-preset:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.tcpdump-presets .bpf-preset.is-active {
+    background: rgba(255, 120, 10, 0.15) !important;
+    border-color: #ff780a !important;
+    color: #ff780a !important;
+    font-weight: 600;
+}
+
+/* Поле BPF-фильтра (чтобы не было белым) */
+#tcpdump-bpf {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+#tcpdump-bpf:focus {
+    border-color: #ff780a !important;
+    box-shadow: 0 0 0 2px rgba(255, 120, 10, 0.2);
+}
+
+/* Поля длительности и пакетов */
+#tcpdump-duration, #tcpdump-packets {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+}
+
+/* Выпадающий список интерфейсов */
+#tcpdump-iface {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+}
+
+/* ============================================================
+   МОДАЛКА IP — стекло и красивые строки
+   ============================================================ */
+#ip-modal .modal-content {
+    background: rgba(24, 27, 31, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+    color: #e5e7eb !important;
+}
+
+#ip-modal .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    padding: 16px 20px !important;
+}
+
+#ip-modal .modal-title {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+}
+
+#ip-modal .modal-body {
+    padding: 16px 20px !important;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Строки */
+.ip-modal__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 14px;
+}
+
+.ip-modal__row:last-child {
+    border-bottom: none;
+}
+
+.ip-modal__row-label {
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ip-modal__row-label i {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.ip-modal__row-value {
+    color: #fff;
+    font-weight: 500;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Кнопки в модалке (если есть) */
+.ip-modal__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.ip-modal__actions .btn {
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+}
+
+/* ============================================================
+   МОДАЛКА IP — светлее, прозрачнее, стекло
+   ============================================================ */
+#ip-modal .modal-content {
+    /* Было: rgba(24, 27, 31, 0.85) — стало светлее и прозрачнее */
+    background: rgba(45, 50, 56, 0.75) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    color: #e5e7eb !important;
+}
+
+#ip-modal .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 16px 20px !important;
+}
+
+#ip-modal .modal-title {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+}
+
+#ip-modal .modal-body {
+    padding: 16px 20px !important;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Строки */
+.ip-modal__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 14px;
+}
+
+.ip-modal__row:last-child {
+    border-bottom: none;
+}
+
+.ip-modal__row-label {
+    color: #b0b7c3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ip-modal__row-label i {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.ip-modal__row-value {
+    color: #fff;
+    font-weight: 500;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Кнопки в модалке */
+.ip-modal__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.ip-modal__actions .btn {
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ip-modal__actions .btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ip-modal__actions .btn--primary {
+    background: #ff780a;
+    border-color: #ff780a;
+}
+
+.ip-modal__actions .btn--primary:hover {
+    background: #ff8f33;
+}
+
+/* ============================================================
+   ФИКС МОДАЛКИ "ДОБАВИТЬ ПОДСЕТЬ" (и других форм)
+   ============================================================ */
+.modal-content {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.modal-body {
+    overflow-y: auto !important;
+    flex: 1 !important;
+}
+
+.modal-footer {
+    flex-shrink: 0 !important;
+}
+
+/* Чтобы кнопки не уходили за край */
+.modal-content .btn,
+.modal-content button {
+    white-space: nowrap;
+}
+
+/* Для формы добавления подсети */
+#add-subnet-modal .modal-content,
+.modal-content:has(#add-subnet-form) {
+    max-height: 90vh !important;
+}
+
+/* ============================================================
+   МОДАЛКА "ДОБАВИТЬ ПОДСЕТЬ" (subnet-modal)
+   ============================================================ */
+.subnet-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.subnet-modal[hidden] {
+    display: none !important;
+}
+
+.subnet-modal__backdrop {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+}
+
+.subnet-modal__content {
+    position: relative !important;
+    background: rgba(45, 50, 56, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+    padding: 24px !important;
+    width: 500px !important;
+    max-width: 92vw !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    z-index: 10000 !important;
+}
+
+.subnet-modal__header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.subnet-modal__header h2 {
+    margin: 0 !important;
+    font-size: 18px !important;
+    color: #fff !important;
+}
+
+.subnet-modal__form .form-row {
+    margin-bottom: 16px !important;
+}
+
+.subnet-modal__form label {
+    display: block !important;
+    color: #9ca3af !important;
+    font-size: 13px !important;
+    margin-bottom: 4px !important;
+}
+
+.subnet-modal__form input[type="text"],
+.subnet-modal__form input[type="number"] {
+    width: 100% !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+}
+
+.subnet-modal__form input:focus {
+    border-color: #ff780a !important;
+}
+
+.subnet-modal__actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    margin-top: 20px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.subnet-modal__actions .btn {
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #fff !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+}
+
+.subnet-modal__actions .btn--primary {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+}
+
+.subnet-modal__actions .btn--primary:hover {
+    background: #ff8f33 !important;
+}
+
+/* ============================================================
+   ДИСПЕТЧЕРСКАЯ (stations) — выравнивание высоты панелей
+   ============================================================ */
+/* Контейнер с тремя колонками */
+.stations-layout,
+.stations-grid,
+.main-layout:has(.stations-panel) {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 20px !important;
+    height: calc(100vh - 120px) !important; /* под высоту экрана */
+}
+
+/* Каждая панель (левая, центр, правая) */
+.stations-panel,
+.stations-left,
+.stations-center,
+.stations-right {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+}
+
+/* Карта должна занимать всё доступное место */
+#stationsMap,
+.stations-map {
+    flex: 1 !important;
+    min-height: 400px !important;
+    height: 100% !important;
+}
+
+/* Чтобы карта не схлопывалась */
+.leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+/* Блоки внутри панелей (если есть) */
+.stations-panel > * {
+    flex-shrink: 0;
+}
+
+/* Скролл для длинных списков */
+.stations-panel .panel-body,
+.stations-panel .station-list {
+    overflow-y: auto !important;
+    flex: 1 !important;
+}
+
+/* ============================================================
+   ДИСПЕТЧЕРСКАЯ — выравнивание панелей (dispatch-grid)
+   ============================================================ */
+.dispatch-grid {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    height: calc(100vh - 160px) !important; /* под высоту экрана */
+    min-height: 500px !important;
+}
+
+.dispatch-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+.dispatch-panel--left {
+    width: 280px !important;
+    flex-shrink: 0 !important;
+}
+
+.dispatch-panel--center {
+    flex: 1 !important;
+    min-width: 400px !important;
+}
+
+.dispatch-panel--right {
+    width: 320px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Карта */
+.stations-map-wrap {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important; /* важно для flex */
+}
+
+#stationsMap,
+.stations-map {
+    flex: 1 !important;
+    min-height: 0 !important;
+}
+
+.leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+/* Внутренние блоки */
+.dispatch-station-details,
+.dispatch-right-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+}
+
+/* Заголовки панелей */
+.dispatch-panel-header {
+    flex-shrink: 0 !important;
+}
+
+/* ============================================================
+   АДАПТИВ ДЛЯ ДИСПЕТЧЕРСКОЙ (мобильные устройства)
+   ============================================================ */
+
+/* Планшеты (768px - 1024px) */
+@media (max-width: 1024px) {
+    .dispatch-grid {
+        gap: 12px !important;
+    }
+    .dispatch-panel--left {
+        width: 220px !important;
+    }
+    .dispatch-panel--right {
+        width: 260px !important;
+    }
+}
+
+/* Мобильные (до 768px) */
+@media (max-width: 768px) {
+    .dispatch-grid {
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+    
+    .dispatch-panel {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 200px !important;
+    }
+    
+    .dispatch-panel--left {
+        order: 1 !important;
+        min-height: 150px !important;
+    }
+    
+    .dispatch-panel--center {
+        order: 2 !important;
+        min-height: 400px !important;
+    }
+    
+    .dispatch-panel--right {
+        order: 3 !important;
+        min-height: 250px !important;
+    }
+    
+    /* Карта на мобильном */
+    .stations-map-wrap {
+        min-height: 350px !important;
+    }
+    
+    #stationsMap,
+    .stations-map {
+        min-height: 350px !important;
+    }
+    
+    /* Заголовки панелей */
+    .dispatch-panel-header {
+        font-size: 14px !important;
+        padding: 10px 12px !important;
+    }
+    
+    /* Кнопка "На весь экран" на мобильном */
+    #btnMapFullscreen {
+        font-size: 12px !important;
+        padding: 4px 8px !important;
+    }
+    
+    #btnMapFullscreenLabel {
+        display: none !important; /* скрываем текст, оставляем иконку */
+    }
+}
+
+/* Очень маленькие экраны (до 480px) */
+@media (max-width: 480px) {
+    .dispatch-panel--left {
+        min-height: 120px !important;
+    }
+    .dispatch-panel--center {
+        min-height: 300px !important;
+    }
+    .dispatch-panel--right {
+        min-height: 200px !important;
+    }
+    .stations-map-wrap {
+        min-height: 280px !important;
+    }
+    
+    /* Статистика в правой панели — в одну колонку */
+    .dispatch-stats-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+/* ============================================================
+   ПОЛНОЭКРАННАЯ КАРТА (is-fullscreen)
+   ============================================================ */
+#stationsMapWrap.is-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    background: #181b1f !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+}
+
+#stationsMapWrap.is-fullscreen #stationsMap {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+/* Кнопка "Выйти" */
+.map-fullscreen-exit {
+    position: absolute !important;
+    top: 16px !important;
+    right: 16px !important;
+    z-index: 10001 !important;
+    background: rgba(45, 50, 56, 0.95) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.map-fullscreen-exit:hover {
+    background: rgba(255, 120, 10, 0.2) !important;
+    border-color: #ff780a !important;
+}
+
+/* На мобильном — 100dvh (с учётом адресной строки) */
+@media (max-width: 768px) {
+    #stationsMapWrap.is-fullscreen {
+        height: 100vh !important;
+        height: 100dvh !important;
+    }
+}
+
+/* ============================================================
+   ФИКС ПОЛНОЭКРАННОЙ КАРТЫ (поверх всего)
+   ============================================================ */
+#stationsMapWrap.is-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    background: #181b1f !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important; /* убираем возможный transform */
+}
+
+/* Убираем обрезку у родителей */
+.dispatch-panel--center,
+.dispatch-grid,
+.stations-tab-pane {
+    overflow: visible !important;
+    transform: none !important;
+}
+
+/* Карта внутри */
+#stationsMapWrap.is-fullscreen #stationsMap {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+/* Кнопка "Выйти" */
+.map-fullscreen-exit {
+    position: absolute !important;
+    top: 16px !important;
+    right: 16px !important;
+    z-index: 100000 !important;
+    background: rgba(45, 50, 56, 0.95) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+}
+
+/* На мобильном — 100dvh */
+@media (max-width: 768px) {
+    #stationsMapWrap.is-fullscreen {
+        height: 100vh !important;
+        height: 100dvh !important;
+    }
+}
+
+/* ============================================================
+   АГРЕССИВНЫЙ ФИКС ПОЛНОЭКРАННОЙ КАРТЫ (игнорирует родителей)
+   ============================================================ */
+#stationsMapWrap.is-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 999999 !important;
+    background: #181b1f !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+}
+
+/* Убираем любые transform/overflow у родителей */
+body.map-fullscreen-active .dispatch-grid,
+body.map-fullscreen-active .dispatch-panel,
+body.map-fullscreen-active .dispatch-panel--center,
+body.map-fullscreen-active .stations-tab-pane,
+body.map-fullscreen-active .stations-tab-pane[data-tab-pane="map"] {
+    overflow: visible !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    filter: none !important;
+    perspective: none !important;
+    contain: none !important;
+}
+
+/* Карта внутри */
+#stationsMapWrap.is-fullscreen #stationsMap {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+/* Кнопка "Выйти" */
+.map-fullscreen-exit {
+    position: fixed !important;
+    top: 16px !important;
+    right: 16px !important;
+    z-index: 1000000 !important;
+    background: rgba(45, 50, 56, 0.95) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+}
+
+/* На мобильном — 100dvh */
+@media (max-width: 768px) {
+    #stationsMapWrap.is-fullscreen {
+        height: 100vh !important;
+        height: 100dvh !important;
+    }
+}
+
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ (/servers/) — Glassmorphism
+   ============================================================ */
+.g-wrapper {
+    background: transparent !important;
+    display: flex !important;
+    gap: 16px !important;
+    min-height: calc(100vh - 160px) !important;
+}
+
+.g-sidebar {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+    width: 280px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.g-sidebar-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+.g-sidebar-header h2 {
+    margin: 0 !important;
+    font-size: 18px !important;
+    color: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.g-sidebar-header h2 i {
+    color: #ff780a !important;
+}
+
+.g-sidebar-filters {
+    display: flex !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+    flex-wrap: wrap !important;
+}
+
+.g-filter-btn {
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #9ca3af !important;
+    font-size: 13px !important;
+    text-decoration: none !important;
+    transition: all 0.2s !important;
+}
+
+.g-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+.g-filter-btn.active {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+    color: #fff !important;
+}
+
+.g-list {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+}
+
+.g-server-item {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 10px !important;
+    padding: 12px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+}
+
+.g-server-item:hover {
+    background: rgba(255, 120, 10, 0.1) !important;
+    border-color: rgba(255, 120, 10, 0.3) !important;
+}
+
+.g-server-item.active {
+    background: rgba(255, 120, 10, 0.2) !important;
+    border-color: #ff780a !important;
+}
+
+.g-server-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+    margin-bottom: 2px !important;
+}
+
+.g-server-ip {
+    font-size: 12px !important;
+    color: #9ca3af !important;
+    font-family: monospace !important;
+}
+
+.g-status-dot {
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 50% !important;
+    display: inline-block !important;
+}
+
+.g-status-dot.online {
+    background: #34d399 !important;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.6) !important;
+}
+
+.g-status-dot.offline {
+    background: #f87171 !important;
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.6) !important;
+}
+
+.g-detail {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    flex: 1 !important;
+    padding: 24px !important;
+    overflow-y: auto !important;
+}
+
+.g-empty {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    color: #6b7280 !important;
+    gap: 12px !important;
+}
+
+.g-empty i {
+    font-size: 48px !important;
+    opacity: 0.4 !important;
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 768px) {
+    .g-wrapper {
+        flex-direction: column !important;
+        height: auto !important;
+    }
+    .g-sidebar {
+        width: 100% !important;
+        max-height: 300px !important;
+    }
+}
+
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ — полный фикс (переменные + стекло)
+   ============================================================ */
+/* Переопределяем переменные для страницы серверов */
+.g-wrapper,
+.g-wrapper * {
+    --text-main: #ffffff !important;
+    --text-muted: #9ca3af !important;
+    --bg-panel: rgba(45, 50, 56, 0.75) !important;
+    --bg-card: rgba(255, 255, 255, 0.04) !important;
+    --border: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Карточки */
+.g-card {
+    background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    color: #e5e7eb !important;
+}
+
+/* Заголовки внутри карточек */
+.g-card h3 {
+    color: #fff !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+/* Большие цифры (CPU, RAM, DISK) */
+#metric-cpu,
+#metric-ram,
+#metric-disk {
+    color: #fff !important;
+    font-size: 28px !important;
+    font-weight: 700 !important;
+}
+
+/* Подписи (CPU LOAD, RAM USED) */
+.g-card > div:first-child {
+    color: #9ca3af !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* Заголовок сервера */
+.g-detail-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding-bottom: 16px !important;
+    margin-bottom: 16px !important;
+}
+
+.g-detail-title {
+    color: #fff !important;
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+}
+
+.g-detail-subtitle {
+    color: #9ca3af !important;
+    font-size: 13px !important;
+    font-family: monospace !important;
+    margin-top: 4px !important;
+}
+
+/* Вкладки */
+.g-tabs {
+    display: flex !important;
+    gap: 4px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    margin-bottom: 20px !important;
+}
+
+.g-tab {
+    color: #9ca3af !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    border-bottom: 2px solid transparent !important;
+    text-decoration: none !important;
+}
+
+.g-tab:hover {
+    color: #fff !important;
+}
+
+.g-tab.active {
+    color: #ff780a !important;
+    border-bottom-color: #ff780a !important;
+    font-weight: 600 !important;
+}
+
+/* Таблицы */
+.g-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    color: #d1d5db !important;
+}
+
+.g-table th {
+    text-align: left !important;
+    padding: 10px 12px !important;
+    color: #9ca3af !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.g-table td {
+    padding: 10px 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    font-size: 13px !important;
+    color: #e5e7eb !important;
+}
+
+.g-table tr:hover td {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Кнопки */
+.g-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.g-btn:hover {
+    background: rgba(255, 120, 10, 0.2) !important;
+    border-color: #ff780a !important;
+}
+
+.g-btn-primary {
+    background: #ff780a !important;
+    border-color: #ff780a !important;
+    color: #fff !important;
+}
+
+.g-btn-primary:hover {
+    background: #ff8f33 !important;
+}
+
+/* Списки пользователей (онлайн, последние входы) */
+#online-users-list,
+#last-logins-list {
+    color: #d1d5db !important;
+}
+
+/* Пустые состояния */
+.g-empty {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    color: #6b7280 !important;
+    gap: 12px !important;
+    padding: 40px !important;
+}
+
+/* Фон страницы */
+body:has(.g-wrapper) {
+    background: #111217 !important;
+}
+
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ — тёмный фон (принудительно)
+   ============================================================ */
+/* Если body имеет .g-wrapper внутри — делаем его тёмным */
+body:has(.g-wrapper),
+body:has(.g-wrapper) .app-main,
+body:has(.g-wrapper) .app-content,
+body:has(.g-wrapper) .main-content {
+    background: #111217 !important;
+    background-color: #111217 !important;
+}
+
+/* Если :has() не поддерживается — делаем тёмным .app-main на всех страницах с .g-wrapper */
+.app-main:has(.g-wrapper) {
+    background: #111217 !important;
+}
+
+/* Убираем светлый фон у контейнеров */
+.g-wrapper {
+    background: transparent !important;
+}
+
+.g-detail {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Карточки — чуть светлее фона, но прозрачные */
+.g-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Левая панель */
+.g-sidebar {
+    background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ — тёмный фон, прозрачные панели
+   ============================================================ */
+/* Если в body есть .g-wrapper — делаем фон тёмным */
+html:has(.g-wrapper),
+body:has(.g-wrapper) {
+    background: #111217 !important;
+    background-color: #111217 !important;
+    background-image: none !important;
+}
+
+/* Контейнер приложения (если он перекрывает фон) */
+body:has(.g-wrapper) .app-layout,
+body:has(.g-wrapper) .app-main,
+body:has(.g-wrapper) .app-content {
+    background: transparent !important;
+}
+
+/* Левая панель — стекло */
+.g-sidebar {
+    background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Правая панель — стекло */
+.g-detail {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Карточки внутри — чуть светлее */
+.g-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Убираем белый фон у body, если он задан через класс */
+body.g-wrapper,
+body.servers-page {
+    background: #111217 !important;
+}
+
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ — градиент как на других страницах
+   ============================================================ */
+html:has(.g-wrapper),
+body:has(.g-wrapper) {
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(40, 45, 55, 0.6), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(25, 28, 34, 0.8), transparent 50%),
+        #1a1d23 !important; /* Тёмный графит */
+    background-attachment: fixed !important;
+}
+
+/* Убираем белый фон у контейнеров */
+body:has(.g-wrapper) .app-layout,
+body:has(.g-wrapper) .app-main,
+body:has(.g-wrapper) .app-content {
+    background: transparent !important;
+}
+
+/* Левая панель — полупрозрачное стекло */
+.g-sidebar {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* Правая панель — полупрозрачное стекло */
+.g-detail {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* Карточки внутри — чуть светлее */
+.g-card {
+    background: rgba(255, 255, 255, 0.06) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Текст */
+.g-wrapper {
+    color: #e5e7eb !important;
+}
+
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ — точный градиент как на /local/
+   ============================================================ */
+html:has(.g-wrapper),
+body:has(.g-wrapper) {
+    background: 
+        radial-gradient(circle at 20% 30%, #4a5568 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, #718096 0%, transparent 50%),
+        linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
+    background-attachment: fixed !important;
+}
+
+/* Убираем фон у контейнеров (чтобы градиент был виден) */
+body:has(.g-wrapper) .app-layout,
+body:has(.g-wrapper) .app-main,
+body:has(.g-wrapper) .app-content {
+    background: transparent !important;
+}
+
+/* Левая панель — стекло */
+.g-sidebar {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* Правая панель — стекло */
+.g-detail {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+}
+
+/* Карточки внутри — чуть светлее */
+.g-card {
+    background: rgba(255, 255, 255, 0.06) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+
+
+/* ============================================================
+/* ============================================================
+   СТРАНИЦА СЕРВЕРОВ — ТОЛЬКО ДЛЯ НЕЁ (тёмный фон + стекло)
+   ============================================================ */
+/* Фон только для body, где есть .g-wrapper */
+body:has(.g-wrapper) {
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(40, 45, 55, 0.6) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(30, 34, 42, 0.8) 0%, transparent 50%),
+        linear-gradient(135deg, #1a1d23 0%, #111217 100%) !important;
+    background-attachment: fixed !important;
+    background-color: #111217 !important;
+}
+
+/* Убираем фон у контейнеров только на странице серверов */
+body:has(.g-wrapper) .app-layout,
+body:has(.g-wrapper) .app-main,
+body:has(.g-wrapper) .app-content {
+    background: transparent !important;
+}
+
+/* Панели серверов — стекло */
+body:has(.g-wrapper) .g-sidebar,
+body:has(.g-wrapper) .g-detail {
+    background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body:has(.g-wrapper) .g-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}

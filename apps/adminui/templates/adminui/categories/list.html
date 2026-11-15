@@ -1,0 +1,50 @@
+{% extends "adminui/base_admin.html" %}
+{% block admin_title %}Категории устройств{% endblock %}
+{% block admin_actions %}
+<a href="{% url 'adminui:category_create' %}" class="btn--secondary">
+    <i class="bi bi-plus-lg"></i> Добавить категорию
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+    <div class="panel__header">
+        <h2 class="panel__title">Категории ({{ categories|length }})</h2>
+    </div>
+    <div class="panel__body panel__body--flush">
+        {% if categories %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Slug</th>
+                    <th>Название</th>
+                    <th>Иконка</th>
+                    <th>Порядок</th>
+                    <th>Активна</th>
+                    <th>Устройств</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in categories %}
+                <tr>
+                    <td class="c-mono">{{ c.slug }}</td>
+                    <td>{{ c.name }}</td>
+                    <td><i class="bi {{ c.icon }}"></i> {{ c.icon }}</td>
+                    <td>{{ c.sort_order }}</td>
+                    <td>{% if c.is_active %}✅{% else %}❌{% endif %}</td>
+                    <td>{{ c.devices.count }}</td>
+                    <td>
+                        <a href="{% url 'adminui:category_edit' c.pk %}" class="btn--secondary btn--sm">✎</a>
+                        <a href="{% url 'adminui:category_delete' c.pk %}" class="btn--danger btn--sm">🗑</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="aui-empty">Нет категорий</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

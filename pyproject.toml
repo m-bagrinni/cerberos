@@ -4,13 +4,19 @@ version = "0.1.0"
 description = "Cerberus — multi-vendor SNMP monitoring (D-Link / Eltex / MikroTik)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "PyPDF2==3.0.1",
+    "channels>=4.0.0",
+    "channels-redis>=4.2.0",
+    "daphne>=4.1.0",
     "networkx>=3.0",
     "django>=5.0,<5.1",
     "psycopg[binary]>=3.1",
     "redis>=5.0",
     "celery>=5.3",
     "django-celery-beat>=2.6",
-    "pysnmp>=6.2,<7.0",
+    "pysnmp==6.2.6",
+    "netmiko",
+    "reportlab>=4.0",
     "pysmi>=1.4",
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
@@ -18,10 +24,11 @@ dependencies = [
     "aiogram>=3.4",
     "structlog>=24.1",
     "rich>=13.7",
-
     # prod
     "gunicorn>=22.0",
     "whitenoise>=6.7",
+    "ldap3>=2.9.1",
+    "impacket>=0.13.1",
 ]
 
 [project.optional-dependencies]

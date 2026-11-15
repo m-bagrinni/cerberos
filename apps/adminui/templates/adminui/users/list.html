@@ -9,6 +9,44 @@
 {% endblock %}
 
 {% block admin_content %}
+<style>
+  .admin-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  .admin-tab {
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .admin-tab:hover {
+    color: var(--text-strong);
+    background: var(--bg-hover);
+  }
+  .admin-tab.is-active {
+    color: var(--primary);
+    background: rgba(255, 120, 10, 0.1);
+    border-color: rgba(255, 120, 10, 0.3);
+  }
+</style>
+
+<div class="admin-tabs">
+  <a href="{% url 'adminui:users' %}" class="admin-tab is-active">
+    <i class="bi bi-people"></i> Все пользователи
+  </a>
+  <a href="{% url 'adminui:users_pending' %}" class="admin-tab">
+    <i class="bi bi-hourglass-split"></i> Ожидают подтверждения
+  </a>
+</div>
 <div class="panel">
   <div class="panel__header"><h2 class="panel__title">Пользователи ({{ users|length }})</h2></div>
   <div class="panel__body panel__body--flush">
@@ -31,9 +69,12 @@
           <td class="text-muted">{{ u.email|default:"—" }}</td>
           <td class="mono text-muted">{{ u.telegram_id|default:"—" }}</td>
           <td>
+            {% for ur in u.user_roles.all %}
+              <span class="badge badge--info" title="{{ ur.role.name }}">{{ ur.role.slug }}</span>
+            {% empty %}
+              <span class="text-muted">—</span>
+            {% endfor %}
             {% if u.is_superuser %}<span class="badge badge--crit">superuser</span>{% endif %}
-            {% if u.is_staff %}<span class="badge badge--info">staff</span>{% endif %}
-            {% if not u.is_active %}<span class="badge" style="opacity:.5">inactive</span>{% endif %}
           </td>
           <td class="text-muted">
             {% if u.last_login %}{{ u.last_login|timesince }} назад{% else %}—{% endif %}
@@ -42,6 +83,9 @@
             <div class="aui-row-actions">
               <a href="{% url 'adminui:user_update' u.pk %}" class="aui-icon-btn" title="Редактировать">
                 <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'adminui:user_roles' u.pk %}" class="aui-icon-btn" title="Роли">
+                <i class="bi bi-person-gear"></i>
               </a>
               <a href="{% url 'adminui:user_delete' u.pk %}" class="aui-icon-btn" title="Удалить">
                 <i class="bi bi-trash"></i>

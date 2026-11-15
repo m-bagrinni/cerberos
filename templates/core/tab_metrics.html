@@ -68,7 +68,7 @@
                     <span class="metrics-chart-card__sep">·</span>
                     <span class="metrics-chart-card__group">{{ group.title }}</span>
                 </div>
-                <a href="/devices/{{ card.device.ip }}/metrics/" class="metrics-chart-card__link" title="Открыть устройство">
+                <a href="/local/devices/{{ card.device.ip }}/metrics/" class="metrics-chart-card__link" title="Открыть устройство">
                     <i class="bi bi-box-arrow-up-right"></i>
                 </a>
             </div>
@@ -123,5 +123,5 @@
 <script>
 window.__TAB_METRICS__ = { apiBase: "/api/v1" };
 </script>
-<script type="module" src="{% static 'js/tab-metrics.js' %}?v=2"></script>
+<script type="module" src="{% static 'js/tab-metrics.js' %}?v=1793429171"></script>
 {% endblock %}

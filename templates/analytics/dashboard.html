@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Аналитика сети{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/analytics.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+    <div class="analytics-header">
+        <h1><i class="bi bi-bar-chart-line" style="color: #0abfbc; margin-right: 8px;"></i> Аналитика сети</h1>
+        <div class="analytics-controls" style="display:flex; gap:10px; align-items:center;">
+            <a href="{% url 'analytics:generate_report' %}" target="_blank" style="text-decoration:none; padding: 6px 12px; background: #0abfbc; color: #fff; border-radius: 4px; font-weight: bold; font-size: 13px;">📄 Сформировать заключение</a>
+            <label>Период:</label>
+            <select id="period-select">
+                <option value="7">7 дней</option>
+                <option value="14">14 дней</option>
+                <option value="30">30 дней</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Блок сводки -->
+    <div class="analytics-grid" id="summary-cards">
+        <div class="analytics-card">
+            <div class="card-title">Устройства</div>
+            <div id="val-devices" class="skeleton skeleton-text"></div>
+            <div id="val-devices-sub" class="skeleton skeleton-text-sub"></div>
+        </div>
+        <div class="analytics-card">
+            <div class="card-title">Алерты</div>
+            <div id="val-alerts" class="skeleton skeleton-text"></div>
+            <div id="val-alerts-sub" class="skeleton skeleton-text-sub"></div>
+        </div>
+        <div class="analytics-card">
+            <div class="card-title">Оптика (деградация)</div>
+            <div id="val-optics" class="skeleton skeleton-text"></div>
+            <div id="val-optics-sub" class="skeleton skeleton-text-sub"></div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="analytics-charts">
+        <div class="chart-container">
+            <h3>Трафик (суммарный, Mbps)</h3>
+            <div class="skeleton skeleton-chart" id="trafficSkeleton"></div><canvas id="trafficChart" style="display:none;"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Алерты по дням</h3>
+            <div class="skeleton skeleton-chart" id="alertsSkeleton"></div><canvas id="alertsChart" style="display:none;"></canvas>
+        </div>
+    </div>
+
+    <!-- Деградация DDM -->
+    <div class="analytics-report" style="margin-bottom: 24px;">
+        <h3>📉 Деградация оптического сигнала (RX)</h3>
+        <div class="chart-container" style="height: 350px; background: transparent;">
+            <canvas id="ddmRxChart"></canvas>
+        </div>
+    </div>
+
+    <div class="analytics-report" style="margin-bottom: 24px;">
+        <h3>🌡️ Изменение температуры SFP-модулей</h3>
+        <div class="chart-container" style="height: 300px; background: transparent;">
+            <canvas id="ddmTempChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Техническая справка -->
+    <div class="analytics-report">
+        <h3>🔧 Техническая справка: проблемные устройства</h3>
+        <div id="problem-devices-list" class="problem-list">
+            <!-- Заполняется через JS -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/analytics.js' %}"></script>
+{% endblock %}

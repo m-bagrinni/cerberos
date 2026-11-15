@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 Опрос интерфейсов, VLAN и их связей.
 
@@ -6,6 +7,9 @@
   - sync  save_all()   — обновление БД, вне async
 """
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -68,26 +72,47 @@ class Command(BaseCommand):
             host=device.ip,
             community=device.snmp_community or "public",
             port=device.snmp_port,
+            timeout=5, retries=3,
         ))
 
-        return {
-            "descr": self._to_dict(await client.walk(OID_IF_DESCR)),
-            "iftype": self._to_dict(await client.walk(OID_IF_TYPE)),
-            "admin": self._to_dict(await client.walk(OID_IF_ADMIN)),
-            "oper": self._to_dict(await client.walk(OID_IF_OPER)),
-            "name": self._to_dict(await client.walk(OID_IF_NAME)),
-            "speed": self._to_dict(await client.walk(OID_IF_HIGH_SPEED)),
-            "alias": self._to_dict(await client.walk(OID_IF_ALIAS)),
-            "pvid": self._to_dict(await client.walk(OID_VLAN_PVID)),
-            "vlan_ids": self._to_dict(await client.walk(OID_VLAN_ID)),
-            "vlan_names": self._to_dict(await client.walk(OID_VLAN_NAME)),
-            "vlan_egress": await self._walk_vlan_with_fallback(
-                client, OID_VLAN_EGRESS, OID_VLAN_EGRESS_STATIC,
-            ),
-            "vlan_untagged": await self._walk_vlan_with_fallback(
-                client, OID_VLAN_UNTAGGED, OID_VLAN_UNTAGGED_STATIC,
-            ),
-        }
+        # Параллельные walk по независимым OID — каждый walk идёт
+        # отдельной SNMP-сессией; gather резко сокращает общее время
+        # при наличии «пустых»/timeout OID (например, ifAlias на Eltex).
+        oid_map = [
+            ("descr", OID_IF_DESCR),
+            ("iftype", OID_IF_TYPE),
+            ("admin", OID_IF_ADMIN),
+            ("oper", OID_IF_OPER),
+            ("name", OID_IF_NAME),
+            ("speed", OID_IF_HIGH_SPEED),
+            ("alias", OID_IF_ALIAS),
+            ("pvid", OID_VLAN_PVID),
+            ("vlan_ids", OID_VLAN_ID),
+            ("vlan_names", OID_VLAN_NAME),
+        ]
+
+        results = await asyncio.gather(
+            *[client.walk(oid) for _, oid in oid_map],
+            return_exceptions=True,
+        )
+
+        data = {}
+        for (key, _), res in zip(oid_map, results):
+            if isinstance(res, Exception):
+                logger.warning("walk %s failed: %s", key, res)
+                data[key] = {}
+            else:
+                data[key] = self._to_dict(res)
+
+        # VLAN fallback (Current* → Static*) — оставляем последовательно,
+        # т.к. второй вызов зависит от результата первого.
+        data["vlan_egress"] = await self._walk_vlan_with_fallback(
+            client, OID_VLAN_EGRESS, OID_VLAN_EGRESS_STATIC,
+        )
+        data["vlan_untagged"] = await self._walk_vlan_with_fallback(
+            client, OID_VLAN_UNTAGGED, OID_VLAN_UNTAGGED_STATIC,
+        )
+        return data
 
     async def _walk_vlan_with_fallback(
         self, client, oid_current: str, oid_static: str,
@@ -177,6 +202,12 @@ class Command(BaseCommand):
             if if_type_val in (6, 62, 71, 117) and idx >= 150:
                 continue
 
+            # Получаем старый oper_status (если интерфейс существует)
+            old_iface = Interface.objects.filter(device=device, if_index=idx).first()
+            old_oper = old_iface.oper_status if old_iface else None
+
+            new_oper = self._int(oper.get(idx), 2)
+
             iface, _ = Interface.objects.update_or_create(
                 device=device, if_index=idx,
                 defaults={
@@ -186,14 +217,63 @@ class Command(BaseCommand):
                     "if_type": self._int(iftype.get(idx), 0),
                     "speed_mbps": self._int(speed.get(idx), None),
                     "admin_status": self._int(admin.get(idx), 1),
-                    "oper_status": self._int(oper.get(idx), 2),
+                    "oper_status": new_oper,
                     "pvid": self._int(pvid.get(idx), None),
                 },
             )
+
+            # Записываем историю и создаём алерт, если oper_status изменился
+            if old_oper is not None and old_oper != new_oper:
+                from apps.monitoring.models import InterfaceStatusHistory
+                InterfaceStatusHistory.objects.create(
+                    interface=iface,
+                    old_status=old_oper,
+                    new_status=new_oper,
+                )
+
+                # Алерт при переходе в NO LINK (oper_status: 1 → 2)
+                from apps.alerts.models import Alert
+                from apps.devices.models import MetricDefinition
+
+                if old_oper == 1 and new_oper == 2:
+                    # Порт отключился — создаём алерт
+                    port_label = (iface.name or iface.descr or "").strip() or f"if{iface.if_index}"
+                    msg = f"Порт {iface.if_index} «{port_label}» на {device.name}: NO LINK"
+                    alert = Alert.objects.create(
+                        device=device,
+                        metric_key=f"if_oper_status:{iface.if_index}",
+                        severity=Alert.SEVERITY_WARN,
+                        state=Alert.STATE_FIRING,
+                        message=msg[:255],
+                        value=new_oper,
+                    )
+                    try:
+                        from apps.accounts.telegram_notify import notify_alert_created
+                        notify_alert_created(alert)
+                    except Exception as _e:
+                        logger.warning("TG notify (created) failed: %s", _e)
+                elif old_oper == 2 and new_oper == 1:
+                    # Порт восстановился — закрываем алерт + уведомляем
+                    active_alerts = Alert.objects.filter(
+                        device=device,
+                        metric_key=f"if_oper_status:{iface.if_index}",
+                        state=Alert.STATE_FIRING,
+                    )
+                    for alert in active_alerts:
+                        alert.state = Alert.STATE_OK
+                        alert.resolved_at = timezone.now()
+                        alert.save(update_fields=["state", "resolved_at", "updated_at"])
+                        try:
+                            from apps.accounts.telegram_notify import notify_alert_resolved
+                            notify_alert_resolved(alert)
+                        except Exception as _e:
+                            logger.warning("TG notify (resolved) failed: %s", _e)
+                        logger.info("Port %s on %s is UP again (alert %s closed)", iface.name, device.name, alert.id)
+
             iface_by_idx[idx] = iface
 
         vlan_ids = data["vlan_ids"]
-        vlan_names = data["vlan_names"]
+        vlan_names = data["vlan_ids"]   # тот же OID, что vlan_names (dot1qVlanStaticName)
         vlan_egress = data["vlan_egress"]
         vlan_untagged = data["vlan_untagged"]
 
@@ -250,11 +330,20 @@ class Command(BaseCommand):
             return str(v)
 
     def _int(self, v, default=None):
+        """Парсит число из SNMP-ответа. Поддерживает "up(1)", "down(2)", "1", 1."""
         if v is None:
             return default
-        try:
+        if isinstance(v, (int, float)):
             return int(v)
-        except Exception:
+        s = str(v).strip()
+        # "up(1)" / "down(2)" / "notPresent(6)" → берём число в скобках
+        import re as _re
+        mm = _re.search(r"\((\d+)\)", s)
+        if mm:
+            return int(mm.group(1))
+        try:
+            return int(s)
+        except (ValueError, TypeError):
             return default
 
     def _bitmap_set(self, value):

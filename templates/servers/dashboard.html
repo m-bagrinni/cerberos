@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Серверы — Cerberus{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/servers_grafana.css' %}?v={% now 'U' %}">
+
+<div class="g-wrapper">
+    <div class="g-sidebar">
+        <div class="g-sidebar-header">
+            <h2><i class="bi bi-hdd-rack"></i> Серверы</h2>
+        </div>
+        <div class="g-sidebar-filters">
+            <a href="/servers/" class="g-filter-btn active">Все</a>
+        </div>
+        <div class="g-list" id="server-tree">
+            {% for server in servers %}
+            <div class="g-server-item" data-id="{{ server.id }}" data-name="{{ server.name }}">
+                <div>
+                    <div class="g-server-name">{{ server.name }}</div>
+                    <div class="g-server-ip">{{ server.ip_address }}</div>
+                </div>
+                <div>
+                    <span class="g-status-dot {% if server.last_seen %}online{% else %}offline{% endif %}"></span>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 20px; color: var(--text-muted);">Нет серверов</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="g-detail" id="server-detail-panel" style="flex-grow: 1; overflow-y: auto; padding: 24px;">
+        <div class="g-empty">
+            <i class="bi bi-hdd-rack"></i>
+            <div>Выберите сервер в списке слева</div>
+        </div>
+    </div>
+</div>
+
+<!-- Подключаем JS -->
+<script src="{% static 'js/servers_dc.js' %}?v={% now 'U' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof window.initServersPage === 'function') {
+            window.initServersPage();
+        }
+    });
+</script>
+{% endblock %}

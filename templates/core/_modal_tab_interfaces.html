@@ -30,11 +30,13 @@
             </div>
         </header>
 
-        {% if row.iface.alias %}
-        <div class="iface-card__alias">{{ row.iface.alias|truncatechars:40 }}</div>
-        {% else %}
-        <div class="iface-card__alias iface-card__alias--empty">—</div>
-        {% endif %}
+        <div class="iface-card__alias {% if not row.iface.alias %}iface-card__alias--empty{% endif %}"
+             data-iface-alias-pk="{{ row.iface.pk }}"
+             data-iface-alias-value="{{ row.iface.alias|default:'' }}"
+             style="cursor:pointer"
+             title="Двойной клик для редактирования (SNMP SET)">
+            {{ row.iface.alias|default:"—"|truncatechars:40 }}
+        </div>
 
         <div class="iface-card__divider"></div>
 
@@ -103,5 +105,5 @@
 </div>
 {% endif %}
 
-<script src="{% static 'js/port-control.js' %}?v=5"></script>
-<script src="{% static 'js/traffic-chart.js' %}?v=1"></script>
+<script src="{% static 'js/port-control.js' %}?v=1793429171"></script>
+<script src="{% static 'js/traffic-chart.js' %}?v=1793429171"></script>

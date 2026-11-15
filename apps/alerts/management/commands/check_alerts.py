@@ -1,3 +1,5 @@
+import logging
+from apps.accounts.telegram_notify import notify_alert_created
 """
 check_alerts — проверка порогов метрик на всех устройствах.
 
@@ -19,6 +21,9 @@ from apps.alerts.models import Alert
 from apps.devices.models import Device, MetricDefinition, NeDevice
 from apps.monitoring.models import MetricValue
 from apps.subnets.models import IpAddress
+
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -45,8 +50,8 @@ class Command(BaseCommand):
             ("warn", -20, "lt", "Низкий уровень RX"),
         ],
         "sfp_temp": [
-            ("crit", 70, "gt", "Критический перегрев SFP"),
-            ("warn", 65, "gt", "Перегрев SFP"),
+            ("crit", 75, "gt", "Критический перегрев SFP"),
+            ("warn", 70, "gt", "Перегрев SFP"),
         ],
     }
     NE_INSTANCE_RE = r"^[12]?$"
@@ -117,14 +122,39 @@ class Command(BaseCommand):
                     state=Alert.STATE_FIRING,
                 ).first()
 
+                # === ГИСТЕРЕЗИС: проверяем историю за последние 3 минуты ===
+                from datetime import timedelta
+                three_min_ago = timezone.now() - timedelta(minutes=3)
+                recent_values = list(
+                    MetricValue.objects.filter(
+                        device=device, metric=metric, ts__gte=three_min_ago
+                    ).order_by('-ts')[:30]
+                )
+                total_recent = len([rv for rv in recent_values if rv.value is not None])
+                
+                above_count = 0
+                below_count = 0
+                if threshold is not None:
+                    above_count = sum(1 for rv in recent_values if rv.value is not None and rv.value >= threshold)
+                    below_count = sum(1 for rv in recent_values if rv.value is not None and rv.value < threshold)
+                
+                is_stable_above = total_recent >= 3 and above_count / total_recent >= 0.8
+                is_stable_below = total_recent >= 3 and below_count / total_recent >= 0.8
+
                 if severity is None:
-                    if active:
+                    # Закрываем только при устойчивом спаде
+                    if active and is_stable_below:
                         if not dry:
                             active.state = Alert.STATE_OK
                             active.resolved_at = timezone.now()
                             active.save(update_fields=["state", "resolved_at", "updated_at"])
+                            try:
+                                from apps.accounts.telegram_notify import notify_alert_resolved
+                                notify_alert_resolved(active)
+                            except Exception as _e:
+                                logger.warning("TG notify (resolved) failed: %s", _e)
                         resolved += 1
-                        self.stdout.write(f"  ✓ {device.name} {metric.key}: {value} → OK")
+                        self.stdout.write(f"  ✓ {device.name} {metric.key}: {value} → OK (устойчиво)")
                     continue
 
                 msg = self._msg(device, metric, value, threshold, severity)
@@ -139,8 +169,13 @@ class Command(BaseCommand):
                     still_firing += 1
                     self.stdout.write(f"  • {device.name} {metric.key}: {value} ({severity}) — обновлено")
                 else:
+                    # Создаем только если метрика устойчиво выше порога
+                    if not is_stable_above:
+                        self.stdout.write(f"  ~ {device.name} {metric.key}: {value} ({severity}) — пропущено (нестабильно)")
+                        continue
+                    
                     if not dry:
-                        Alert.objects.create(
+                        alert = Alert.objects.create(
                             device=device,
                             metric=metric,
                             metric_key=metric.key,
@@ -150,6 +185,10 @@ class Command(BaseCommand):
                             threshold=threshold,
                             message=msg,
                         )
+                        try:
+                            notify_alert_created(alert)
+                        except Exception as _e:
+                            logger.warning('TG notify failed: %s', _e)
                     created += 1
                     self.stdout.write(
                         self.style.WARNING(
@@ -231,6 +270,11 @@ class Command(BaseCommand):
                                 active.state = Alert.STATE_OK
                                 active.resolved_at = timezone.now()
                                 active.save(update_fields=["state", "resolved_at", "updated_at"])
+                                try:
+                                    from apps.accounts.telegram_notify import notify_alert_resolved
+                                    notify_alert_resolved(active)
+                                except Exception as _e:
+                                    logger.warning("TG notify (resolved) failed: %s", _e)
                             stats["resolved"] += 1
                             self.stdout.write(f"  ✓ NE-{ne.ne_id} {alert_key}: {value} → OK")
                         continue
@@ -250,7 +294,7 @@ class Command(BaseCommand):
                         self.stdout.write(f"  • NE-{ne.ne_id} {alert_key}: {value} ({severity}) — обновлено")
                     else:
                         if not dry:
-                            Alert.objects.create(
+                            alert = Alert.objects.create(
                                 device=ne.gateway,
                                 ne_device=ne,
                                 metric_key=alert_key,
@@ -260,6 +304,10 @@ class Command(BaseCommand):
                                 threshold=threshold,
                                 message=full_msg,
                             )
+                            try:
+                                notify_alert_created(alert)
+                            except Exception as _e:
+                                logger.warning('TG notify failed: %s', _e)
                         stats["created"] += 1
                         self.stdout.write(
                             self.style.WARNING(
@@ -303,6 +351,11 @@ class Command(BaseCommand):
                         active.state = Alert.STATE_OK
                         active.resolved_at = now
                         active.save(update_fields=["state", "resolved_at", "updated_at"])
+                        try:
+                            from apps.accounts.telegram_notify import notify_alert_resolved
+                            notify_alert_resolved(active)
+                        except Exception as _e:
+                            logger.warning("TG notify (resolved) failed: %s", _e)
                     stats["resolved"] += 1
                     self.stdout.write(f"  ✓ IP {ip.ip}: OK (был алерт)")
                 continue
@@ -346,7 +399,7 @@ class Command(BaseCommand):
             else:
                 # Создаём новый
                 if not dry:
-                    Alert.objects.create(
+                    alert = Alert.objects.create(
                         ip_address=ip,
                         metric_key=alert_key,
                         severity=severity,
@@ -355,6 +408,10 @@ class Command(BaseCommand):
                         threshold=threshold,
                         message=full_msg,
                     )
+                    try:
+                        notify_alert_created(alert)
+                    except Exception as _e:
+                        logger.warning('TG notify failed: %s', _e)
                 stats["created"] += 1
                 self.stdout.write(
                     self.style.WARNING(

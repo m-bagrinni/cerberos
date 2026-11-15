@@ -43,14 +43,14 @@
         });
         const data = await resp.json();
         if (data.ok) {
-          btn.innerHTML = '<i class="bi bi-check-lg"></i> Resolved ' + data.resolved;
+          btn.innerHTML = '<i class="bi bi-check-lg"></i> Resolved ' + Cerber.escapeHtml(data.resolved);
           setTimeout(() => location.reload(), 800);
         } else {
-          btn.innerHTML = '<i class="bi bi-x-lg"></i> ' + (data.error || 'error');
+          btn.innerHTML = '<i class="bi bi-x-lg"></i> ' + Cerber.escapeHtml(data.error || 'error');
           setTimeout(() => { btn.disabled = false; updateUI(); }, 2000);
         }
       } catch (err) {
-        btn.innerHTML = '<i class="bi bi-x-lg"></i> ' + err.message;
+        btn.innerHTML = '<i class="bi bi-x-lg"></i> ' + Cerber.escapeHtml(err.message);
         setTimeout(() => { btn.disabled = false; updateUI(); }, 2000);
       }
     });

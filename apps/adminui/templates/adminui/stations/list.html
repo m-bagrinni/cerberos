@@ -1,0 +1,39 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Станции{% endblock %}
+{% block admin_actions %}
+<a href="{% url 'adminui:station_create' %}" class="btn--secondary"><i class="bi bi-plus-lg"></i> Добавить станцию</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header"><h2 class="panel__title">Станции ({{ stations|length }})</h2></div>
+  <div class="panel__body panel__body--flush">
+    <form method="get" style="padding: 16px; display: flex; gap: 12px; border-bottom: 1px solid var(--border);">
+      <input type="text" name="q" placeholder="Поиск..." value="{{ q }}" class="input">
+      <button type="submit" class="btn--secondary">Фильтр</button>
+    </form>
+    {% if stations %}
+    <table class="data-table">
+      <thead><tr><th>ID</th><th>Название</th><th>Slug</th><th>Широта</th><th>Долгота</th><th></th></tr></thead>
+      <tbody>
+        {% for s in stations %}
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.name }}</td>
+          <td>{{ s.slug }}</td>
+          <td>{{ s.latitude|floatformat:5 }}</td>
+          <td>{{ s.longitude|floatformat:5 }}</td>
+          <td>
+            <a href="{% url 'adminui:station_update' s.pk %}" class="btn--icon"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:station_delete' s.pk %}" class="btn--icon btn--danger"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty-state">Нет станций</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

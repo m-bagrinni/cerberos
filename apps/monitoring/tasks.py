@@ -6,8 +6,20 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from apps.devices.models import Device
+from apps.monitoring.locks import singleton
 
 log = logging.getLogger(__name__)
+
+# Лимиты для быстрых периодических задач (интервал 60 с).
+# soft — бросает SoftTimeLimitExceeded, hard — убивает процесс; замок живёт дольше hard.
+FAST = dict(soft_time_limit=240, time_limit=270)
+FAST_LOCK = 300
+
+
+def _fanout(task, ip, expires):
+    """Ставит задачу на устройство. expires: если воркер не взял её за интервал — выбросить,
+    вместо того чтобы после затора выполнять пачку устаревших опросов."""
+    task.apply_async(args=[ip], expires=expires)
 
 
 @shared_task(name="monitoring.poll_all_devices")
@@ -31,7 +43,7 @@ def poll_all_devices():
         return {"total": 0}
 
     for device in devices:
-        poll_device_task.delay(device.ip)
+        _fanout(poll_device_task, device.ip, expires=170)
 
     duration = (timezone.now() - started).total_seconds()
     log.info("poll_all_devices: поставлено %d задач за %.2f сек", total, duration)
@@ -44,7 +56,9 @@ def poll_all_devices():
     autoretry_for=(Exception,),
     retry_backoff=60,
     retry_kwargs={"max_retries": 2},
+    soft_time_limit=120, time_limit=150,
 )
+@singleton(ttl=180, key=lambda ip: ip)
 def poll_device_task(self, ip: str):
     """Опрос одного устройства (метрики)."""
     try:
@@ -63,7 +77,7 @@ def poll_interfaces_all():
     devices = Device.objects.exclude(status=Device.STATUS_UNREACHABLE)
 
     for device in devices:
-        poll_interfaces_task.delay(device.ip)
+        _fanout(poll_interfaces_task, device.ip, expires=290)
 
     count = devices.count()
     log.info("poll_interfaces_all: поставлено %d задач", count)
@@ -76,7 +90,9 @@ def poll_interfaces_all():
     autoretry_for=(Exception,),
     retry_backoff=120,
     retry_kwargs={"max_retries": 1},
+    soft_time_limit=280, time_limit=300,
 )
+@singleton(ttl=330, key=lambda ip: ip)
 def poll_interfaces_task(self, ip: str):
     """Опрос интерфейсов одного устройства."""
     try:
@@ -94,7 +110,7 @@ def poll_traffic_all():
     log.info("poll_traffic_all: запуск")
     devices = Device.objects.exclude(status=Device.STATUS_UNREACHABLE)
     for device in devices:
-        poll_traffic_task.delay(device.ip)
+        _fanout(poll_traffic_task, device.ip, expires=290)
     count = devices.count()
     log.info("poll_traffic_all: поставлено %d задач", count)
     return {"queued": count}
@@ -106,7 +122,9 @@ def poll_traffic_all():
     autoretry_for=(Exception,),
     retry_backoff=30,
     retry_kwargs={"max_retries": 2},
+    soft_time_limit=120, time_limit=150,
 )
+@singleton(ttl=180, key=lambda ip: ip)
 def poll_traffic_task(self, ip: str):
     """Опрос трафика одного устройства."""
     try:
@@ -124,7 +142,7 @@ def poll_sfp_all():
     log.info("poll_sfp_all: запуск")
     devices = Device.objects.exclude(status=Device.STATUS_UNREACHABLE)
     for device in devices:
-        poll_sfp_task.delay(device.ip)
+        _fanout(poll_sfp_task, device.ip, expires=890)
     count = devices.count()
     log.info("poll_sfp_all: поставлено %d задач", count)
     return {"queued": count}
@@ -136,7 +154,9 @@ def poll_sfp_all():
     autoretry_for=(Exception,),
     retry_backoff=120,
     retry_kwargs={"max_retries": 1},
+    soft_time_limit=280, time_limit=300,
 )
+@singleton(ttl=330, key=lambda ip: ip)
 def poll_sfp_task(self, ip: str):
     """Опрос SFP одного устройства."""
     try:
@@ -157,7 +177,9 @@ def poll_sfp_task(self, ip: str):
     autoretry_for=(Exception,),
     retry_backoff=60,
     retry_kwargs={"max_retries": 2},
+    soft_time_limit=280, time_limit=300,
 )
+@singleton(ttl=330, key=lambda ip: ip)
 def poll_olencom_task(ip):
     """Опрос одного Olencom-шасси (шлюз + все его NE через SNMP)."""
     from django.core.management import call_command
@@ -176,12 +198,13 @@ def poll_olencom_all():
     )
     count = 0
     for d in qs:
-        poll_olencom_task.delay(d.ip)
+        _fanout(poll_olencom_task, d.ip, expires=290)
         count += 1
     return f"queued poll_olencom for {count} devices"
 
 
-@shared_task(name="monitoring.check_alerts_all")
+@shared_task(name="monitoring.check_alerts_all", soft_time_limit=240, time_limit=270)
+@singleton(ttl=300)
 def check_alerts_all():
     """Проверка метрик на пороги (D-Link, Eltex, Olencom NE)."""
     from django.core.management import call_command
@@ -189,7 +212,8 @@ def check_alerts_all():
     return "check_alerts done"
 
 
-@shared_task(name="monitoring.discover_olencom_nes_all")
+@shared_task(name="monitoring.discover_olencom_nes_all", soft_time_limit=1500, time_limit=1700)
+@singleton(ttl=1800)
 def discover_olencom_nes_all():
     """Discovery NE на всех Olencom-шлюзах."""
     from django.core.management import call_command
@@ -222,11 +246,10 @@ def _last_metric_for_ne(ne_device, key, instance):
     return mv.value if mv else None
 
 
-def _sfp_state_for_ne(ne_device, port_num):
+def _sfp_state_for_ne(ne_device, port_num, link=None, side=None):
     """
     Возвращает dict {link_up, rx_dbm} для SFP-порта NE.
-    link_up: True / False / None (нет данных).
-    rx_dbm: float / None.
+    Fallback на кэш OpticalLink (link_X_up, rx_X_dbm), если MetricValue нет.
     """
     if ne_device is None:
         return {"link_up": None, "rx_dbm": None}
@@ -238,17 +261,66 @@ def _sfp_state_for_ne(ne_device, port_num):
     if link_val is not None:
         link_up = (link_val >= 0.5)  # 1.0 = up, 0.0 = down
 
+    # Fallback: если MetricValue нет — берём кэш из OpticalLink
+    if link is not None and side is not None:
+        if link_up is None:
+            link_up = getattr(link, f"link_{side}_up", None)
+        if rx_val is None:
+            rx_val = getattr(link, f"rx_{side}_dbm", None)
+
+    # Fallback 2: если всё ещё None, но NE доступен (status='ok'), считаем link_up=True
+    if link_up is None and ne_device.status == 'ok':
+        link_up = True
+
     return {"link_up": link_up, "rx_dbm": rx_val}
 
 
 def _end_state(link, side):
     """side = 'a' | 'b'. Возвращает dict {link_up, rx_dbm}."""
     ne = getattr(link, f"ne_{side}", None)
+    device = getattr(link, f"device_{side}", None)
     port_num = getattr(link, f"port_{side}_num")
 
     if ne is not None:
-        return _sfp_state_for_ne(ne, port_num)
-    # Device (D-Link/Eltex) — пока не поддерживаем
+        # Если NE недоступен — не доверяем кэшу (данные устарели)
+        if ne.status == 'unreachable':
+            return {"link_up": None, "rx_dbm": None}
+        return _sfp_state_for_ne(ne, port_num, link=link, side=side)
+    
+    # Device (D-Link/Eltex) — берём DDM из SfpModule
+    if device is not None:
+        from apps.monitoring.models import Interface, SfpModule
+        # Ищем Interface по device и port_num (это if_index или номер порта?)
+        # port_num для Device — это if_index (например, 62 для порта 14)
+        # Но в OpticalLink port_a_num может быть номером порта (14), а не if_index
+        # Нужно найти Interface по имени (gi1/0/14) или по if_index (62)
+        iface = None
+        # Сначала пробуем найти по if_index = port_num
+        iface = Interface.objects.filter(device=device, if_index=port_num).first()
+        if not iface:
+            # Пробуем найти по имени (например, "gi1/0/14")
+            iface = Interface.objects.filter(device=device, name__endswith=f"/{port_num}").first()
+        
+        if iface:
+            sfp = SfpModule.objects.filter(interface=iface).first()
+            if sfp:
+                # Преобразуем rx_state в True/False/None
+                rx_state = sfp.rx_state
+                if rx_state == "ok":
+                    link_up = True
+                elif rx_state in ("down", "fail", "no_signal"):
+                    link_up = False
+                else:
+                    link_up = None
+                return {
+                    "link_up": link_up,
+                    "rx_dbm": sfp.rx_power_dbm,
+                    "tx_dbm": sfp.tx_power_dbm,
+                    "temp_c": sfp.temperature_c,
+                    "bias_ma": sfp.bias_current_ma,
+                    "volt_v": sfp.voltage_v,
+                }
+    
     return {"link_up": None, "rx_dbm": None}
 
 
@@ -273,20 +345,43 @@ def _calc_link_status(state_a, state_b):
     if la is False or lb is False:
         return "crit"
 
-    # Оба link up — смотрим на RX
+    # Оба link up — смотрим на RX (даже если один None)
     if la is True and lb is True:
-        if rxa is None or rxb is None:
-            # link up, RX неизвестен — считаем "ok" (худшее не предполагаем)
-            return "ok"
+        # Собираем все доступные RX
+        rx_values = [x for x in (rxa, rxb) if x is not None]
+        if not rx_values:
+            return "ok"          # нет DDM — считаем ok
+        worst = min(rx_values)    # худший из доступных
+        if worst < -27:
+            return "degraded"
+        if worst < -20:
+            return "warn"
+        return "ok"
+
+    # Если link_up = None, но rx_dbm есть — считаем по RX
+    if rxa is not None and rxb is not None:
         worst = min(rxa, rxb)
         if worst < -27:
-            return "degraded"    # 🟠 линия жива, но сигнал очень слабый
+            return "degraded"
         if worst < -20:
-            return "warn"        # 🟡 предупреждение
-        return "ok"              # 🟢 норма
+            return "warn"
+        return "ok"
+
+    # Если одна сторона None (нет DDM), но другая есть — считаем по одной
+    if rxa is not None or rxb is not None:
+        rx = rxa if rxa is not None else rxb
+        if rx < -27:
+            return "degraded"
+        if rx < -20:
+            return "warn"
+        return "ok"
+
+    # Ничего не известно — unknown
+    return "unknown"
+
+    # Ничего не известно — unknown
 
     # Не хватает данных
-    return "unknown"
 
 
 def poll_one_optical_link(link_id):
@@ -300,16 +395,51 @@ def poll_one_optical_link(link_id):
 
     sa = _end_state(link, "a")
     sb = _end_state(link, "b")
+    
+    # 1. Сначала считаем базовый статус из DDM
     status = _calc_link_status(sa, sb)
+    
+    # 2. Проверяем доступность устройств ВСЕГДА
+    if link.ne_a and (link.ne_a.status == "unreachable" or (link.ne_a.last_seen and (timezone.now() - link.ne_a.last_seen).total_seconds() > 300)):
+        status = "power"
+    elif link.ne_b and (link.ne_b.status == "unreachable" or (link.ne_b.last_seen and (timezone.now() - link.ne_b.last_seen).total_seconds() > 300)):
+        status = "power"
+    elif link.device_a and not link.device_a.is_reachable:
+        status = "power"
+    elif link.device_b and not link.device_b.is_reachable:
+        status = "power"
 
-    link.rx_a_dbm  = sa["rx_dbm"]
-    link.rx_b_dbm  = sb["rx_dbm"]
-    link.link_a_up = sa["link_up"]
-    link.link_b_up = sb["link_up"]
+    # Не перезаписывать None-значения (сохраняем кэш)
+    if sa["rx_dbm"] is not None:
+        link.rx_a_dbm = sa["rx_dbm"]
+    if sb["rx_dbm"] is not None:
+        link.rx_b_dbm = sb["rx_dbm"]
+    if sa.get("tx_dbm") is not None:
+        link.tx_a_dbm = sa["tx_dbm"]
+    if sb.get("tx_dbm") is not None:
+        link.tx_b_dbm = sb["tx_dbm"]
+    if sa.get("temp_c") is not None:
+        link.temp_a_c = sa["temp_c"]
+    if sb.get("temp_c") is not None:
+        link.temp_b_c = sb["temp_c"]
+    if sa.get("bias_ma") is not None:
+        link.bias_a_ma = sa["bias_ma"]
+    if sb.get("bias_ma") is not None:
+        link.bias_b_ma = sb["bias_ma"]
+    if sa.get("volt_v") is not None:
+        link.volt_a_v = sa["volt_v"]
+    if sb.get("volt_v") is not None:
+        link.volt_b_v = sb["volt_v"]
+    if sa["link_up"] is not None:
+        link.link_a_up = sa["link_up"]
+    if sb["link_up"] is not None:
+        link.link_b_up = sb["link_up"]
     link.link_status = status
     link.updated_at = timezone.now()
     link.save(update_fields=[
-        "rx_a_dbm", "rx_b_dbm", "link_a_up", "link_b_up",
+        "rx_a_dbm", "rx_b_dbm", "tx_a_dbm", "tx_b_dbm",
+        "temp_a_c", "temp_b_c", "bias_a_ma", "bias_b_ma",
+        "volt_a_v", "volt_b_v", "link_a_up", "link_b_up",
         "link_status", "updated_at",
     ])
 
@@ -322,7 +452,8 @@ def poll_one_optical_link(link_id):
     }
 
 
-@shared_task(name="monitoring.poll_optical_links")
+@shared_task(name="monitoring.poll_optical_links", **FAST)
+@singleton(ttl=FAST_LOCK)
 def poll_optical_links():
     """
     Периодическая задача: обходит все активные OpticalLink
@@ -352,9 +483,15 @@ def poll_optical_links():
 import subprocess  # noqa: E402
 import re as _re  # noqa: E402
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
+from channels.db import database_sync_to_async
+
+import logging
+logger = logging.getLogger(__name__)
 
 
-def _snmpget_raw(host, community, version, oid, timeout=2, retries=1):
+
+
+def _snmpget_raw(host, community, version, oid, timeout=4, retries=2):
     """
     Быстрый snmpget. Возвращает (ok: bool, raw_value: str | None).
     ok=False → timeout или ошибка.
@@ -392,7 +529,7 @@ def _ne_alive(ne):
     ok, _ = _snmpget_raw(
         gateway.ip, gateway.snmp_community,
         gateway.snmp_version or 1, oid,
-        timeout=2,
+        timeout=4, retries=2,
     )
     return ok
 
@@ -409,7 +546,7 @@ def _sfp_link_up(ne, port_num):
     ok, raw = _snmpget_raw(
         gateway.ip, gateway.snmp_community,
         gateway.snmp_version or 1, oid,
-        timeout=2,
+        timeout=4, retries=2,
     )
     if not ok:
         return None
@@ -418,7 +555,7 @@ def _sfp_link_up(ne, port_num):
         return None
     digits = _re.sub(r"[^0-9A-Fa-f]", "", raw)
     if not digits:
-        return False
+        return None   # пустой ответ — нет данных, не down
     return digits != "00"  # всё, кроме "00" — считаем up
 
 
@@ -435,7 +572,8 @@ def _check_ne_fast(ne_id):
     return ne_id, _ne_alive(ne)
 
 
-@shared_task(name="monitoring.poll_optical_links_fast")
+@shared_task(name="monitoring.poll_optical_links_fast", **FAST)
+@singleton(ttl=FAST_LOCK)
 def poll_optical_links_fast():
     """
     Быстрая проверка доступности NE + статуса SFP.
@@ -459,10 +597,22 @@ def poll_optical_links_fast():
         if l.ne_a_id: ne_ids.add(l.ne_a_id)
         if l.ne_b_id: ne_ids.add(l.ne_b_id)
 
-    # 2) Опрос доступности NE (параллельно, осторожно)
+    # 2) Доступность NE. Её уже проверяет poll_ne_availability_fast (тот же OID, тот же интервал)
+    #    и кладёт сырой результат в кэш — не дёргаем хрупкие шлюзы Olencom второй раз.
+    #    SNMP-проверку делаем только для NE, по которым в кэше ничего нет.
+    from django.core.cache import cache
     ne_alive = {}
+    try:
+        cached = cache.get_many([f"ne_alive_raw_{nid}" for nid in ne_ids])
+    except Exception:
+        cached = {}
+    for nid in ne_ids:
+        v = cached.get(f"ne_alive_raw_{nid}")
+        if v is not None:
+            ne_alive[nid] = bool(v)
+    missing = [nid for nid in ne_ids if nid not in ne_alive]
     with ThreadPoolExecutor(max_workers=2) as ex:
-        futs = {ex.submit(_check_ne_fast, nid): nid for nid in ne_ids}
+        futs = {ex.submit(_check_ne_fast, nid): nid for nid in missing}
         for fut in as_completed(futs):
             try:
                 nid, alive = fut.result()
@@ -497,6 +647,16 @@ def poll_optical_links_fast():
             except Exception as e:
                 log.error(f"poll fast sfp: {e}")
 
+    # Определения DDM-метрик — один раз на прогон (раньше: запрос на каждую линию × метрику)
+    from apps.monitoring.models import MetricValue
+    from apps.devices.models import MetricDefinition
+    from datetime import timedelta
+    _ddm_keys = ("sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp", "sfp_bias", "sfp_voltage")
+    ddm_defs = {}
+    for md in MetricDefinition.objects.filter(key__in=_ddm_keys).order_by("id"):
+        ddm_defs.setdefault(md.key, md)
+    cutoff = timezone.now() - timedelta(minutes=5)
+
     # 4) Обновляем линии
     updated = 0
     by_status = {"ok": 0, "warn": 0, "crit": 0, "unknown": 0}
@@ -506,30 +666,35 @@ def poll_optical_links_fast():
         a_alive = ne_alive.get(l.ne_a_id) if l.ne_a_id else None
         b_alive = ne_alive.get(l.ne_b_id) if l.ne_b_id else None
 
-        # Если NE-сторона не отвечает → crit
+        # Если NE-сторона не отвечает — это "power" (нет питания/связи)
         if a_alive is False or b_alive is False:
-            new_status = "crit"
+            new_status = "power"
         else:
             a_link = sfp_cache.get((l.ne_a_id, l.port_a_num)) if l.ne_a_id else None
             b_link = sfp_cache.get((l.ne_b_id, l.port_b_num)) if l.ne_b_id else None
 
-            if a_link is False or b_link is False:
-                new_status = "crit"
-            elif a_link is True and b_link is True:
-                # По RX — берём из MetricValue (последние значения)
-                from apps.monitoring.tasks import _end_state, _calc_link_status
+            # Для Device (D-Link/Eltex) — через _end_state
+            # И для NE, если a_link/b_link = None (SNMP timeout, NE не пингуется)
+            if l.device_a_id or l.device_b_id or a_link is None or b_link is None:
                 sa = _end_state(l, "a")
                 sb = _end_state(l, "b")
                 new_status = _calc_link_status(sa, sb)
-                # rx/link cache обновим через полную задачу (5 мин)
             else:
-                new_status = "unknown"
+                if a_link is False or b_link is False:
+                    new_status = "crit"
+                elif a_link is True and b_link is True:
+                    from apps.monitoring.tasks import _end_state, _calc_link_status
+                    sa = _end_state(l, "a")
+                    sb = _end_state(l, "b")
+                    new_status = _calc_link_status(sa, sb)
+                else:
+                    new_status = "unknown"
 
-        # Сглаживание: если новый статус unknown, а старый был ok/warn/degraded/crit —
-        # НЕ сбрасываем (SNMP flaky). Оставляем старый.
+        # Сглаживание: если новый статус unknown, а старый был ok/warn/degraded —
+        # НЕ сбрасываем (SNMP flaky). НО crit — сбрасываем в unknown (не подтверждён).
         prev_status = l.link_status
-        if new_status == "unknown" and prev_status in ("ok", "warn", "degraded", "crit"):
-            new_status = prev_status  # сглаживаем
+        if new_status == "unknown" and prev_status in ("ok", "warn", "degraded", "power"):
+            new_status = prev_status  # сглаживаем, но НЕ crit/power
 
         # Логируем изменения + создаём/закрываем алерт
         if new_status != prev_status:
@@ -547,7 +712,10 @@ def poll_optical_links_fast():
             l.link_status = new_status
 
             # ── создаём/закрываем алерт ──
-            if new_status == "crit":
+            if new_status == "power":
+                msg = f"Нет питания/связи: {l.station_a.slug} → {l.station_b.slug}"
+                _upsert_link_alert(l, "power", msg)
+            elif new_status == "crit":
                 msg = f"Обрыв оптической линии: {l.station_a.slug} → {l.station_b.slug}"
                 _upsert_link_alert(l, "crit", msg)
             elif new_status == "degraded":
@@ -575,6 +743,42 @@ def poll_optical_links_fast():
             # Даже если статус не изменился, обновим updated_at
             OpticalLink.objects.filter(pk=l.id).update(updated_at=timezone.now())
 
+        # ── Запись DDM-метрик в MetricValue (для истории графиков) ──
+        # Пишем не чаще раза в 5 минут (троттлинг)
+        def _save_ddm(link, side):
+            device = link.device_a if side == 'a' else link.device_b
+            port = link.port_a_num if side == 'a' else link.port_b_num
+            rx = link.rx_a_dbm if side == 'a' else link.rx_b_dbm
+            tx = link.tx_a_dbm if side == 'a' else link.tx_b_dbm
+            temp = link.temp_a_c if side == 'a' else link.temp_b_c
+            bias = link.bias_a_ma if side == 'a' else link.bias_b_ma
+            volt = link.volt_a_v if side == 'a' else link.volt_b_v
+            
+            if not device or not port:
+                return
+            
+            # Проверяем, есть ли свежая запись (за последние 5 минут)
+            has_recent = MetricValue.objects.filter(
+                device=device,
+                instance=port,
+                metric__key='sfp_rx_dbm',
+                ts__gte=cutoff,
+            ).exists()
+            if has_recent:
+                return
+            
+            rows = [
+                MetricValue(device=device, metric=ddm_defs[key], instance=port, value=value)
+                for key, value in [('sfp_rx_dbm', rx), ('sfp_tx_dbm', tx), ('sfp_temp', temp),
+                                   ('sfp_bias', bias), ('sfp_voltage', volt)]
+                if value is not None and key in ddm_defs
+            ]
+            if rows:
+                MetricValue.objects.bulk_create(rows)
+        
+        _save_ddm(l, 'a')
+        _save_ddm(l, 'b')
+
         by_status[new_status] = by_status.get(new_status, 0) + 1
 
     return {"updated": updated, "total": len(links), "by_status": by_status}
@@ -597,12 +801,13 @@ def _check_ne_alive_fast(ne_id):
     ok, raw = _snmpget_raw(
         gateway.ip, gateway.snmp_community,
         gateway.snmp_version or 1, oid,
-        timeout=2, retries=1,
+        timeout=4, retries=2,
     )
     return ne_id, ok, raw
 
 
-@shared_task(name="monitoring.poll_ne_availability_fast")
+@shared_task(name="monitoring.poll_ne_availability_fast", **FAST)
+@singleton(ttl=FAST_LOCK)
 def poll_ne_availability_fast():
     """
     Быстрая проверка доступности всех NE.
@@ -639,6 +844,8 @@ def poll_ne_availability_fast():
     for ne in nes:
         is_alive = results.get(ne.id, False)
         cache_key = f"ne_fail_count_{ne.id}"
+        # Сырой результат этого цикла — для poll_optical_links_fast (живёт ~2 интервала)
+        cache.set(f"ne_alive_raw_{ne.id}", 1 if is_alive else 0, timeout=150)
 
         if is_alive:
             # Сброс счётчика + status ok
@@ -647,7 +854,8 @@ def poll_ne_availability_fast():
         else:
             # Инкремент счётчика; unreachable после 3 подряд неудач
             fail_count = (cache.get(cache_key) or 0) + 1
-            cache.set(cache_key, fail_count, timeout=120)
+            # 10 минут: счётчик не должен «протухать» между циклами, если прогон задержался
+            cache.set(cache_key, fail_count, timeout=600)
             if fail_count >= 3:
                 new_status = "unreachable"
             else:
@@ -678,91 +886,112 @@ def poll_ne_availability_fast():
 
 def _upsert_link_alert(link, severity, message, value=None, threshold=None):
     """
-    Создаёт/обновляет Alert по линии. Если уже есть активный — обновляет.
-    state='firing'.
+    Создаёт/обновляет Alert по линии. Дедупликация:
+    - если есть активный firing — обновляем, не создаём новый;
+    - если firing нет, но был ok < 15 мин назад — НЕ создаём новый (линия "моргнула");
+    - иначе создаём firing и уведомляем.
     """
     from apps.alerts.models import Alert
     from django.utils import timezone
+    from datetime import timedelta
 
     metric_key = f"optical_link:{link.id}"
-    alert, created = Alert.objects.get_or_create(
-        metric_key=metric_key,
-        state="firing",
-        defaults={
-            "device": link.ne_a.gateway if link.ne_a else None,
-            "ne_device": link.ne_a,
-            "severity": severity,
-            "value": value,
-            "threshold": threshold,
-            "message": message,
-            "started_at": timezone.now(),
-        },
-    )
-    if not created:
-        # обновим severity/value/message, если изменились
+    now = timezone.now()
+
+    # 1. Активный firing — обновляем
+    active = Alert.objects.filter(metric_key=metric_key, state="firing").first()
+    if active:
+        old_severity = active.severity
         changed = False
-        if alert.severity != severity:
-            alert.severity = severity
+        if active.severity != severity:
+            active.severity = severity
             changed = True
-        if alert.value != value:
-            alert.value = value
+        if active.value != value:
+            active.value = value
             changed = True
-        if alert.message != message:
-            alert.message = message
+        if active.message != message:
+            active.message = message
             changed = True
         if changed:
-            alert.save(update_fields=["severity", "value", "message", "updated_at"])
+            active.save(update_fields=["severity", "value", "message", "updated_at"])
+        # Уведомлять для power/crit (важно), если severity изменился
+        if severity in ("crit", "power") and old_severity != severity:
+            try:
+                from apps.accounts.telegram_notify import notify_alert_created
+                notify_alert_created(active)
+            except Exception as _e:
+                logger.warning("TG notify (link active) failed: %s", _e)
+        return active, False
 
-    return alert, created
+    # 2. Был ok недавно (линия «моргнула») — не плодим новый алерт, а ПЕРЕОТКРЫВАЕМ прежний.
+    #    Раньше он оставался закрытым: линия стояла в crit, а в активных алертах её не было.
+    #    Правило уведомлений прежнее (только при смене severity) — чтобы не спамить на флапах.
+    recent_ok = Alert.objects.filter(
+        metric_key=metric_key, state="ok",
+        resolved_at__gte=now - timedelta(minutes=15),
+    ).order_by("-resolved_at").first()
+    if recent_ok:
+        old_severity = recent_ok.severity
+        recent_ok.state = "firing"
+        recent_ok.resolved_at = None
+        recent_ok.severity = severity
+        recent_ok.message = message
+        recent_ok.value = value
+        recent_ok.threshold = threshold
+        recent_ok.save(update_fields=["state", "resolved_at", "severity", "message", "value",
+                                      "threshold", "updated_at"])
+        # Уведомлять для power/crit (важно), даже если был ok < 15 мин
+        if severity in ("crit", "power") and old_severity != severity:
+            try:
+                from apps.accounts.telegram_notify import notify_alert_created
+                notify_alert_created(recent_ok)
+            except Exception as _e:
+                logger.warning("TG notify (link recent_ok) failed: %s", _e)
+        return recent_ok, False
+
+    # 3. Создаём новый firing и уведомляем
+    alert = Alert.objects.create(
+        device=link.ne_a.gateway if link.ne_a else None,
+        ne_device=link.ne_a,
+        metric_key=metric_key,
+        severity=severity,
+        state="firing",
+        value=value,
+        threshold=threshold,
+        message=message,
+        started_at=now,
+    )
+    try:
+        from apps.accounts.telegram_notify import notify_alert_created
+        notify_alert_created(alert)
+    except Exception as _e:
+        logger.warning("TG notify (link created) failed: %s", _e)
+    return alert, True
 
 
 def _close_link_alert(link):
-    """Закрывает активный Alert по линии (если был)."""
+    """Закрывает активный Alert по линии (если был) + notify resolved."""
     from apps.alerts.models import Alert
     from django.utils import timezone
 
     metric_key = f"optical_link:{link.id}"
-    updated = Alert.objects.filter(
-        metric_key=metric_key, state="firing"
-    ).update(state="ok", resolved_at=timezone.now())
-    return updated
+    qs = Alert.objects.filter(metric_key=metric_key, state="firing")
+    n = 0
+    for a in qs:
+        a.state = "ok"
+        a.resolved_at = timezone.now()
+        a.save(update_fields=["state", "resolved_at", "updated_at"])
+        try:
+            from apps.accounts.telegram_notify import notify_alert_resolved
+            notify_alert_resolved(a)
+        except Exception as _e:
+            logger.warning("TG notify (link resolved) failed: %s", _e)
+        n += 1
+    return n
 
 
-def _upsert_ne_alert(ne, severity, message):
-    """Создаёт/обновляет Alert по NE."""
-    from apps.alerts.models import Alert
-    from django.utils import timezone
-
-    metric_key = f"ne_status:{ne.id}"
-    alert, created = Alert.objects.get_or_create(
-        metric_key=metric_key,
-        state="firing",
-        defaults={
-            "device": ne.gateway,
-            "ne_device": ne,
-            "severity": severity,
-            "message": message,
-            "started_at": timezone.now(),
-        },
-    )
-    if not created and alert.message != message:
-        alert.message = message
-        alert.save(update_fields=["message", "updated_at"])
-    return alert, created
-
-
-def _close_ne_alert(ne):
-    """Закрывает активный Alert по NE."""
-    from apps.alerts.models import Alert
-    from django.utils import timezone
-
-    metric_key = f"ne_status:{ne.id}"
-    updated = Alert.objects.filter(
-        metric_key=metric_key, state="firing"
-    ).update(state="ok", resolved_at=timezone.now())
-    return updated
-
-@shared_task(name="monitoring.poll_traffic_light")
+@shared_task(name="monitoring.poll_traffic_light", **FAST)
+@singleton(ttl=FAST_LOCK)
 def poll_traffic_light():
     """
     Лёгкий сбор eth_rx_bytes (только порты 1 и 5) для всех Olencom NE.
@@ -784,7 +1013,7 @@ def poll_traffic_light():
     if not metric:
         return {"ok": False, "error": "no metric eth_rx_bytes"}
 
-    saved = 0
+    batch = []
     ports = ["1", "5"]  # Только активные: WAN (1) и LAN (5)
     
     for gw in gateways:
@@ -803,50 +1032,344 @@ def poll_traffic_light():
                         continue
                     
                     rx_bytes = int.from_bytes(bytes(c_hex[0:8]), "little")
-                    MetricValue.objects.create(
-                        device=gw,  # ← ДОБАВЛЕНО: device_id (NOT NULL)
+                    batch.append(MetricValue(
+                        device=gw,  # device_id NOT NULL
                         ne_device=ne, metric=metric,
                         instance=port, value=float(rx_bytes),
-                    )
-                    saved += 1
+                    ))
                 except Exception as e:
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.error(f"[poll_traffic_light] NE={ne.ne_id} port={port} ERROR: {e}")
-                    print(f"[ERROR] NE={ne.ne_id} port={port} EXC={e}")
                     continue
 
-    # Retention: раз в 30 минут удаляем старые MetricValue (старше 2 часов)
-    try:
-        from django.core.cache import cache
-        from apps.monitoring.models import MetricValue
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        last_cleanup = cache.get("metric_cleanup_last")
-        now = timezone.now()
-        if not last_cleanup or (now - last_cleanup).total_seconds() > 1800:
-            cutoff = now - timedelta(hours=2)
-            deleted, _ = MetricValue.objects.filter(ts__lt=cutoff).delete()
-            cache.set("metric_cleanup_last", now, timeout=7200)
-            print(f"[poll_traffic_light] cleanup: deleted {deleted} old MetricValue")
-    except Exception as e:
-        print(f"[poll_traffic_light] cleanup error: {e}")
+    # Одна вставка на прогон вместо INSERT на каждый порт.
+    # Очистка старых значений — в monitoring.cleanup_old_metric_values (по MONITORING_RETENTION);
+    # раньше здесь удалялось ВСЁ старше 2 часов, и графики «за 24 ч / 7 дней» были пустыми.
+    if batch:
+        MetricValue.objects.bulk_create(batch)
+    saved = len(batch)
 
     return {"ok": True, "saved": saved}
 
-@shared_task(name="monitoring.cleanup_old_metric_values")
+def _delete_in_batches(qs, batch=20000, max_batches=200):
+    """DELETE порциями по id — без многоминутной блокировки и раздувания WAL одним запросом."""
+    total = 0
+    for _ in range(max_batches):
+        ids = list(qs.values_list("id", flat=True)[:batch])
+        if not ids:
+            break
+        n, _ = qs.model.objects.filter(id__in=ids).delete()
+        total += n
+    return total
+
+
+@shared_task(name="monitoring.cleanup_old_metric_values", soft_time_limit=1500, time_limit=1700)
+@singleton(ttl=1800)
 def cleanup_old_metric_values():
     """
-    Удаляет MetricValue старше 2 часов.
-    Запускается каждые 30 минут — не даём БД распухнуть.
+    Ретенция истории (settings.MONITORING_RETENTION). Запускается beat'ом раз в час.
+      - MetricValue: metric_value_days; служебные ключи — metric_value_short_hours
+      - InterfaceSample: interface_sample_days
+      - TrafficSample: traffic_sample_days
     """
-    from apps.monitoring.models import MetricValue
-    from django.utils import timezone
     from datetime import timedelta
+    from django.conf import settings
+    from apps.monitoring.models import InterfaceSample, MetricValue
 
-    cutoff = timezone.now() - timedelta(hours=2)
-    deleted, _ = MetricValue.objects.filter(ts__lt=cutoff).delete()
-    return {"ok": True, "deleted": deleted}
+    cfg = getattr(settings, "MONITORING_RETENTION", {})
+    now = timezone.now()
+    res = {}
+
+    short_keys = cfg.get("metric_value_short_keys") or []
+    if short_keys:
+        res["metric_value_short"] = _delete_in_batches(MetricValue.objects.filter(
+            metric__key__in=short_keys,
+            ts__lt=now - timedelta(hours=cfg.get("metric_value_short_hours", 24)),
+        ))
+    res["metric_value"] = _delete_in_batches(MetricValue.objects.filter(
+        ts__lt=now - timedelta(days=cfg.get("metric_value_days", 8)),
+    ))
+    res["interface_sample"] = _delete_in_batches(InterfaceSample.objects.filter(
+        ts__lt=now - timedelta(days=cfg.get("interface_sample_days", 30)),
+    ))
+    try:
+        from apps.subnets.models_traffic import TrafficSample
+        ts_field = "ts" if any(f.name == "ts" for f in TrafficSample._meta.fields) else "created_at"
+        res["traffic_sample"] = _delete_in_batches(TrafficSample.objects.filter(**{
+            f"{ts_field}__lt": now - timedelta(days=cfg.get("traffic_sample_days", 30)),
+        }))
+    except Exception as e:
+        log.warning("cleanup TrafficSample: %s", e)
+
+    log.info("cleanup_old_metric_values: %s", res)
+    return res
 
 
+@shared_task(**FAST)
+@singleton(ttl=FAST_LOCK)
+def poll_device_links_task():
+    """
+    Опрос портов для линий с device_a/device_b (D-Link/Eltex).
+    Обновляет link_status, link_a_up, link_b_up, rx_a_dbm, rx_b_dbm.
+    """
+    from django.core.management import call_command
+    call_command('poll_device_links')
+
+
+@shared_task(name="monitoring.ping_all_devices", **FAST)
+@singleton(ttl=FAST_LOCK)
+def ping_all_devices():
+    """Пингует все устройства. Создает алерт при 3 неудачах подряд, закрывает при первом успехе."""
+    from apps.devices.models import Device
+    from apps.alerts.models import Alert
+    from apps.subnets.scanner import ping_one
+    from apps.accounts.telegram_notify import notify_alert_created
+    from django.utils import timezone
+    
+    devices = Device.objects.all()
+    for dev in devices:
+        try:
+            result = ping_one(dev.ip, retries=1)
+            alive = result.alive
+        except Exception as e:
+            logger.warning(f"Ping error for {dev.name} ({dev.ip}): {e}")
+            alive = False
+
+        now = timezone.now()
+        dev.last_ping_at = now
+
+        # Если пинг не прошёл — проверяем SNMP (может, ICMP заблокирован)
+        if not alive:
+            try:
+                import asyncio
+                from apps.monitoring.snmp import SnmpClient, SnmpTarget
+                target = SnmpTarget(
+                    host=dev.ip,
+                    community=dev.snmp_community or 'public',
+                    port=dev.snmp_port or 161,
+                    timeout=2,
+                    retries=0,
+                )
+                client = SnmpClient(target)
+                result = asyncio.run(client.get_one('1.3.6.1.2.1.1.3.0'))  # sysUpTime
+                if result:
+                    alive = True
+                    logger.info(f"SNMP alive for {dev.name} ({dev.ip})")
+            except Exception as e:
+                logger.warning(f"SNMP check failed for {dev.name} ({dev.ip}): {e}")
+
+        if alive:
+            dev.ping_ok_count += 1
+            dev.ping_fail_count = 0
+            
+            # Проверяем, есть ли активный алерт (независимо от is_reachable)
+            active = Alert.objects.filter(
+                device=dev, metric_key="device_unreachable", state=Alert.STATE_FIRING
+            ).first()
+            if active:
+                # Закрываем алерт
+                active.state = Alert.STATE_OK
+                active.resolved_at = now
+                active.save()
+                # Уведомляем, что устройство снова доступно
+                try:
+                    from apps.accounts.telegram_notify import notify_alert_resolved
+                    notify_alert_resolved(active)
+                except Exception as e:
+                    logger.warning('TG notify (resolved) failed: %s', e)
+                logger.info(f"Device {dev.name} ({dev.ip}) is reachable again (alert closed)")
+            
+            # Сбрасываем is_reachable (если был недоступен)
+            dev.is_reachable = True
+            dev.status = Device.STATUS_OK
+        else:
+            dev.ping_fail_count += 1
+            dev.ping_ok_count = 0
+            # Если 3 неудачи подряд и устройство считается доступным — создаем алерт
+            # Переоткрываем алерт, если 3+ фейла подряд, даже если is_reachable уже False
+            # (иначе после "моргания" устройства алерт закрывается и больше не открывается).
+            if dev.ping_fail_count >= 3:
+                dev.is_reachable = False
+                dev.status = Device.STATUS_UNREACHABLE
+                active = Alert.objects.filter(
+                    device=dev, metric_key="device_unreachable", state=Alert.STATE_FIRING
+                ).first()
+                if not active:
+                    alert = Alert.objects.create(
+                        device=dev,
+                        metric_key="device_unreachable",
+                        severity=Alert.SEVERITY_CRIT,
+                        state=Alert.STATE_FIRING,
+                        value=dev.ping_fail_count,
+                        threshold=3,
+                        message=f"Устройство {dev.name} ({dev.ip}) недоступно (3 неудачных пинга подряд)"
+                    )
+                    try:
+                        notify_alert_created(alert)
+                    except Exception as e:
+                        logger.warning('TG notify failed: %s', e)
+                logger.warning(f"Device {dev.name} ({dev.ip}) is UNREACHABLE")
+        
+        dev.save(update_fields=["ping_fail_count", "ping_ok_count", "last_ping_at", "is_reachable", "status"])
+
+
+
+
+@shared_task(name="monitoring.poll_arp", soft_time_limit=800, time_limit=850)
+@singleton(ttl=900)
+def poll_arp():
+    """Собирает ARP-таблицы с устройств (D-Link, Eltex) через SNMP."""
+    from apps.devices.models import Device
+    import asyncio
+    import logging
+    
+    devices = Device.objects.exclude(vendor__name__icontains='Olencom')
+    for dev in devices:
+        if not dev.snmp_community:
+            continue
+        try:
+            asyncio.run(_poll_arp_device(dev))
+        except Exception as e:
+            logger.warning(f"poll_arp {dev.name} ({dev.ip}): {e}")
+
+
+async def _poll_arp_device(device):
+    """Асинхронно собирает ARP с одного устройства."""
+    from apps.monitoring.snmp import SnmpClient, SnmpTarget
+    
+    target = SnmpTarget(
+        host=device.ip,
+        community=device.snmp_community or "public",
+        port=device.snmp_port or 161,
+    )
+    client = SnmpClient(target)
+    
+    # OID для ARP-таблицы (ipNetToMediaTable): 1.3.6.1.2.1.4.22.1
+    mac_rows = await client.walk("1.3.6.1.2.1.4.22.1.2")
+    ip_rows = await client.walk("1.3.6.1.2.1.4.22.1.3")
+    
+    # Строим словарь: if_index + ip → mac
+    arp_data = {}
+    for oid, mac_val in mac_rows:
+        parts = oid.split('.')
+        if len(parts) >= 15:
+            if_index = int(parts[10])
+            ip = '.'.join(parts[11:15])
+            mac_hex = mac_val.asOctets().hex() if hasattr(mac_val, 'asOctets') else str(mac_val)
+            mac = ':'.join(mac_hex[i:i+2] for i in range(0, 12, 2)).upper()
+            # Пропускаем broadcast и multicast
+            if mac == 'FF:FF:FF:FF:FF:FF' or mac.startswith('01:'):
+                continue
+            arp_data[(if_index, ip)] = mac
+    
+    # Сохраняем в БД (синхронно, через database_sync_to_async)
+    await _save_arp(device, arp_data)
+    
+    import logging
+    logger.info(f"poll_arp {device.name} ({device.ip}): {len(arp_data)} записей")
+
+
+@database_sync_to_async
+def _save_arp(device, arp_data):
+    """Синхронно сохраняет ARP-записи в БД."""
+    from apps.monitoring.models import ArpEntry, Interface
+    
+    ArpEntry.objects.filter(device=device).delete()
+    
+    for (if_index, ip), mac in arp_data.items():
+        iface = Interface.objects.filter(device=device, if_index=if_index).first()
+        iface_name = iface.name if iface else ''
+        
+        ArpEntry.objects.create(
+            device=device,
+            ip=ip,
+            mac=mac,
+            interface_index=if_index,
+            interface_name=iface_name,
+        )
+
+
+@shared_task(name="monitoring.poll_fdb", soft_time_limit=800, time_limit=850)
+@singleton(ttl=900)
+def poll_fdb():
+    """Собирает FDB-таблицы с устройств (D-Link, Eltex) через SNMP."""
+    from apps.devices.models import Device
+    import asyncio
+    
+    devices = Device.objects.exclude(vendor__name__icontains='Olencom')
+    for dev in devices:
+        if not dev.snmp_community:
+            continue
+        try:
+            asyncio.run(_poll_fdb_device(dev))
+        except Exception as e:
+            logger.warning(f"poll_fdb {dev.name} ({dev.ip}): {e}")
+
+
+async def _poll_fdb_device(device):
+    """Асинхронно собирает FDB с одного устройства."""
+    from apps.monitoring.snmp import SnmpClient, SnmpTarget
+    
+    target = SnmpTarget(
+        host=device.ip,
+        community=device.snmp_community or "public",
+        port=device.snmp_port or 161,
+    )
+    client = SnmpClient(target)
+    
+    # OID для FDB: dot1dTpFdbPort (1.3.6.1.2.1.17.4.3.1.2)
+    fdb_rows = await client.walk("1.3.6.1.2.1.17.4.3.1.2")
+    
+    # OID для сопоставления bridge_port → if_index: dot1dBasePortIfIndex (1.3.6.1.2.1.17.1.4.1.2)
+    port_if_rows = await client.walk("1.3.6.1.2.1.17.1.4.1.2")
+    port_to_ifindex = {}
+    for oid, ifindex_val in port_if_rows:
+        parts = oid.split('.')
+        bridge_port = int(parts[-1])
+        port_to_ifindex[bridge_port] = int(ifindex_val)
+    
+    # Строим словарь: bridge_port → MAC
+    fdb_data = {}
+    for oid, port_val in fdb_rows:
+        parts = oid.split('.')
+        if len(parts) >= 6:
+            mac_parts = parts[-6:]
+            mac = ':'.join(f'{int(p):02X}' for p in mac_parts)
+            bridge_port = int(port_val)
+            if bridge_port > 0:  # 0 = нет порта (multicast)
+                fdb_data[mac] = bridge_port
+    
+    # Сохраняем в БД
+    await _save_fdb(device, fdb_data, port_to_ifindex)
+    
+    logger.info(f"poll_fdb {device.name} ({device.ip}): {len(fdb_data)} записей")
+
+
+@database_sync_to_async
+def _save_fdb(device, fdb_data, port_to_ifindex):
+    """Синхронно сохраняет FDB-записи в БД."""
+    from apps.monitoring.models import FdbEntry, Interface
+    
+    FdbEntry.objects.filter(device=device).delete()
+    
+    for mac, bridge_port in fdb_data.items():
+        # Пытаемся найти if_index по bridge_port (dot1dBasePortIfIndex)
+        # Пока просто сохраняем bridge_port
+        if_index = port_to_ifindex.get(bridge_port)
+        iface_name = ''
+        if if_index:
+            from apps.monitoring.models import Interface
+            iface = Interface.objects.filter(device=device, if_index=if_index).first()
+            iface_name = iface.name if iface else ''
+        
+        FdbEntry.objects.create(
+            device=device,
+            mac=mac,
+            bridge_port=bridge_port,
+            if_index=if_index,
+            interface_name=iface_name,
+        )
+
+# Регистрация задач traffic_monitor
+from .tasks_traffic import poll_broadcast_rate, poll_all_subnets_broadcast  # noqa: F401

@@ -3,6 +3,7 @@
 
 services:
   postgres:
+    command: postgres -c max_connections=300
     # Порты НЕ публикуются — конфликт с системным PostgreSQL
     # Внутри docker-сети доступен как postgres:5432
 
@@ -12,23 +13,32 @@ services:
 
   web:
     user: "${CUID:-1000}:${CGID:-1000}"
+    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+      - SYS_PTRACE
+      - SYS_ADMIN
+    pid: host
+    security_opt:
+      - seccomp:unconfined
     group_add:
       - "138"
+    ports:
+      # Хост 8888 → контейнер 8000 (8000 занят NetXMS)
+      - "8888:8000"
     volumes:
       - .:/app
       - ./mibs:/app/mibs:ro
       - /var/lib/mibs:/var/lib/mibs:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      # Хост 8888 → контейнер 8000 (8000 на сервере занят NetXMS)
-      - "8888:8000"
+      - /var/run/docker.sock:/var/run/docker.sock
+      - pcap_data:/tmp/cerber_pcap
     environment:
       DJANGO_ENV: dev
       MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
     command: >
-      python manage.py runserver 0.0.0.0:8000
-
-  worker:
+      daphne -b 0.0.0.0 -p 8000 cerber.asgi:application
+  worker_critical:
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -39,7 +49,6 @@ services:
       - .:/app
       - ./mibs:/app/mibs:ro
       - /var/lib/mibs:/var/lib/mibs:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file: .env
     environment:
       DJANGO_ENV: dev
@@ -49,8 +58,110 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
     command: >
-      celery -A cerber worker -l info --concurrency=4
+      celery -A cerber worker -l info --concurrency=4 -Q critical
+
+  worker_high:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
+    volumes:
+      - .:/app
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+    env_file: .env
+    environment:
+      DJANGO_ENV: dev
+      MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      celery -A cerber worker -l info --concurrency=2 -Q high
+
+  worker_main:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
+    volumes:
+      - .:/app
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+    env_file: .env
+    environment:
+      DJANGO_ENV: dev
+      MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      celery -A cerber worker -l info --concurrency=2 -Q default
+
+  worker_low:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
+    volumes:
+      - .:/app
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+    env_file: .env
+    environment:
+      DJANGO_ENV: dev
+      MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      celery -A cerber worker -l info --concurrency=1 -Q low
+
+  worker_traffic:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
+    env_file: .env
+    environment:
+      DJANGO_ENV: dev
+      MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - .:/app
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - pcap_data:/tmp/cerber_pcap
+    command: >
+      celery -A cerber worker -l info --concurrency=1 -Q traffic
 
   beat:
     build:
@@ -69,3 +180,57 @@ services:
         condition: service_healthy
     command: >
       celery -A cerber beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"
+    volumes:
+      - .:/app
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file: .env
+    environment:
+      DJANGO_ENV: dev
+      MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      python manage.py run_telegram_bot
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cerber-cloudflared
+    restart: unless-stopped
+    command: tunnel --url http://172.18.0.8:8000 --no-autoupdate
+    depends_on:
+      - web
+    networks:
+      - default
+
+  sniffer:
+    image: nicolaka/netshoot:latest
+    container_name: cerber-sniffer
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    pid: host
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+    command: ["sleep", "infinity"]
+    volumes:
+      - pcap_data:/tmp/cerber_pcap
+
+volumes:
+  pcap_data:

@@ -1,0 +1,58 @@
+{% load static %}
+
+{% if metrics %}
+<div class="c-grid c-grid--stats" style="margin-bottom:24px">
+    {% for m in metrics %}
+    <div class="c-stat" data-metric-key="{{ m.key }}">
+        <div>
+            <div class="c-stat__label">{{ m.name }}</div>
+            <div class="c-stat__value" data-field="value" style="font-size:22px">—</div>
+            <div class="c-stat__label" style="margin-top:4px">
+                <span class="c-mono">{{ m.key }}</span>
+                {% if m.unit %} · {{ m.unit }}{% endif %}
+            </div>
+        </div>
+        <i class="bi bi-graph-up c-stat__icon"></i>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="c-grid c-grid--2">
+    {% for m in metrics %}
+    <div class="c-card">
+        <div class="c-card__header">
+            <h3 class="c-card__title" style="font-size:15px">{{ m.name }}</h3>
+            <div style="display:flex;gap:6px" data-range-picker data-metric-key="{{ m.key }}">
+                <button data-hours="1" class="c-btn" style="padding:4px 10px;font-size:12px;background:#f3f4f6">1ч</button>
+                <button data-hours="6" class="c-btn" style="padding:4px 10px;font-size:12px;background:#f3f4f6">6ч</button>
+                <button data-hours="24" class="c-btn" style="padding:4px 10px;font-size:12px;background:#eef2ff;color:#4f46e5">24ч</button>
+                <button data-hours="168" class="c-btn" style="padding:4px 10px;font-size:12px;background:#f3f4f6">7д</button>
+            </div>
+        </div>
+        <div class="c-card__body">
+            <div class="c-chart" style="height:220px">
+                <canvas id="chart-{{ m.key }}" data-metric-key="{{ m.key }}" data-unit="{{ m.unit }}"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+  window.__METRICS__ = {
+    ip: "{{ device.ip }}",
+    keys: [{% for m in metrics %}"{{ m.key }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+  };
+</script>
+<script type="module" src="{% static 'js/metrics.js' %}?v=1793429171"></script>
+{% else %}
+<div class="c-card">
+    <div class="c-empty">
+        <i class="bi bi-bar-chart" style="font-size:48px;opacity:0.4"></i>
+        <p style="margin-top:12px">У устройства нет метрик</p>
+        <p class="c-muted" style="font-size:13px">
+            Профиль: {{ device.effective_profile.name|default:"не назначен" }}
+        </p>
+    </div>
+</div>
+{% endif %}

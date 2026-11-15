@@ -1,0 +1,716 @@
+/* ============================================================================
+   Cerberus — тема «Тёмное стекло» (v1, пилот на /local/)
+
+   Подключение: <body class="theme-glass"> + этот файл ПОСЛЕ cerber.css, БЕЗ glass.css.
+   Все правила под .theme-glass: тема не задевает страницы, которые её не подключили,
+   и перебивает <style> внутри подгружаемых вкладок (_tab_*.html) без !important.
+
+   Правило одно: цвета, радиусы, тени — только через токены ниже.
+   Новый цвет «по месту» = новый токен здесь, а не hex в компоненте.
+   ========================================================================== */
+
+/* ── 1. Токены ─────────────────────────────────────────────────────────────── */
+.theme-glass {
+    /* Фон: почти чёрный + яркие цветные пятна (слой body::before). Стекло видно только тогда,
+       когда под ним есть цвет — поэтому пятна насыщенные и стоят под панелями. */
+    --bg: #06070c;
+    --bg-glow-1: rgba(255, 112, 20, 0.55);   /* оранжевый — под сайдбаром и деревом */
+    --bg-glow-2: rgba(16, 200, 190, 0.42);   /* бирюзовый — справа снизу */
+    --bg-glow-3: rgba(124, 92, 255, 0.45);   /* фиолетовый — под панелью деталей */
+    --bg-glow-4: rgba(40, 120, 255, 0.35);   /* синий — справа сверху */
+
+    /* Стекло: 1 — панели, 2 — вложенные карточки/строки, 3 — наведение */
+    --glass-tint: rgba(12, 14, 22, 0.38);                 /* тёмная подложка панели — держит контраст текста */
+    --glass-sheen: linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0.015) 100%);
+    --glass-spot: radial-gradient(420px 160px at 0% 0%, rgba(255,255,255,0.10), transparent 70%);
+    --glass-1: var(--glass-tint);
+    --glass-2: rgba(255, 255, 255, 0.05);
+    --glass-2-sheen: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+    --glass-3: rgba(255, 255, 255, 0.09);
+    --glass-blur: blur(28px) saturate(185%);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-border-strong: rgba(255, 255, 255, 0.18);
+    --glass-edge: linear-gradient(140deg, rgba(255,255,255,0.45), rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.03) 60%, rgba(255,255,255,0.18));
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+    --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+
+    /* Текст: 1 — основной, 2 — вторичный, 3 — подписи. Все ≥ 4.5:1 на --glass-1 */
+    --text-1: #e9edf4;
+    --text-2: #a9b3c3;
+    --text-3: #7d889b;
+
+    /* Акцент и статусы */
+    --accent: #ff7a1a;
+    --accent-hover: #ff9442;
+    --accent-soft: rgba(255, 122, 26, 0.14);
+    --accent-line: rgba(255, 122, 26, 0.55);
+    --ok: #6fd08c;     --ok-soft: rgba(111, 208, 140, 0.14);
+    --warn: #f5c542;   --warn-soft: rgba(245, 197, 66, 0.14);
+    --crit: #ff5d6c;   --crit-soft: rgba(255, 93, 108, 0.14);
+    --unknown: #8a94a6; --unknown-soft: rgba(138, 148, 166, 0.14);
+    --info: #5ab8f5;   --info-soft: rgba(90, 184, 245, 0.14);
+
+    /* Геометрия */
+    --r-panel: 14px;
+    --r-card: 10px;
+    --r-ctrl: 8px;
+    --r-pill: 999px;
+    --gap: 16px;
+
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+    /* Совместимость: cerber.css и CSS страниц (stations.css и др.) красят этими переменными
+       ВСЁ подряд — маркеры карты, попапы, модалки, выпадашки. Поэтому они почти непрозрачные:
+       стекло задаётся явно в разделе «Базовые примитивы», а не через эти переменные.
+       (Было: --bg-elevated = 5% белого → маркеры станций на карте стали прозрачными.) */
+    --bg-base: var(--bg);
+    --bg-panel: rgba(17, 19, 28, 0.94);
+    --bg-elevated: rgba(28, 31, 43, 0.96);
+    --bg-hover: rgba(40, 44, 58, 0.96);
+    --bg-input: rgba(8, 10, 16, 0.85);
+    --border: var(--glass-border);
+    --border-strong: var(--glass-border-strong);
+    --text: var(--text-1);
+    --text-strong: #ffffff;
+    --text-muted: var(--text-3);
+    --primary: var(--accent);
+    --primary-hover: var(--accent-hover);
+    --primary-dim: var(--accent-soft);
+    --ok-dim: var(--ok-soft);
+    --warn-dim: var(--warn-soft);
+    --crit-dim: var(--crit-soft);
+    --color-ok: var(--ok);
+    --color-warn: var(--warn);
+    --color-crit: var(--crit);
+    --radius: var(--r-ctrl);
+
+    color-scheme: dark;
+    font-family: var(--font);
+    color: var(--text-1);
+    -webkit-font-smoothing: antialiased;
+}
+/* Фон — на html, body прозрачный: иначе собственный фон body (cerber.css красит оба)
+   рисуется ПОВЕРХ слоя пятен body::before с отрицательным z-index, и стекло нечему просвечивать. */
+html:has(> body.theme-glass) { background: #06070c; }
+body.theme-glass { background: transparent; }
+
+/* Слой цветных пятен: фиксирован, медленно дрейфует — стекло «живёт» при прокрутке и движении */
+body.theme-glass::before {
+    content: ""; position: fixed; inset: -15%; z-index: -2; pointer-events: none;
+    background:
+        radial-gradient(38% 42% at 18% 22%, var(--bg-glow-1), transparent 70%),
+        radial-gradient(34% 40% at 62% 58%, var(--bg-glow-3), transparent 70%),
+        radial-gradient(30% 36% at 88% 88%, var(--bg-glow-2), transparent 70%),
+        radial-gradient(28% 30% at 85% 12%, var(--bg-glow-4), transparent 70%),
+        radial-gradient(22% 26% at 35% 85%, rgba(255, 60, 120, 0.22), transparent 70%);
+    filter: blur(30px);
+    animation: tg-drift 38s ease-in-out infinite alternate;
+}
+/* Матовое зерно поверх фона — без него стекло выглядит как пластик */
+body.theme-glass::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .06;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+@keyframes tg-drift {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(-3%, 2%, 0) scale(1.05); }
+    100% { transform: translate3d(2%, -2%, 0) scale(1.02); }
+}
+
+/* ── 2. Базовые примитивы ──────────────────────────────────────────────────── */
+/* Стеклянная панель. Список — все крупные контейнеры проекта (найдены по страницам).
+   Новая страница с собственной «коробкой» → добавить её класс сюда, а не красить заново. */
+.theme-glass .glass-panel,
+.theme-glass .app-sidebar,
+.theme-glass .devices-tree,
+.theme-glass .device-detail-panel,
+.theme-glass .devices-sidebar,            /* подсети: список */
+.theme-glass .dispatch-panel,             /* диспетчерская */
+.theme-glass .mux-tree, .theme-glass .mux-detail,   /* мультиплексоры */
+.theme-glass .metrics-filters,            /* метрики, SFP */
+.theme-glass .analytics-card, .theme-glass .analytics-report,
+.theme-glass .g-wrapper,                  /* серверы */
+.theme-glass .services-events, .theme-glass .services-tasks-table-wrap,
+.theme-glass .adminui-sidebar, .theme-glass .panel, .theme-glass .stat-card {
+    background: var(--glass-spot), var(--glass-sheen), var(--glass-tint);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-panel);
+    box-shadow: var(--shadow-panel), var(--glass-highlight);
+}
+/* Настоящее размытие — только там, где внутри нет position:fixed (модалки, полноэкранная карта,
+   кнопка скрытого сайдбара): backdrop-filter делает элемент контейнером для fixed-потомков
+   и «запирает» их внутри панели. Фон и так мягкий, разница с размытием почти незаметна. */
+.theme-glass .devices-tree,
+.theme-glass .devices-sidebar,
+.theme-glass .mux-tree,
+.theme-glass .metrics-filters {
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+}
+/* Световая кромка (светлая сверху-слева) — на панелях, где мы сами задаём position */
+.theme-glass .app-sidebar,
+.theme-glass .devices-tree,
+.theme-glass .device-detail-panel { border-color: transparent; }
+.theme-glass .devices-tree,
+.theme-glass .device-detail-panel { position: relative; }
+.theme-glass .glass-panel::before,
+.theme-glass .app-sidebar::before,
+.theme-glass .devices-tree::before,
+.theme-glass .device-detail-panel::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: var(--glass-edge);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* Вложенное стекло: карточки внутри панелей */
+.theme-glass .detail-section,
+.theme-glass .c-card,
+.theme-glass .attention__item,
+.theme-glass .detail-tabs,
+.theme-glass .vlan-card, .theme-glass .sfp-card, .theme-glass .alert-card,
+.theme-glass .metrics-chart-card, .theme-glass .services-health-card,
+.theme-glass .chart-container, .theme-glass .dispatch-panel-header {
+    background: var(--glass-2-sheen);
+    border-color: var(--glass-border);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.theme-glass .stations-map-wrap, .theme-glass .stations-map { border-radius: var(--r-card); }
+.theme-glass .data-table, .theme-glass .c-table { background: transparent; }
+.theme-glass .data-table thead th, .theme-glass .c-table thead th, .theme-glass table thead {
+    background: rgba(14, 16, 24, 0.6);
+}
+@media (prefers-reduced-motion: reduce) { body.theme-glass::before { animation: none; } }
+
+.theme-glass ::selection { background: var(--accent-soft); color: var(--text-1); }
+.theme-glass a { color: var(--accent); }
+.theme-glass :focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+.theme-glass [hidden] { display: none !important; }
+
+.theme-glass * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+.theme-glass ::-webkit-scrollbar { width: 8px; height: 8px; }
+.theme-glass ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: var(--r-pill); }
+.theme-glass ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+.theme-glass ::-webkit-scrollbar-track { background: transparent; }
+
+.theme-glass .c-muted { color: var(--text-3); }
+.theme-glass .c-mono { font-family: var(--font-mono); }
+
+/* Лампочка статуса — одна на весь проект: .dot + .dot--{ok|warn|crit|unknown} */
+.theme-glass .dot,
+.theme-glass .tree-device__dot,
+.theme-glass .tree-category__dot,
+.theme-glass .tree-subcategory__dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--unknown);
+}
+.theme-glass .dot--ok, .theme-glass .tree-device__dot--ok,
+.theme-glass .tree-category__dot--ok, .theme-glass .tree-subcategory__dot--ok {
+    background: var(--ok); box-shadow: 0 0 8px rgba(111, 208, 140, 0.55);
+}
+.theme-glass .dot--warn, .theme-glass .tree-device__dot--warn,
+.theme-glass .tree-category__dot--warn, .theme-glass .tree-subcategory__dot--warn {
+    background: var(--warn); box-shadow: 0 0 8px rgba(245, 197, 66, 0.6);
+}
+.theme-glass .dot--crit, .theme-glass .tree-device__dot--crit,
+.theme-glass .tree-category__dot--crit, .theme-glass .tree-subcategory__dot--crit {
+    background: var(--crit); box-shadow: 0 0 10px rgba(255, 93, 108, 0.7);
+    animation: tg-pulse 1.6s ease-in-out infinite;
+}
+.theme-glass .dot--unknown, .theme-glass .tree-device__dot--unknown,
+.theme-glass .tree-category__dot--unknown, .theme-glass .tree-subcategory__dot--unknown {
+    background: var(--unknown); box-shadow: none;
+}
+@keyframes tg-pulse { 50% { box-shadow: 0 0 2px rgba(255, 93, 108, 0.3); } }
+@media (prefers-reduced-motion: reduce) {
+    .theme-glass * { animation: none !important; transition: none !important; }
+}
+
+/* Чип (счётчики, бейджи статуса) */
+.theme-glass .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: var(--r-pill);
+    font-size: 12px; line-height: 1.2; color: var(--text-2);
+    background: var(--glass-2); border: 1px solid var(--glass-border);
+    text-decoration: none; white-space: nowrap;
+}
+.theme-glass .chip b { color: var(--text-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.theme-glass .chip--ok   { color: var(--ok);   background: var(--ok-soft);   border-color: transparent; }
+.theme-glass .chip--warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+.theme-glass .chip--crit { color: var(--crit); background: var(--crit-soft); border-color: transparent; }
+.theme-glass .chip--ok b, .theme-glass .chip--warn b, .theme-glass .chip--crit b { color: inherit; }
+.theme-glass a.chip:hover { border-color: var(--glass-border-strong); color: var(--text-1); }
+
+/* Кнопки */
+.theme-glass .c-btn,
+.theme-glass .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: var(--r-ctrl);
+    font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer;
+    color: var(--text-1); background: var(--glass-2); border: 1px solid var(--glass-border);
+    transition: background .15s, border-color .15s, color .15s;
+}
+.theme-glass .c-btn:hover,
+.theme-glass .btn-ghost:hover { background: var(--glass-3); border-color: var(--glass-border-strong); }
+.theme-glass .c-btn--primary { color: #1a0f05; background: var(--accent); border-color: transparent; }
+.theme-glass .c-btn--primary:hover { background: var(--accent-hover); }
+.theme-glass .btn-ghost--accent { color: var(--accent); border-color: var(--accent-line); background: transparent; }
+.theme-glass .btn-ghost--accent:hover { background: var(--accent-soft); color: var(--accent-hover); }
+
+/* Поля ввода */
+.theme-glass input[type="search"],
+.theme-glass input[type="text"],
+.theme-glass select {
+    font: inherit; font-size: 13px; color: var(--text-1);
+    background: var(--bg-input); border: 1px solid var(--glass-border);
+    border-radius: var(--r-ctrl); outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.theme-glass input::placeholder { color: var(--text-3); }
+.theme-glass input:focus, .theme-glass select:focus {
+    border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.theme-glass select option { background: #151821; color: var(--text-1); }
+.theme-glass input[type="checkbox"] { accent-color: var(--accent); }
+
+/* Пустое состояние */
+.theme-glass .detail-empty,
+.theme-glass .c-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; min-height: 240px; height: 100%;
+    color: var(--text-3); font-size: 13px; text-align: center;
+}
+.theme-glass .detail-empty i, .theme-glass .c-empty i { font-size: 40px; color: var(--text-3); opacity: .6; }
+
+/* ── 3. Каркас: сайдбар + контент ─────────────────────────────────────────── */
+.theme-glass .app-layout { background: transparent; gap: 0; }
+.theme-glass .app-sidebar {
+    margin: 12px 0 12px 12px;
+    height: calc(100vh - 24px);
+    position: sticky; top: 12px;
+    border-radius: var(--r-panel);
+}
+.theme-glass .app-sidebar__brand { color: var(--text-1); }
+.theme-glass .app-sidebar__brand i { color: var(--accent); }
+.theme-glass .app-sidebar__nav hr { border-color: var(--glass-border) !important; }
+.theme-glass .app-sidebar__link {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    margin: 2px 8px; padding: 9px 12px; border-radius: var(--r-ctrl);
+    color: var(--text-2); text-decoration: none; font-size: 13.5px;
+    border: 1px solid transparent; background: transparent;
+    transition: background .15s, color .15s;
+}
+.theme-glass .app-sidebar__link i { font-size: 16px; color: var(--text-3); transition: color .15s; }
+.theme-glass .app-sidebar__link:hover { background: var(--glass-3); color: var(--text-1); }
+.theme-glass .app-sidebar__link:hover i { color: var(--text-1); }
+.theme-glass .app-sidebar__link.is-active {
+    background: var(--accent-soft); color: var(--text-1); border-color: rgba(255,122,26,0.18);
+}
+.theme-glass .app-sidebar__link.is-active i { color: var(--accent); }
+.theme-glass .app-sidebar__link.is-active::before {
+    content: ""; position: absolute; left: -9px; top: 9px; bottom: 9px;
+    width: 3px; border-radius: 0 3px 3px 0; background: var(--accent);
+}
+.theme-glass .app-sidebar__link--muted { color: var(--text-3); }
+.theme-glass .app-sidebar__bottom { border-top: 1px solid var(--glass-border); }
+.theme-glass .sidebar-toggle {
+    background: var(--glass-2); border-color: var(--glass-border); color: var(--text-3);
+    border-radius: var(--r-ctrl);
+}
+.theme-glass .sidebar-toggle:hover { color: var(--accent); border-color: var(--accent-line); background: var(--glass-3); }
+
+.theme-glass .app-main { background: transparent; padding: 24px 28px; }
+.theme-glass .app-footer {
+    padding: 24px 0 8px; text-align: center; font-size: 12px; color: var(--text-3);
+}
+
+/* Шапка страницы: заголовок + чипы-счётчики + «обновлено» */
+.theme-glass .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--gap); margin-bottom: 20px; flex-wrap: wrap; }
+.theme-glass .page-head h1 { margin: 0 0 10px; font-size: 24px; font-weight: 650; letter-spacing: -0.01em; color: var(--text-1); }
+.theme-glass .page-head__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.theme-glass .page-head__meta { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+.theme-glass .page-head__meta::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 6px var(--ok);
+}
+.theme-glass .page-head__meta.is-stale { color: var(--crit); }
+.theme-glass .page-head__meta.is-stale::before { background: var(--crit); box-shadow: 0 0 6px var(--crit); }
+
+/* ── 4. /local/: дерево устройств ─────────────────────────────────────────── */
+.theme-glass .devices-tree-layout {
+    display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: var(--gap);
+    min-height: calc(100vh - 170px);
+}
+.theme-glass .devices-tree { padding: 14px 10px; overflow-y: auto; max-height: calc(100vh - 150px); }
+
+.theme-glass .tree-toolbar { display: flex; flex-direction: column; gap: 8px; padding: 0 4px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--glass-border); }
+.theme-glass .tree-toolbar__search-wrap { position: relative; }
+.theme-glass .tree-toolbar__search-wrap i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 13px; pointer-events: none; }
+.theme-glass .tree-toolbar__search { width: 100%; box-sizing: border-box; padding: 8px 10px 8px 32px; }
+.theme-glass .tree-toolbar__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.theme-glass .tree-toolbar__check { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.theme-glass .tree-toolbar__select { padding: 4px 8px; font-size: 12px; }
+.theme-glass .tree-empty { font-size: 12px; color: var(--text-3); padding: 12px; text-align: center; }
+
+.theme-glass .tree-category { margin-top: 6px; }
+.theme-glass .tree-category__title,
+.theme-glass .tree-subcategory__title {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--r-ctrl);
+    cursor: pointer; user-select: none; transition: background .15s;
+}
+.theme-glass .tree-category__title {
+    font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2);
+}
+.theme-glass .tree-category__title:hover,
+.theme-glass .tree-subcategory__title:hover { background: var(--glass-3); }
+.theme-glass .tree-category__title > i.bi-chevron-right,
+.theme-glass .tree-subcategory__title > i.bi-chevron-right {
+    font-size: 11px; color: var(--text-3); transition: transform .2s;
+}
+.theme-glass .tree-category.is-open > .tree-category__title > i.bi-chevron-right,
+.theme-glass .tree-subcategory.is-open > .tree-subcategory__title > i.bi-chevron-right { transform: rotate(90deg); }
+.theme-glass .tree-category__icon { color: var(--text-3); font-size: 13px; }
+.theme-glass .tree-subcategory__title { font-size: 12.5px; color: var(--text-2); }
+
+.theme-glass .tree-devices { display: none; padding-left: 10px; margin-left: 10px; border-left: 1px solid var(--glass-border); }
+.theme-glass .tree-category.is-open > .tree-devices { display: block; }
+.theme-glass .tree-subcategory__devices { display: none; padding-left: 10px; margin-left: 8px; border-left: 1px solid var(--glass-border); }
+.theme-glass .tree-subcategory.is-open > .tree-subcategory__devices { display: block; }
+
+.theme-glass .tree-count {
+    margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 600; text-align: center; letter-spacing: 0;
+    color: var(--text-2); background: var(--glass-2); font-variant-numeric: tabular-nums;
+}
+
+.theme-glass .tree-device {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    margin: 1px 0; padding: 7px 10px; border-radius: var(--r-ctrl);
+    font-size: 13px; color: var(--text-1); cursor: pointer;
+    border: 1px solid transparent; transition: background .12s, border-color .12s;
+}
+.theme-glass .tree-device:hover { background: var(--glass-3); }
+.theme-glass .tree-device.is-active { background: var(--accent-soft); border-color: rgba(255,122,26,0.25); }
+.theme-glass .tree-device.is-active::before {
+    content: ""; position: absolute; left: -11px; top: 8px; bottom: 8px; width: 2px;
+    border-radius: 2px; background: var(--accent);
+}
+.theme-glass .tree-device__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-glass .tree-device__ip {
+    margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+.theme-glass .tree-device.is-active .tree-device__ip { color: var(--text-2); }
+
+/* ── 5. /local/: панель деталей ───────────────────────────────────────────── */
+.theme-glass .device-detail-panel { padding: 22px 24px; overflow-y: auto; max-height: calc(100vh - 150px); min-width: 0; }
+
+.theme-glass .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.theme-glass .detail-title { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 650; color: var(--text-1); margin: 0 0 4px; }
+.theme-glass .detail-subtitle { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-3); margin: 0; }
+.theme-glass .detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+.theme-glass .detail-tabs {
+    display: flex; gap: 2px; margin: 0 0 18px; padding: 4px;
+    background: rgba(0,0,0,0.22); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
+    overflow-x: auto; scrollbar-width: none;
+}
+.theme-glass .detail-tabs::-webkit-scrollbar { display: none; }
+.theme-glass .detail-tab {
+    flex: 0 0 auto; padding: 6px 12px; border-radius: 6px; border: 0;
+    font-size: 13px; color: var(--text-2); text-decoration: none; background: transparent;
+    transition: background .15s, color .15s;
+}
+.theme-glass .detail-tab:hover { color: var(--text-1); background: var(--glass-3); }
+.theme-glass .detail-tab.is-active { color: var(--text-1); background: var(--glass-3); box-shadow: inset 0 -2px 0 var(--accent); }
+
+.theme-glass .detail-alerts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.theme-glass .detail-alerts:empty { display: none; }
+.theme-glass .detail-alert {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-card);
+    font-size: 13px; color: var(--text-1);
+    background: var(--warn-soft); border: 1px solid rgba(245,197,66,0.25);
+}
+.theme-glass .detail-alert > i { color: var(--warn); }
+.theme-glass .detail-alert--crit, .theme-glass .detail-alert--power { background: var(--crit-soft); border-color: rgba(255,93,108,0.3); }
+.theme-glass .detail-alert--crit > i, .theme-glass .detail-alert--power > i { color: var(--crit); }
+.theme-glass .detail-alert__since { margin-left: auto; font-size: 11.5px; color: var(--text-2); white-space: nowrap; }
+
+/* Секции «Основное / SNMP / Инвентарь» — сетка карточек вместо длинного списка */
+.theme-glass .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.theme-glass .detail-section {
+    margin: 0; padding: 14px 16px; border-radius: var(--r-card);
+    background: var(--glass-2); border: 1px solid var(--glass-border);
+}
+.theme-glass .detail-section--wide { grid-column: 1 / -1; }
+.theme-glass .detail-section__title {
+    margin: 0 0 8px; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);
+}
+.theme-glass .detail-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 6px 0; font-size: 13px; }
+.theme-glass .detail-row + .detail-row { border-top: 1px dashed rgba(255,255,255,0.05); }
+.theme-glass .detail-row__label { color: var(--text-2); flex-shrink: 0; }
+.theme-glass .detail-row__value { color: var(--text-1); text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.theme-glass .detail-row__value--mono { font-family: var(--font-mono); font-size: 12px; }
+.theme-glass .detail-row__value--small { font-size: 11.5px; color: var(--text-2); text-align: left; }
+.theme-glass .detail-row__value.is-stale { color: var(--crit); }
+
+/* Пустая панель: «Требуют внимания» + подсказка */
+.theme-glass .detail-welcome { display: flex; flex-direction: column; gap: 20px; height: 100%; }
+.theme-glass .detail-welcome .detail-empty { flex: 1; }
+.theme-glass .detail-empty__hint { font-size: 12px; color: var(--text-3); }
+.theme-glass kbd {
+    display: inline-block; min-width: 18px; padding: 1px 6px; border-radius: 5px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-1);
+    background: var(--glass-3); border: 1px solid var(--glass-border-strong); box-shadow: 0 1px 0 rgba(0,0,0,.4);
+}
+.theme-glass .attention__list { display: flex; flex-direction: column; gap: 6px; }
+.theme-glass .attention__item {
+    display: grid; grid-template-columns: auto minmax(90px, 160px) auto 1fr; align-items: center; gap: 12px;
+    width: 100%; padding: 10px 14px; border-radius: var(--r-card); cursor: pointer; text-align: left;
+    font: inherit; font-size: 13px; color: var(--text-1);
+    background: var(--glass-2); border: 1px solid var(--glass-border);
+    transition: background .15s, border-color .15s;
+}
+.theme-glass .attention__item:hover { background: var(--glass-3); border-color: var(--glass-border-strong); }
+.theme-glass .attention__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-glass .attention__ip { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); }
+.theme-glass .attention__reason { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-glass .attention__more { color: var(--text-3); font-size: 11.5px; }
+
+/* ── 6. Вкладки устройства (_tab_*.html) ───────────────────────────────────── */
+.theme-glass #device-tab-content { color: var(--text-1); }
+.theme-glass .c-card {
+    background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-card);
+    box-shadow: none; color: var(--text-1);
+}
+.theme-glass .c-card__body { padding: 14px 16px; }
+.theme-glass .c-stat { background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
+.theme-glass .c-stat__label { color: var(--text-3); }
+.theme-glass .c-stat__value { color: var(--text-1); }
+.theme-glass .c-stat__icon { color: var(--text-3); }
+
+.theme-glass .iface-toolbar { color: var(--text-2); margin-bottom: 12px; }
+.theme-glass .iface-toolbar__info b { color: var(--text-1); }
+
+.theme-glass .iface-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text-1); }
+.theme-glass .iface-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    padding: 10px 9px; font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--text-3); background: rgba(14, 16, 24, 0.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border);
+}
+.theme-glass .iface-table tbody td { padding: 8px 9px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.theme-glass .iface-table tbody tr:last-child td { border-bottom: 0; }
+.theme-glass .iface-row:hover { background: var(--glass-3); }
+.theme-glass .iface-row--disabled { opacity: .55; }
+.theme-glass .iface-name__dot--up { background: var(--ok); box-shadow: 0 0 6px rgba(111,208,140,.5); }
+.theme-glass .iface-name__dot--nolink { background: var(--warn); }
+.theme-glass .iface-name__dot--down { background: #4b5263; }
+
+.theme-glass .iface-speed { padding: 2px 8px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text-2); background: var(--glass-3); }
+.theme-glass .iface-speed--1g   { color: var(--ok);   background: var(--ok-soft); }
+.theme-glass .iface-speed--100m { color: var(--info); background: var(--info-soft); }
+.theme-glass .iface-speed--10m  { color: var(--warn); background: var(--warn-soft); }
+
+.theme-glass .iface-status { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.theme-glass .iface-status--up     { color: var(--ok);      background: var(--ok-soft); }
+.theme-glass .iface-status--nolink { color: var(--warn);    background: var(--warn-soft); }
+.theme-glass .iface-status--down   { color: var(--unknown); background: var(--unknown-soft); }
+
+.theme-glass .iface-traffic__row { display: flex; gap: 6px; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); white-space: nowrap; }
+.theme-glass .iface-traffic__value { color: var(--text-2); }
+.theme-glass .iface-alias { color: var(--text-2); max-width: 160px; overflow-wrap: anywhere; }
+.theme-glass .iface-traffic__arrow--in { color: var(--ok); }
+.theme-glass .iface-traffic__arrow--out { color: var(--info); }
+
+/* VLAN: бейджи в строку с переносом (раньше — столбиком на всю высоту экрана) */
+.theme-glass .iface-vlans { display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px; }
+.theme-glass .iface-vlan {
+    display: inline-block; margin: 0; padding: 1px 6px; border-radius: 5px; line-height: 1.5;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-2);
+    background: var(--glass-3); border: 1px solid var(--glass-border);
+}
+.theme-glass .iface-vlan--tagged { color: var(--info); border-color: rgba(90,184,245,0.25); }
+.theme-glass .port-toggle-btn { color: var(--text-3) !important; }
+.theme-glass .port-toggle-btn:hover { color: var(--accent) !important; }
+
+.theme-glass .vlan-card, .theme-glass .sfp-card, .theme-glass .alert-card {
+    background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-card); color: var(--text-1);
+}
+.theme-glass .vlan-card__id { color: var(--accent); }
+.theme-glass .vlan-card__name, .theme-glass .sfp-metric__label, .theme-glass .alert-card__meta { color: var(--text-2); }
+.theme-glass .sfp-metric__value { color: var(--text-1); }
+
+/* ── 6a. Карта (Leaflet, /local/stations/) ─────────────────────────────────────
+   Подложки бывают светлые (OSM, топо) и тёмные (спутник) — поэтому маркеры и попапы
+   плотные, а не стеклянные: читаемость важнее эффекта. */
+.theme-glass .station-marker {
+    background: rgba(14, 16, 24, 0.92);
+    border: 1.5px solid rgba(255, 255, 255, 0.28);
+    border-radius: var(--r-pill);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.theme-glass .station-marker:hover { border-color: var(--accent); }
+.theme-glass .station-marker--warn { border-color: rgba(245, 197, 66, 0.75); }
+.theme-glass .station-marker--crit { border-color: rgba(255, 93, 108, 0.85); }
+.theme-glass .station-marker__dot { box-shadow: 0 0 6px currentColor; }
+.theme-glass .stations-map .leaflet-popup-content-wrapper,
+.theme-glass .stations-map .leaflet-popup-tip {
+    background: rgba(16, 18, 27, 0.96);
+    border-color: var(--glass-border-strong);
+    box-shadow: var(--shadow-panel);
+}
+.theme-glass .stations-map .leaflet-popup-content-wrapper { border-radius: var(--r-card); color: var(--text-1); }
+.theme-glass .leaflet-tooltip.link-tooltip,
+.theme-glass .leaflet-tooltip.rail-tooltip {
+    background: rgba(16, 18, 27, 0.95); color: var(--text-1); border-color: var(--glass-border-strong);
+}
+.theme-glass .leaflet-control-layers,
+.theme-glass .leaflet-bar a {
+    background: rgba(16, 18, 27, 0.92); color: var(--text-1); border-color: var(--glass-border-strong);
+}
+
+/* ── 6b. Главная (templates/core/home.html) ────────────────────────────────────
+   Разметка главной сверстана на inline-стилях под светлую тему, поэтому здесь —
+   единственное место темы с !important, и оно ограничено body.home-page.            */
+.theme-glass.home-page { min-height: 100vh; }
+.theme-glass.home-page .home-container { padding: 16px 24px 40px; }
+.theme-glass.home-page .home-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin: 0 0 8px !important; padding: 14px 20px;
+    border-radius: var(--r-panel) !important; position: relative;
+    background: var(--glass-spot), var(--glass-sheen), var(--glass-tint);
+    border: 1px solid var(--glass-border); box-shadow: var(--shadow-panel), var(--glass-highlight);
+}
+.theme-glass.home-page .home-header__logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; color: var(--text-1); }
+.theme-glass.home-page .home-header__logo i { color: var(--accent) !important; font-size: 22px; }
+.theme-glass.home-page #notif-bell-btn {
+    background: var(--glass-3) !important; color: var(--text-1) !important;
+    border: 1px solid var(--glass-border) !important; box-shadow: none !important;
+}
+.theme-glass.home-page #notif-bell-btn:hover { border-color: var(--accent-line) !important; color: var(--accent) !important; }
+.theme-glass.home-page .notif-badge { background: var(--accent) !important; color: #1a0f05 !important; border: 0 !important; }
+.theme-glass.home-page #notif-popover {
+    background: rgba(16, 18, 27, 0.92) !important; border: 1px solid var(--glass-border-strong) !important;
+    box-shadow: var(--shadow-panel) !important; color: var(--text-1);
+}
+.theme-glass.home-page #notif-popover h4,
+.theme-glass.home-page #notif-popover a div:first-child { color: var(--text-1) !important; }
+.theme-glass.home-page #notif-popover a { background: var(--glass-2) !important; }
+.theme-glass.home-page #notif-popover a div + div,
+.theme-glass.home-page #notif-popover p { color: var(--text-3) !important; }
+.theme-glass.home-page #notif-popover > div > a { color: var(--accent) !important; background: none !important; }
+
+.theme-glass.home-page .profile-card {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 6px; border-radius: var(--r-pill);
+    background: var(--glass-2); border: 1px solid var(--glass-border);
+}
+.theme-glass.home-page .profile-link { display: flex; align-items: center; gap: 10px; text-decoration: none; padding-right: 6px; }
+.theme-glass.home-page .profile-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-size: 20px; }
+.theme-glass.home-page .profile-name { color: var(--text-1); font-weight: 600; font-size: 14px; }
+.theme-glass.home-page .profile-role { color: var(--text-3); font-size: 12px; }
+.theme-glass.home-page .profile-logout { color: var(--text-3); padding: 6px 8px; border-radius: 50%; }
+.theme-glass.home-page .profile-logout:hover { color: var(--crit); background: var(--crit-soft); }
+
+.theme-glass.home-page .home-title {
+    margin: 24px 0 0; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+}
+.theme-glass.home-page .modules-grid { margin-top: 16px !important; }
+.theme-glass.home-page .module-card {
+    position: relative; display: flex; flex-direction: column; gap: 16px; min-height: 200px;
+    padding: 22px 24px; border-radius: var(--r-panel); text-decoration: none; color: var(--text-1);
+    background: var(--glass-spot), var(--glass-sheen), var(--glass-tint);
+    border: 1px solid var(--glass-border); box-shadow: var(--shadow-panel), var(--glass-highlight);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+    overflow: hidden;
+}
+/* Цвет модуля — светящаяся полоса слева и блик */
+.theme-glass.home-page .module-card::before {
+    content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 3px; border-radius: 0 3px 3px 0;
+    background: var(--module-color, var(--accent)); box-shadow: 0 0 14px var(--module-color, var(--accent));
+}
+.theme-glass.home-page .module-card:hover {
+    transform: translateY(-3px); border-color: var(--glass-border-strong);
+    box-shadow: 0 24px 60px rgba(0,0,0,.5), var(--glass-highlight);
+}
+.theme-glass.home-page .module-card--disabled { opacity: .55; }
+.theme-glass.home-page .module-card__header { display: flex; align-items: flex-start; gap: 16px; }
+.theme-glass.home-page .module-card__icon {
+    width: 48px; height: 48px; flex-shrink: 0; display: grid; place-items: center; border-radius: 12px;
+    font-size: 22px; color: var(--module-color, var(--accent));
+    background: var(--glass-3); border: 1px solid var(--glass-border);
+}
+.theme-glass.home-page .module-card__title { margin: 0 0 6px; font-size: 18px; font-weight: 650; color: var(--text-1); }
+.theme-glass.home-page .module-card__desc { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.theme-glass.home-page .module-card__badge { font-size: 11px; padding: 3px 8px; border-radius: var(--r-pill); color: var(--warn); background: var(--warn-soft); white-space: nowrap; }
+.theme-glass.home-page .module-card__stats { display: flex; gap: 28px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
+.theme-glass.home-page .module-stat { display: flex; flex-direction: column; gap: 4px; }
+.theme-glass.home-page .module-stat__label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.theme-glass.home-page .module-stat__value { font-size: 26px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.theme-glass.home-page .module-stat__value--crit { color: var(--warn); }
+.theme-glass.home-page .module-card__action {
+    margin-top: auto; display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+}
+.theme-glass.home-page .module-card:hover .module-card__action i { transform: translateX(4px); }
+.theme-glass.home-page .module-card__action i { transition: transform .2s; }
+
+.theme-glass.home-page .users-sidebar {
+    background: var(--glass-spot), var(--glass-sheen), var(--glass-tint) !important;
+    border: 1px solid var(--glass-border) !important; border-radius: var(--r-panel) !important;
+    box-shadow: var(--shadow-panel), var(--glass-highlight) !important;
+    backdrop-filter: var(--glass-blur) !important; -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+.theme-glass.home-page .users-sidebar h3 { color: var(--text-1) !important; }
+.theme-glass.home-page .users-sidebar .user-info span:first-child { color: var(--text-1) !important; }
+.theme-glass.home-page .users-sidebar .user-info span + span,
+.theme-glass.home-page .users-sidebar p { color: var(--text-3) !important; }
+.theme-glass.home-page .user-item:hover { background: var(--glass-3) !important; }
+.theme-glass.home-page .user-avatar { border-color: var(--glass-border-strong) !important; }
+.theme-glass.home-page .user-avatar > div { background: var(--glass-3) !important; color: var(--text-2) !important; }
+
+/* ── 6c. Вход / регистрация (accounts/base_auth.html) ───────────────────────────
+   Inline-стиль страницы задан со !important под светлую тему — перекрываем адресно. */
+body.auth-page.theme-glass { background: transparent !important; color: var(--text-1); }
+.theme-glass.auth-page .auth-card {
+    position: relative; border-radius: var(--r-panel);
+    background: var(--glass-spot), var(--glass-sheen), var(--glass-tint) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--shadow-panel), var(--glass-highlight);
+    backdrop-filter: var(--glass-blur) !important; -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+.theme-glass.auth-page .auth-card__title { color: var(--text-1) !important; }
+.theme-glass.auth-page .auth-card__subtitle,
+.theme-glass.auth-page .auth-card .aui-form__label { color: var(--text-2) !important; }
+.theme-glass.auth-page .auth-card .aui-input {
+    background: var(--bg-input) !important; border: 1px solid var(--glass-border) !important;
+    color: var(--text-1) !important; border-radius: var(--r-ctrl);
+}
+.theme-glass.auth-page .auth-card .aui-input:focus { border-color: var(--accent-line) !important; box-shadow: 0 0 0 3px var(--accent-soft); }
+.theme-glass.auth-page .auth-footer { color: var(--text-3); }
+.theme-glass.auth-page .auth-card .btn--primary { border-radius: var(--r-ctrl); }
+
+/* ── 7. Адаптив ───────────────────────────────────────────────────────────── */
+@media (max-width: 1360px) {
+    /* Таблица интерфейсов: на узкой панели прячем служебные колонки «#» и «Изменено» */
+    .theme-glass .iface-table th:nth-child(1), .theme-glass .iface-table td:nth-child(1),
+    .theme-glass .iface-table th:nth-child(6), .theme-glass .iface-table td:nth-child(6) { display: none; }
+}
+@media (max-width: 1100px) {
+    .theme-glass .devices-tree-layout { grid-template-columns: 280px minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+    .theme-glass .app-main { padding: 16px; }
+    .theme-glass .app-sidebar { margin: 0; height: 100vh; top: 0; border-radius: 0; }
+    .theme-glass .devices-tree-layout { grid-template-columns: 1fr; min-height: 0; }
+    .theme-glass .devices-tree { max-height: 46vh; }
+    .theme-glass .device-detail-panel { max-height: none; padding: 16px; }
+    .theme-glass .page-head h1 { font-size: 20px; }
+    .theme-glass .detail-head { flex-direction: column; }
+    .theme-glass .attention__item { grid-template-columns: auto 1fr auto; row-gap: 4px; }
+    .theme-glass .attention__reason { grid-column: 2 / -1; white-space: normal; }
+}

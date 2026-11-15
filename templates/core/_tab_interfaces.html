@@ -1,0 +1,276 @@
+{% load static %}
+
+<div class="iface-toolbar">
+    <div class="iface-toolbar__info">
+        Всего: <b>{{ rows|length }}</b> интерфейсов
+    </div>
+</div>
+
+<div class="c-card" style="overflow-x: auto;">
+    {% if rows %}
+    <table class="iface-table">
+        <thead>
+            <tr>
+                <th style="width:36px">#</th>
+                <th>Имя</th>
+                <th>Описание</th>
+                <th style="width:64px">Speed</th>
+                <th style="width:96px">Статус</th>
+                <th style="width:84px">Изменено</th>
+                <th style="width:110px">Трафик</th>
+                <th style="min-width:120px">VLAN</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr class="iface-row {% if row.iface.admin_status != 1 %}iface-row--disabled{% endif %}">
+                <td class="c-mono c-muted" style="font-size:11px">{{ row.iface.if_index }}</td>
+                <td>
+                    <div class="iface-name">
+                        <span class="iface-name__dot {% if row.iface.admin_status != 1 %}iface-name__dot--down{% elif row.iface.oper_status == 1 %}iface-name__dot--up{% else %}iface-name__dot--nolink{% endif %}"></span>
+                        <span style="font-weight:500">{{ row.iface.name|default:"—" }}</span>
+                    </div>
+                </td>
+                <td class="c-muted iface-alias"
+                    data-iface-alias-pk="{{ row.iface.pk }}"
+                    data-iface-alias-value="{{ row.iface.alias|default:'' }}"
+                    style="font-size:12px;cursor:pointer"
+                    title="Двойной клик для редактирования">
+                    {{ row.iface.alias|default:"—" }}
+                </td>
+                <td>
+                    {% if row.iface.speed_mbps == 1000 %}
+                        <span class="iface-speed iface-speed--1g">1G</span>
+                    {% elif row.iface.speed_mbps == 100 %}
+                        <span class="iface-speed iface-speed--100m">100M</span>
+                    {% elif row.iface.speed_mbps == 10 %}
+                        <span class="iface-speed iface-speed--10m">10M</span>
+                    {% elif row.iface.speed_mbps %}
+                        <span class="iface-speed">{{ row.iface.speed_mbps }}M</span>
+                    {% else %}
+                        <span class="c-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        {% if row.iface.admin_status == 1 %}
+                            {% if row.iface.oper_status == 1 %}
+                                <span class="iface-status iface-status--up">UP</span>
+                            {% else %}
+                                <span class="iface-status iface-status--nolink">NO LINK</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="iface-status iface-status--down">DOWN</span>
+                        {% endif %}
+                        {% if user.is_staff %}
+                        <button class="port-toggle-btn"
+                                data-iface-id="{{ row.iface.id }}"
+                                data-iface-name="{{ row.iface.name }}"
+                                data-current-admin="{{ row.iface.admin_status }}"
+                                title="{% if row.iface.admin_status == 1 %}Выключить порт{% else %}Включить порт{% endif %}"
+                                style="background:none;border:none;cursor:pointer;padding:2px;
+                                       color:#8e8e8e;transition:color 120ms;font-size:14px;">
+                            <i class="bi bi-power"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="c-muted" style="font-size:11px">
+                    {% if row.history %}
+                        {{ row.history.changed_at|date:"d.m H:i" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.sample and row.sample.in_bps is not None %}
+                        <div class="iface-traffic">
+                            <div class="iface-traffic__row">
+                                <span class="iface-traffic__arrow iface-traffic__arrow--in">↓</span>
+                                <span class="iface-traffic__value">{{ row.sample.in_bps|filesizeformat }}/s</span>
+                            </div>
+                            <div class="iface-traffic__row">
+                                <span class="iface-traffic__arrow iface-traffic__arrow--out">↑</span>
+                                <span class="iface-traffic__value">{{ row.sample.out_bps|filesizeformat }}/s</span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <span class="c-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="iface-vlans">
+                    {% for vl in row.iface.vlan_links.all %}
+                        <span class="iface-vlan{% if vl.is_tagged %} iface-vlan--tagged{% endif %}" title="VLAN {{ vl.vlan.vlan_id }}{% if vl.is_tagged %}, tagged{% else %}, untagged{% endif %}">{{ vl.vlan.vlan_id }}{% if vl.is_tagged %}T{% endif %}</span>
+                    {% empty %}
+                        <span class="c-muted">—</span>
+                    {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="c-empty" style="padding:48px">
+        <i class="bi bi-ethernet" style="font-size:48px;opacity:0.4"></i>
+        <p style="margin-top:12px">Нет интерфейсов</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.iface-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #475569;
+}
+.iface-toolbar__info b {
+    color: #0f172a;
+}
+
+.iface-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.iface-table thead th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    white-space: nowrap;
+}
+.iface-table tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #22252b;
+    vertical-align: middle;
+}
+.iface-row:hover {
+    background: #1d2024;
+}
+.iface-row--disabled {
+    opacity: 0.5;
+}
+
+.iface-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.iface-name__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.iface-name__dot--up {
+    background: #73bf69;
+    box-shadow: 0 0 6px rgba(115, 191, 105, 0.5);
+}
+.iface-name__dot--nolink {
+    background: #f2cc0c;
+}
+.iface-vlans {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.iface-name__dot--down {
+    background: #555;
+}
+
+.iface-speed {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: monospace;
+}
+.iface-speed--1g {
+    background: rgba(115, 191, 105, 0.15);
+    color: #73bf69;
+}
+.iface-speed--100m {
+    background: rgba(242, 204, 12, 0.15);
+    color: #f2cc0c;
+}
+.iface-speed--10m {
+    background: rgba(142, 142, 142, 0.15);
+    color: #475569;
+}
+
+.iface-status {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.iface-status--up {
+    background: rgba(115, 191, 105, 0.15);
+    color: #73bf69;
+    border: 1px solid rgba(115, 191, 105, 0.4);
+}
+.iface-status--down {
+    background: rgba(142, 142, 142, 0.15);
+    color: #475569;
+    border: 1px solid rgba(142, 142, 142, 0.4);
+}
+.iface-status--nolink {
+    background: rgba(242, 73, 92, 0.15);
+    color: #f2495c;
+    border: 1px solid rgba(242, 73, 92, 0.6);
+    animation: pulse-nolink 2s infinite;
+}
+@keyframes pulse-nolink {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(242, 73, 92, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(242, 73, 92, 0); }
+}
+
+.iface-traffic {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.iface-traffic__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: monospace;
+}
+.iface-traffic__arrow--in {
+    color: #0abfbc;
+}
+.iface-traffic__arrow--out {
+    color: #ff780a;
+}
+.iface-traffic__value {
+    color: #1e293b;
+}
+
+.iface-vlan {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(10, 191, 188, 0.15);
+    color: #0abfbc;
+    font-family: monospace;
+    margin-right: 2px;
+}
+</style>
+
+<script src="{% static 'js/port-control.js' %}?v=1793429171"></script>
+<script src="{% static 'js/interface-edit.js' %}?v=1793429171"></script>

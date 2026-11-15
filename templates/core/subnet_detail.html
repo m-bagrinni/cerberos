@@ -14,7 +14,7 @@
 .ip-modal__body{padding:16px 20px!important;overflow-y:auto!important;flex:1!important;}
 .ip-modal__actions{display:flex!important;gap:8px!important;padding:14px 20px!important;border-top:1px solid #2c3235!important;background:#1f2226!important;flex-wrap:wrap!important;}
 </style>
-<div class="subnet-detail-page" data-subnet-id="{{ subnet.id }}" data-cidr="{{ subnet.cidr }}">
+<div class="subnet-detail-page" id="main-subnet-content" data-subnet-id="{{ subnet.id }}" data-cidr="{{ subnet.cidr }}">
 
   <div class="subnet-detail__header">
     <div>
@@ -30,6 +30,12 @@
       {% endif %}
     </div>
     <div class="subnet-detail__actions">
+      <button id="subnet-tcpdump-btn" class="btn" style="background: #ff780a; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="bi bi-camera-video"></i> Захват трафика
+      </button>
+      <button id="bulk-attach-station-btn" class="btn" style="background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="bi bi-geo-alt"></i> Прикрепить активные IP
+      </button>
       <button id="subnet-scan-now" class="btn btn--primary"
               data-subnet-id="{{ subnet.id }}">
         <i class="bi bi-arrow-clockwise"></i> Сканировать
@@ -90,7 +96,45 @@
     </div>
   </div>
 
-  <div class="ip-grid-wrap">
+  
+<!-- ===== Панель tcpdump ===== -->
+<div class="tcpdump-panel" id="tcpdump-panel">
+  <div class="tcpdump-panel__header">
+    <h4 class="tcpdump-panel__title">🕵️ Захват трафика (tcpdump)</h4>
+    <button class="tcpdump-panel__close" id="tcpdump-close">&times;</button>
+  </div>
+  <div class="tcpdump-form">
+    <div>
+      <label>BPF-фильтр</label>
+      <input type="text" id="tcpdump-bpf" placeholder="icmp or arp" value="icmp or arp">
+    </div>
+    <div>
+      <label>Интерфейс</label>
+      <select id="tcpdump-iface">
+        <option value="any">any</option>
+        <option value="eth0">eth0</option>
+        <option value="lo">lo</option>
+      </select>
+    </div>
+    <div>
+      <label>Длительность (сек)</label>
+      <input type="number" id="tcpdump-duration" value="10" min="1" max="30">
+    </div>
+    <div>
+      <label>Пакетов (макс)</label>
+      <input type="number" id="tcpdump-packets" value="50" min="1" max="500">
+    </div>
+  </div>
+  <div class="tcpdump-actions">
+    <button id="tcpdump-start" class="btn--primary">▶ Запустить</button>
+    <button id="tcpdump-live">🔴 Live</button>
+    <button id="tcpdump-pcap">💾 Скачать .pcap</button>
+    <button id="tcpdump-clear">🗑 Очистить</button>
+  </div>
+  <div class="tcpdump-log" id="tcpdump-log"></div>
+</div>
+
+<div class="ip-grid-wrap">
     <div class="ip-grid" id="ip-grid">
       <div class="ip-grid__loading">Загрузка...</div>
     </div>

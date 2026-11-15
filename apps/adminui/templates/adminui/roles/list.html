@@ -1,0 +1,54 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Роли{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:role_create' %}" class="btn--secondary">
+    <i class="bi bi-plus-lg"></i> Добавить роль
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Роли ({{ roles|length }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Slug</th>
+          <th>Разрешений</th>
+          <th>Пользователей</th>
+          <th>Тип</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in roles %}
+        <tr>
+          <td>{{ r.name }}</td>
+          <td>{{ r.slug }}</td>
+          <td>{{ r.permissions.count }}</td>
+          <td>{{ r.userrole_set.count }}</td>
+          <td>
+            {% if r.is_system %}
+              <span class="badge badge--info">SYSTEM</span>
+            {% else %}
+              <span class="badge badge--ok">CUSTOM</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'adminui:role_update' r.pk %}" class="btn--icon"><i class="bi bi-pencil"></i></a>
+            {% if not r.is_system %}
+              <a href="{% url 'adminui:role_delete' r.pk %}" class="btn--icon btn--danger"><i class="bi bi-trash"></i></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ import json
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from apps.accounts.models import User
 from django.utils.html import format_html
 
 from apps.monitoring.models import Interface
@@ -12,7 +13,6 @@ from .models import (
     DeviceDiscovery,
     DeviceProfile,
     MetricDefinition,
-    User,
     Vendor,
 )
 

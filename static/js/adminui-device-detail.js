@@ -4,7 +4,6 @@
 
   // Видимый лог прямо на странице — чтобы не открывать F12
   function debugLog(msg, isError) { if (true) return; // отключено
-    console.log('[cerber-charts]', msg);
     var box = document.getElementById('cerber-debug');
     if (!box) {
       box = document.createElement('div');

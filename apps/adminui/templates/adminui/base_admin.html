@@ -9,9 +9,11 @@
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
   <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
   <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
   {% block extra_head %}{% endblock %}
+    <script src="{% static 'js/core.js' %}?v=1"></script>
 </head>
-<body>
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %}>
 
 <div class="adminui-layout">
 
@@ -41,6 +43,16 @@
          class="adminui-nav__item {% if 'vendors' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-building"></i> Вендоры
       </a>
+      <a href="{% url 'adminui:closures' %}"
+         class="adminui-nav__item {% if 'closures' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-node-plus"></i> Муфты
+      </a>
+      <a href="{% url 'adminui:stations' %}" class="adminui-nav__item {% if 'station' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-geo-alt"></i> Станции
+      </a>
+      <a href="{% url 'adminui:links' %}" class="adminui-nav__item {% if 'link' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-link-45deg"></i> Линии
+      </a>
       <a href="{% url 'adminui:ne' %}"
          class="adminui-nav__item {% if request.resolver_match.url_name == 'ne' %}is-active{% endif %}">
         <i class="bi bi-router"></i> NE
@@ -61,17 +73,43 @@
          class="adminui-nav__item {% if 'users' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-people"></i> Пользователи
       </a>
+      <a href="{% url 'adminui:roles' %}"
+         class="adminui-nav__item {% if 'roles' in request.resolver_match.url_name or 'role' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-shield-lock"></i> Роли
+      </a>
     </nav>
 
     <div class="adminui-nav__group" style="margin-top:auto">Переходы</div>
     <nav class="adminui-nav" style="margin-bottom:12px">
-      <a href="/" class="adminui-nav__item adminui-nav__item--external">
+      <a href="/local/" class="adminui-nav__item adminui-nav__item--external">
         <i class="bi bi-arrow-left-circle"></i> Cerberus
       </a>
       <a href="/admin/" class="adminui-nav__item adminui-nav__item--external">
         <i class="bi bi-box-arrow-up-right"></i> Django-admin
       </a>
     </nav>
+
+    {# === Пользователь === #}
+    {% if user.is_authenticated %}
+    <div class="adminui-nav__group" style="margin-top:auto">Пользователь</div>
+    <nav class="adminui-nav" style="margin-bottom:12px">
+      <a href="/accounts/profile/" class="adminui-nav__item">
+        <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+      </a>
+      {% if ui_theme_glass %}
+      <a href="{% url 'set_ui_theme' 'classic' %}?next={{ request.get_full_path|urlencode }}" class="adminui-nav__item" title="Вернуть прежнее оформление (только для вас)">
+        <i class="bi bi-circle-half"></i> Старый вид
+      </a>
+      {% else %}
+      <a href="{% url 'set_ui_theme' 'glass' %}?next={{ request.get_full_path|urlencode }}" class="adminui-nav__item" title="Попробовать новое оформление">
+        <i class="bi bi-stars"></i> Тема «Стекло»
+      </a>
+      {% endif %}
+      <a href="{% url 'accounts:logout' %}" class="adminui-nav__item">
+        <i class="bi bi-box-arrow-right"></i> Выйти
+      </a>
+    </nav>
+    {% endif %}
   </aside>
 
   {# ===== Контент ===== #}
@@ -89,5 +127,6 @@
 
 <script src="{% static 'js/adminui-devices.js' %}?v=5"></script>
 {% block extra_js %}{% endblock %}
+    <script src="{% static 'js/glass.js' %}"></script>
 </body>
 </html>

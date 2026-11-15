@@ -1,0 +1,41 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Оптические линии{% endblock %}
+{% block admin_actions %}
+<a href="{% url 'adminui:link_create' %}" class="btn--secondary"><i class="bi bi-plus-lg"></i> Добавить линию</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header"><h2 class="panel__title">Линии ({{ links|length }})</h2></div>
+  <div class="panel__body panel__body--flush">
+    <form method="get" style="padding: 16px; display: flex; gap: 12px; border-bottom: 1px solid var(--border);">
+      <input type="text" name="q" placeholder="Поиск..." value="{{ q }}" class="input">
+      <button type="submit" class="btn--secondary">Фильтр</button>
+    </form>
+    {% if links %}
+    <table class="data-table">
+      <thead><tr><th>ID</th><th>Название</th><th>Станция А</th><th>Станция Б</th><th>Статус</th><th></th></tr></thead>
+      <tbody>
+        {% for l in links %}
+        <tr>
+          <td>{{ l.id }}</td>
+          <td>{{ l.label|default:"—" }}</td>
+          <td>{{ l.station_a.name }}</td>
+          <td>{{ l.station_b.name }}</td>
+          <td><span class="badge badge--{{ l.link_status }}">{{ l.get_link_status_display }}</span></td>
+          <td>
+            <a href="{% url 'adminui:link_draw' l.pk %}" class="btn--icon" title="Нарисовать маршрут"><i class="bi bi-map"></i></a>
+            <a href="{% url 'adminui:link_duplicate' l.pk %}" class="btn--icon" title="Дублировать" onclick="return confirm('Создать копию линии?');"><i class="bi bi-files"></i></a>
+            <a href="{% url 'adminui:link_update' l.pk %}" class="btn--icon"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:link_delete' l.pk %}" class="btn--icon btn--danger"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty-state">Нет линий</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

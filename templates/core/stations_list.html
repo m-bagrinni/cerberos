@@ -1,10 +1,17 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Станции — Cerberus{% endblock %}
+{% block title %}Станции — Cerberus
+
+
+
+{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{% static "vendor/leaflet/leaflet.css" %}">
+
+
+
 {% endblock %}
 
 {% block content %}
@@ -15,15 +22,6 @@
             <span class="live-indicator__dot"></span>
             <span id="stationsLiveText">ожидание…</span>
         </span>
-        <button class="btn btn--ghost" id="btnReloadStations" title="Обновить">
-            <i class="bi bi-arrow-clockwise"></i> Обновить
-        </button>
-        <button class="btn btn--primary" id="btnNewStation">
-            <i class="bi bi-plus-lg"></i> Добавить станцию
-        </button>
-        <button class="btn btn--primary" id="btnNewLink">
-            <i class="bi bi-link-45deg"></i> Добавить линию
-        </button>
     </div>
 </div>
 
@@ -32,16 +30,16 @@
 
 {# Вкладки: Список / Карта #}
 <div class="stations-tabs" role="tablist">
-    <button class="stations-tab is-active" data-tab="list" type="button">
-        <i class="bi bi-list-ul"></i> Список
-    </button>
-    <button class="stations-tab" data-tab="map" type="button">
+    <button class="stations-tab is-active" data-tab="map" type="button">
         <i class="bi bi-map"></i> Карта
+    </button>
+    <button class="stations-tab" data-tab="list" type="button">
+        <i class="bi bi-list-ul"></i> Список
     </button>
 </div>
 
 {# Вкладка «Список» #}
-<div class="stations-tab-pane is-active" data-tab-pane="list">
+<div class="stations-tab-pane" data-tab-pane="list">
     <div class="stations-list-legend">
         <span class="stations-legend__item"><span class="scheme-dot scheme-dot--ok"></span> норма</span>
         <span class="stations-legend__item"><span class="scheme-dot scheme-dot--warn"></span> предупр.</span>
@@ -54,22 +52,97 @@
 </div>
 
 {# Вкладка «Карта» — заглушка, реализуем следующим этапом #}
-<div class="stations-tab-pane" data-tab-pane="map">
-    <div class="map-toolbar">
-        <button class="btn btn--ghost btn--sm" id="btnMapFullscreen" title="Развернуть на весь экран">
-            <i class="bi bi-arrows-fullscreen"></i> <span id="btnMapFullscreenLabel">На весь экран</span>
-        </button>
-        <span class="map-toolbar__hint">
-            Колесо — зум, тяните карту. Линии — цвет по состоянию оптики.
-        </span>
-    </div>
-    <div class="stations-map-wrap" id="stationsMapWrap">
-        <div id="stationsMap" class="stations-map"></div>
+<div class="stations-tab-pane is-active" data-tab-pane="map">
+
+    <div class="dispatch-grid">
+        <!-- Левая колонка: данные станции -->
+        <div class="dispatch-panel dispatch-panel--left">
+            <div class="dispatch-panel-header">
+                <i class="bi bi-hdd-network"></i> Данные станции
+            </div>
+            <div class="dispatch-station-details" id="dispatch-station-details">
+                <div class="dispatch-loading">Выберите станцию на карте</div>
+            </div>
+        </div>
+
+        <!-- Центральная колонка: карта -->
+        <div class="dispatch-panel dispatch-panel--center">
+            <div class="dispatch-panel-header">
+                <i class="bi bi-geo-alt"></i> Карта сети
+                <span class="dispatch-panel-sub">Колесо — зум, Shift — линейка</span>
+                <button class="dispatch-btn" id="btnMapFullscreen" title="Развернуть на весь экран" style="margin-left: auto;">
+                    <i class="bi bi-arrows-fullscreen"></i> <span id="btnMapFullscreenLabel">На весь экран</span>
+                </button>
+            </div>
+            <div class="stations-map-wrap" id="stationsMapWrap">
+                <div id="stationsMap" class="stations-map"></div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: сводка -->
+        <div class="dispatch-panel dispatch-panel--right">
+            <div class="dispatch-panel-header">
+                <i class="bi bi-bar-chart-line"></i> Сводка по сети
+            </div>
+            <div class="dispatch-right-content">
+                <!-- Счётчики -->
+                <div class="dispatch-stats-grid">
+                    <div class="dispatch-stat-card">
+                        <div class="dispatch-stat-value" id="stat-online">—</div>
+                        <div class="dispatch-stat-label">Онлайн</div>
+                    </div>
+                    <div class="dispatch-stat-card dispatch-stat-card--crit">
+                        <div class="dispatch-stat-value" id="stat-offline">—</div>
+                        <div class="dispatch-stat-label">Офлайн</div>
+                    </div>
+                    <div class="dispatch-stat-card dispatch-stat-card--warn">
+                        <div class="dispatch-stat-value" id="stat-alerts">—</div>
+                        <div class="dispatch-stat-label">Алерты</div>
+                    </div>
+                    <div class="dispatch-stat-card">
+                        <div class="dispatch-stat-value" id="stat-links">—</div>
+                        <div class="dispatch-stat-label">Линий</div>
+                    </div>
+                </div>
+                
+                <!-- График тренда -->
+                <div class="dispatch-chart-wrap" style="flex: 1; margin-top: 16px;">
+                    <div style="font-size: 11px; color: #8e8e8e; text-transform: uppercase; margin-bottom: 8px;">Трафик сети (24ч)</div>
+                    <div style="height: 200px; position: relative;">
+                        <canvas id="network-traffic-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/stations.js' %}?v=68"></script>
+<script src="{% static "vendor/leaflet/leaflet.js" %}"></script>
+<script src="{% static 'js/stations.js' %}?v=1793429171"></script>
+
+
+<!-- Контекстное меню для карты -->
+<div id="map-context-menu" style="display: none; position: fixed; z-index: 10000; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.5); padding: 4px 0; min-width: 220px;">
+  <div class="map-ctx-item" data-action="refresh" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-arrow-clockwise" style="color: var(--text-muted);"></i> Обновить
+  </div>
+  <div class="map-ctx-item" data-action="poll" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-lightning-charge" style="color: var(--primary);"></i> Опросить линии
+  </div>
+  <hr style="border-color: var(--border); margin: 4px 0;">
+  <div class="map-ctx-item" data-action="add-station" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-plus-lg" style="color: var(--ok);"></i> Добавить станцию
+  </div>
+  <div class="map-ctx-item" data-action="add-link" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-link-45deg" style="color: var(--tiffany);"></i> Добавить линию
+  </div>
+</div>
+<style>
+  .map-ctx-item:hover { background: var(--bg-hover); }
+</style>
 {% endblock %}

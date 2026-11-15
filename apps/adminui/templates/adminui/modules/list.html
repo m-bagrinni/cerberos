@@ -1,0 +1,62 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Модули{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:module_create' %}" class="btn--secondary">
+  <i class="bi bi-plus-lg"></i> Добавить модуль
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Модули ({{ modules|length }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if modules %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:40px"></th>
+          <th>Название</th>
+          <th>Slug</th>
+          <th>URL</th>
+          <th>Активен</th>
+          <th>Установлен</th>
+          <th style="width:80px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in modules %}
+        <tr>
+          <td><i class="bi {{ m.icon }}" style="color:{{ m.color }};font-size:20px"></i></td>
+          <td><strong>{{ m.name }}</strong></td>
+          <td class="mono text-muted">{{ m.slug }}</td>
+          <td class="mono text-muted">{{ m.url_prefix }}</td>
+          <td>
+            {% if m.is_active %}<span style="color:var(--ok)"><i class="bi bi-check-circle"></i></span>
+            {% else %}<span class="text-muted"><i class="bi bi-x-circle"></i></span>{% endif %}
+          </td>
+          <td>
+            {% if m.is_installed %}<span class="badge badge--info">installed</span>
+            {% else %}<span class="badge">в разработке</span>{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'adminui:module_update' m.pk %}" class="aui-icon-btn" title="Редактировать">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-box"></i>
+      <p>Модулей нет</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -23,10 +23,44 @@
             {% if ne.ne_ip %}<span class="ne-detail__ip">{{ ne.ne_ip }}</span>{% endif %}
         </div>
 
+        <!-- Блок оптических алармов -->
+        {% if alarms.opt_alarm_opta or alarms.opt_alarm_optb %}
+        <h3 class="ne-detail__section">Состояние оптики</h3>
+        <div class="ne-alarms" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            {% with opta=alarms.opt_alarm_opta|cut:" " optb=alarms.opt_alarm_optb|cut:" " %}
+                {% with opta_b0=opta|slice:"0:2" opta_b1=opta|slice:"2:4" optb_b0=optb|slice:"0:2" optb_b1=optb|slice:"2:4" %}
+                    
+                    <!-- Нет модуля (sfp_present = 00 00) -->
+                    {% if sfp_present_a == "00 00" %}
+                        <span class="ne-alarm-badge ne-alarm-badge--warn" style="font-size: 11px; padding: 2px 6px;">⚠️ OPTA: нет модуля</span>
+                    {% endif %}
+                    {% if sfp_present_b == "00 00" %}
+                        <span class="ne-alarm-badge ne-alarm-badge--warn" style="font-size: 11px; padding: 2px 6px;">⚠️ OPTB: нет модуля</span>
+                    {% endif %}
+
+                    <!-- NOP: FF в любом байте (только если модуль есть) -->
+                    {% if sfp_present_a != "00 00" and sfp_present_b != "00 00" %}
+                        {% if opta_b0 == 'FF' or opta_b1 == 'FF' or optb_b0 == 'FF' or optb_b1 == 'FF' %}
+                            <span class="ne-alarm-badge ne-alarm-badge--crit" style="font-size: 11px; padding: 2px 6px;">⚠️ NOP (нет сигнала)</span>
+                        {% endif %}
+                    {% endif %}
+
+                    <!-- OCV: оба 80 в одном байте -->
+                    {% if opta_b1 == '80' and optb_b1 == '80' %}
+                        <span class="ne-alarm-badge ne-alarm-badge--crit" style="font-size: 11px; padding: 2px 6px;">⚠️ OCV (оба на входе)</span>
+                    {% elif opta_b0 == '80' and optb_b0 == '80' %}
+                        <span class="ne-alarm-badge ne-alarm-badge--crit" style="font-size: 11px; padding: 2px 6px;">⚠️ OCV (оба на выходе)</span>
+                    {% endif %}
+
+                {% endwith %}
+            {% endwith %}
+        </div>
+        {% endif %}
+
         <h3 class="ne-detail__section">SFP порты (SNMP 1, 2, 3)</h3>
         <div class="ne-sfp-grid">
             {% for port, d in sfp.items %}
-            <div class="ne-sfp-card {% if d.link == 1 %}ne-sfp-card--up{% else %}ne-sfp-card--down{% endif %}">
+            <div class="ne-sfp-card {% if ne.status == 'ok' and d.link == 1 %}ne-sfp-card--up{% else %}ne-sfp-card--down{% endif %}">
                 <div class="ne-sfp-card__header">
                     <span class="ne-sfp-card__port">SFP{{ port }}</span>
                     <span class="ne-sfp-card__link">
@@ -39,6 +73,7 @@
                 {% else %}
                 <div class="ne-sfp-card__vendor text-muted">Модуль не установлен</div>
                 {% endif %}
+                {% if ne.status == 'ok' %}
                 <div class="ne-sfp-card__rows">
                     <div class="ne-sfp-card__row"><span>Температура</span><b>{% if d.temp %}{{ d.temp|floatformat:2 }} °C{% else %}—{% endif %}</b></div>
                     <div class="ne-sfp-card__row"><span>RX мощность</span><b>{% if d.rx %}{{ d.rx|floatformat:2 }} dBm{% else %}—{% endif %}</b></div>
@@ -46,6 +81,15 @@
                     <div class="ne-sfp-card__row"><span>Ток смещения</span><b>{% if d.bias %}{{ d.bias|floatformat:2 }} mA{% else %}—{% endif %}</b></div>
                     <div class="ne-sfp-card__row"><span>Напряжение</span><b>{% if d.voltage %}{{ d.voltage|floatformat:3 }} V{% else %}—{% endif %}</b></div>
                 </div>
+                {% else %}
+                <div class="ne-sfp-card__rows" style="opacity: 0.5;">
+                    <div class="ne-sfp-card__row"><span>Температура</span><b>— (нет связи)</b></div>
+                    <div class="ne-sfp-card__row"><span>RX мощность</span><b>— (нет связи)</b></div>
+                    <div class="ne-sfp-card__row"><span>TX мощность</span><b>— (нет связи)</b></div>
+                    <div class="ne-sfp-card__row"><span>Ток смещения</span><b>— (нет связи)</b></div>
+                    <div class="ne-sfp-card__row"><span>Напряжение</span><b>— (нет связи)</b></div>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

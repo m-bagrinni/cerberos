@@ -1,0 +1,109 @@
+{% load static %}
+
+{% if alerts %}
+<div class="alerts-list">
+    {% for a in alerts %}
+    <div class="alert-card alert-card--{{ a.severity }}">
+        <div class="alert-card__header">
+            <span class="alert-card__severity">
+                {% if a.severity == 'crit' %}🚨 CRIT{% else %}⚠️ WARN{% endif %}
+            </span>
+            <span class="alert-card__state {% if a.resolved_at %}alert-card__state--resolved{% else %}alert-card__state--firing{% endif %}">
+                {% if a.resolved_at %}✅ Восстановлено{% else %}🔴 Активен{% endif %}
+            </span>
+        </div>
+        <div class="alert-card__message">{{ a.message }}</div>
+        <div class="alert-card__meta">
+            <span>Начало: {{ a.started_at|date:"d.m.Y H:i:s" }}</span>
+            {% if a.resolved_at %}
+                <span>Конец: {{ a.resolved_at|date:"d.m.Y H:i:s" }}</span>
+                <span class="alert-card__duration">
+                    Длительность: {{ a.resolved_at|timeuntil:a.started_at }}
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="c-card">
+    <div class="c-empty" style="padding:48px">
+        <i class="bi bi-check-circle" style="font-size:48px;opacity:0.4"></i>
+        <p style="margin-top:12px">Предупреждений нет</p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.alert-card {
+    background: #1a1d21;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    padding: 16px;
+    border-left: 4px solid #8e8e8e;
+    transition: all 0.2s;
+}
+.alert-card--crit {
+    border-left-color: #f2495c;
+}
+.alert-card--warn {
+    border-left-color: #f2cc0c;
+}
+.alert-card:hover {
+    background: rgba(255,255,255,0.05);
+}
+.alert-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.alert-card__severity {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.alert-card--crit .alert-card__severity {
+    color: #f2495c;
+}
+.alert-card--warn .alert-card__severity {
+    color: #f2cc0c;
+}
+.alert-card__state {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.alert-card__state--firing {
+    background: rgba(242, 73, 92, 0.15);
+    color: #f2495c;
+    border: 1px solid rgba(242, 73, 92, 0.4);
+}
+.alert-card__state--resolved {
+    background: rgba(115, 191, 105, 0.15);
+    color: #73bf69;
+    border: 1px solid rgba(115, 191, 105, 0.4);
+}
+.alert-card__message {
+    font-size: 14px;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+.alert-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 11px;
+    color: #475569;
+}
+.alert-card__duration {
+    color: #0abfbc;
+    font-weight: 600;
+}
+</style>

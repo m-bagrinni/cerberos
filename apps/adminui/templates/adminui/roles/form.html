@@ -1,0 +1,52 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}{% if object %}Редактировать роль{% else %}Добавить роль{% endif %}{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:roles' %}" class="btn--secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel" style="max-width: 800px;">
+  <div class="panel__header">
+    <h2 class="panel__title">Данные роли</h2>
+  </div>
+  <div class="panel__body">
+    <form method="post">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label>Название</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="form-error">{{ form.name.errors }}</div>{% endif %}
+      </div>
+      
+      <div class="form-group">
+        <label>Slug (латиницей)</label>
+        {{ form.slug }}
+        {% if form.slug.errors %}<div class="form-error">{{ form.slug.errors }}</div>{% endif %}
+      </div>
+
+      <div class="form-group">
+        <label>Разрешения</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 400px; overflow-y: auto; border: 1px solid var(--border); padding: 12px; border-radius: 6px; background: var(--bg-input);">
+          {% for checkbox in form.permissions %}
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+              {{ checkbox.tag }}
+              <span>{{ checkbox.choice_label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        {% if form.permissions.errors %}<div class="form-error">{{ form.permissions.errors }}</div>{% endif %}
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn--primary">Сохранить</button>
+        <a href="{% url 'adminui:roles' %}" class="btn--secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,120 +1,185 @@
-{% extends "base.html" %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0a0c11">
+    <title>Устройства — Cerberus</title>
 
-{% block title %}Устройства — Cerberus{% endblock %}
+    <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
 
-{% block content %}
+    <script src="{% static 'vendor/js/chart.umd.min.js' %}"></script>
+    <script src="{% static 'vendor/js/luxon.min.js' %}"></script>
+    <script src="{% static 'vendor/js/chartjs-adapter-luxon.min.js' %}"></script>
+    <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
 
-<div class="dash-header">
-    <div>
-        <h1>Устройства</h1>
-        <div class="dash-header__subtitle">
-            <span>{{ stats.total }} всего</span>
-            {% if stats.unreachable %}
-            <span class="dash-header__stat dash-header__stat--crit">
-                <i class="bi bi-circle-fill" style="font-size:8px"></i>
-                {{ stats.unreachable }} недоступно
-            </span>
+    <!-- Тема: ui_theme из cookie (apps/core/context_processors.py) — «стекло» = theme.css, «классика» = glass.css -->
+    <link rel="stylesheet" href="{% static 'css/cerber.css' %}">
+    <link rel="stylesheet" href="{% static 'css/mobile.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2">{# раскладка /local/ — для обеих тем #}
+    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/stations.css' %}"><link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    <script src="{% static 'js/core.js' %}?v=1"></script>
+</head>
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %}>
+
+<div class="app-layout">
+    <!-- ЛЕВОЕ МЕНЮ (стили — theme.css, раздел «Каркас») -->
+    <aside class="app-sidebar">
+        <button id="sidebar-toggle" class="sidebar-toggle" title="Скрыть/показать меню">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <a href="/" class="app-sidebar__brand">
+            <i class="bi bi-shield-shaded"></i>
+            <span>Cerberus</span>
+        </a>
+        <nav class="app-sidebar__nav">
+    {# Этот шаблон используется ТОЛЬКО для /local/ — показываем только разделы ЛВС #}
+    {% if user.can_local or user.is_superuser %}
+        
+        {# --- Базовые разделы (видят все, у кого есть local) --- #}
+        <a href="/local/" class="app-sidebar__link {% if request.path == '/local/' %}is-active{% endif %}"><i class="bi bi-speedometer2"></i><span>Обзор</span></a>
+        <a href="/local/stations/" class="app-sidebar__link {% if '/local/stations/' in request.path %}is-active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i><span>Диспетчерская</span></a>
+        <a href="/alerts/" class="app-sidebar__link {% if '/alerts/' in request.path %}is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span></a>
+
+        {# --- Полный доступ (только для is_readonly=False) --- #}
+        {% if not user.position_ref.is_readonly or user.is_superuser %}
+            <a href="/local/metrics/" class="app-sidebar__link {% if '/local/metrics/' in request.path %}is-active{% endif %}"><i class="bi bi-graph-up"></i><span>Метрики</span></a>
+            <a href="/local/sfp/" class="app-sidebar__link {% if '/local/sfp/' in request.path %}is-active{% endif %}"><i class="bi bi-usb-plug"></i><span>SFP/DDM</span></a>
+            <a href="/local/multiplexers/" class="app-sidebar__link {% if '/local/multiplexers/' in request.path %}is-active{% endif %}"><i class="bi bi-hdd-network"></i><span>Мультиплексоры</span></a>
+            <a href="/analytics/" class="app-sidebar__link {% if '/analytics/' in request.path %}is-active{% endif %}"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></a>
+            <a href="/local/subnets/" class="app-sidebar__link {% if '/local/subnets/' in request.path %}is-active{% endif %}"><i class="bi bi-diagram-3"></i><span>Подсети</span></a>
+        {% endif %}
+    {% endif %}
+
+    {# --- Службы (доступны всем) --- #}
+    <hr style="margin: 12px 8px;">
+    <a href="/services/" class="app-sidebar__link {% if '/services/' in request.path %}is-active{% endif %}"><i class="bi bi-gear-wide-connected"></i><span>Службы</span></a>
+    
+    {# --- Админ-панель (только для is_admin_access и не readonly) --- #}
+    {% if user.is_admin_access and not user.position_ref.is_readonly %}
+        <a href="/admin-ui/" class="app-sidebar__link {% if '/admin-ui/' in request.path %}is-active{% endif %}"><i class="bi bi-shield-lock"></i><span>Админ-панель</span></a>
+    {% endif %}
+</nav>
+        <div class="app-sidebar__bottom">
+            <a href="/" class="app-sidebar__link app-sidebar__link--muted"><i class="bi bi-grid"></i><span>Модули</span></a>
+            <a href="/accounts/profile/" class="app-sidebar__link"><i class="bi bi-person-circle"></i><span>{{ user.get_full_name|default:user.username }}</span></a>
+            {% if ui_theme_glass %}
+            <a href="{% url 'set_ui_theme' 'classic' %}?next={{ request.get_full_path|urlencode }}" class="app-sidebar__link app-sidebar__link--muted" title="Вернуть прежнее оформление (только для вас)">
+                <i class="bi bi-circle-half"></i><span>Старый вид</span>
+            </a>
+            {% else %}
+            <a href="{% url 'set_ui_theme' 'glass' %}?next={{ request.get_full_path|urlencode }}" class="app-sidebar__link app-sidebar__link--muted" title="Попробовать новое оформление">
+                <i class="bi bi-stars"></i><span>Тема «Стекло»</span>
+            </a>
             {% endif %}
-            {% if stats.unknown %}
-            <span class="dash-header__stat">
-                <i class="bi bi-circle-fill" style="font-size:8px"></i>
-                {{ stats.unknown }} неизвестно
-            </span>
-            {% endif %}
-            {% if stats.ok %}
-            <span class="dash-header__stat dash-header__stat--ok">
-                <i class="bi bi-circle-fill" style="font-size:8px"></i>
-                {{ stats.ok }} онлайн
-            </span>
-            {% endif %}
+            <a href="/accounts/logout/" class="app-sidebar__link app-sidebar__link--muted"><i class="bi bi-box-arrow-right"></i><span>Выйти</span></a>
         </div>
-    </div>
-</div>
+    </aside>
 
-{% if groups %}
-    {% for group in groups %}
-    <section class="device-group device-group--{{ group.css }}">
-        <div class="device-group__header">
-            <span class="device-group__dot device-group__dot--{{ group.css }}"></span>
-            <span class="device-group__title">{{ group.label }}</span>
-            <span class="device-group__count">{{ group.devices|length }}</span>
-        </div>
-        <div class="device-grid">
-            {% for item in group.devices %}
-                {% include "core/_device_card.html" with item=item %}
-            {% endfor %}
-        </div>
-    </section>
-    {% endfor %}
-{% else %}
-<div class="dash-empty">
-    <i class="bi bi-inbox"></i>
-    <p>Устройств пока нет</p>
-    <a href="/admin/devices/device/add/" class="c-btn c-btn--primary"
-       style="margin-top:16px">
-        <i class="bi bi-plus-lg"></i> Добавить устройство
-    </a>
-</div>
-{% endif %}
-
-<!-- Модальное окно устройства -->
-<div class="device-modal" id="device-modal" hidden>
-    <div class="device-modal__overlay" data-modal-close></div>
-    <div class="device-modal__content">
-        <div class="device-modal__header">
-            <div class="device-modal__title-wrap">
-                <div class="device-modal__title" id="device-modal-title">
-                    <span class="device-modal__status" id="device-modal-status"></span>
-                    <span id="device-modal-name">—</span>
+    <main class="app-main">
+        <div id="device-detail-content"
+             data-status-url="{% url 'dashboard_status' %}"
+             data-show-secrets="{% if user.is_superuser %}1{% else %}0{% endif %}">
+            <header class="page-head">
+                <div>
+                    <h1>Устройства</h1>
+                    <div class="page-head__chips" id="dash-stats">
+                        <span class="chip"><b data-stat="total">{{ stats.total }}</b> всего</span>
+                        <span class="chip chip--ok"><span class="dot dot--ok"></span><b data-stat="ok">{{ stats.ok }}</b> онлайн</span>
+                        <span class="chip chip--crit" data-stat-box="unreachable"{% if not stats.unreachable %} hidden{% endif %}><span class="dot dot--crit"></span><b data-stat="unreachable">{{ stats.unreachable }}</b> недоступно</span>
+                        <span class="chip chip--warn" data-stat-box="alerts"{% if not stats.alerts %} hidden{% endif %}><span class="dot dot--warn"></span><b data-stat="alerts">{{ stats.alerts }}</b> с алертами</span>
+                        <span class="chip" data-stat-box="unknown"{% if not stats.unknown %} hidden{% endif %}><span class="dot dot--unknown"></span><b data-stat="unknown">{{ stats.unknown }}</b> неизвестно</span>
+                        <a href="{% url 'multiplexers_list' %}" class="chip{% if ne_stats.problem %} chip--warn{% endif %}" id="dash-ne" title="Мультиплексоры Olencom (в дереве не показываются)">
+                            <i class="bi bi-hdd-network"></i> NE <b data-ne="total">{{ ne_stats.total }}</b><span data-ne-box{% if not ne_stats.problem %} hidden{% endif %}> · проблемных <b data-ne="problem">{{ ne_stats.problem }}</b></span>
+                        </a>
+                    </div>
                 </div>
-                <div class="device-modal__subtitle" id="device-modal-subtitle"></div>
-            </div>
-            <div class="device-modal__actions">
-                <a href="#" class="c-btn" id="device-modal-full-link"
-                   style="background:white;border:1px solid #e5e7eb;font-size:13px">
-                    <i class="bi bi-box-arrow-up-right"></i> Открыть полностью
-                </a>
-                <button class="device-modal__close" data-modal-close title="Закрыть (Esc)">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+                <span class="page-head__meta" id="dash-updated" title="Статусы обновляются автоматически раз в 30 с">обновляется автоматически</span>
+            </header>
+
+            <div class="devices-tree-layout">
+                <!-- Левая панель (Дерево) -->
+                <div class="devices-tree" id="devices-tree">
+                    <div class="tree-toolbar">
+                        <div class="tree-toolbar__search-wrap">
+                            <i class="bi bi-search"></i>
+                            <input type="search" id="tree-search" class="tree-toolbar__search" placeholder="Поиск: имя или IP  ( / )" autocomplete="off" aria-label="Поиск устройства">
+                        </div>
+                        <div class="tree-toolbar__row">
+                            <label class="tree-toolbar__check"><input type="checkbox" id="tree-problems"> Только проблемные</label>
+                            {% if vendors|length > 1 %}
+                            <select id="tree-vendor" class="tree-toolbar__select">
+                                <option value="">Все вендоры</option>
+                                {% for v in vendors %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+                            </select>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="tree-empty" id="tree-empty" hidden>Ничего не найдено</div>
+
+                    {% for cat_slug, cat in tree.items %}
+                    <div class="tree-category is-open" data-category="{{ cat_slug }}">
+                        <div class="tree-category__title">
+                            <i class="bi bi-chevron-right"></i>
+                            <span class="tree-category__dot tree-category__dot--{{ cat.status }}"></span>
+                            <i class="bi {{ cat.icon|default:'bi-folder' }} tree-category__icon"></i>
+                            <span>{{ cat.label }}</span>
+                            <span class="tree-count" data-count>{{ cat.count }}</span>
+                        </div>
+                        <div class="tree-devices">
+                            {% for item in cat.items %}
+                                {% if item.type == "subcategory" %}
+                                    <div class="tree-subcategory" data-subcategory="{{ cat_slug }}/{{ item.data.slug }}">
+                                        <div class="tree-subcategory__title">
+                                            <i class="bi bi-chevron-right"></i>
+                                            <span class="tree-subcategory__dot tree-subcategory__dot--{{ item.data.status }}"></span>
+                                            <span>{{ item.data.label }}</span>
+                                            <span class="tree-count" data-count>{{ item.data.devices|length }}</span>
+                                        </div>
+                                        <div class="tree-subcategory__devices">
+                                            {% for d in item.data.devices %}
+                                                {% include "core/_tree_device.html" with d=d %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    {% include "core/_tree_device.html" with d=item.data %}
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Правая панель (детали устройства) -->
+                <div class="device-detail-panel" id="device-detail-panel">
+                    <div class="detail-welcome">
+                        <section class="attention" id="attention" hidden>
+                            <div class="detail-section__title">Требуют внимания</div>
+                            <div class="attention__list" id="attention-list"></div>
+                        </section>
+                        <div class="detail-empty">
+                            <i class="bi bi-hdd-network"></i>
+                            <div>Выберите устройство в дереве слева</div>
+                            <div class="detail-empty__hint">или нажмите <kbd>/</kbd> для поиска</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="device-modal__tabs" id="device-modal-tabs">
-            <button class="device-modal__tab is-active" data-modal-tab="overview">
-                <i class="bi bi-info-circle"></i> Обзор
-            </button>
-            <button class="device-modal__tab" data-modal-tab="interfaces">
-                <i class="bi bi-ethernet"></i> Интерфейсы
-            </button>
-            <button class="device-modal__tab" data-modal-tab="charts">
-                <i class="bi bi-graph-up"></i> Графики
-            </button>
-            <button class="device-modal__tab" data-modal-tab="ddm">
-                <i class="bi bi-usb-plug"></i> DDM
-            </button>
-        </div>
-
-        <div class="device-modal__body" id="device-modal-body">
-            <div class="device-modal__loading">
-                <i class="bi bi-hourglass-split"></i>
-                <p>Загрузка...</p>
-            </div>
-        </div>
-    </div>
+    </main>
 </div>
 
-{% endblock %}
-
-{% block extra_js %}
-<script>
-window.__DEVICE_MODAL_URLS__ = {
-    overview:   "/modal/{ip}/overview/",
-    interfaces: "/modal/{ip}/interfaces/",
-    charts:     "/modal/{ip}/charts/",
-    ddm:        "/modal/{ip}/ddm/",
-};
-</script>
-<script type="module" src="{% static 'js/device-cards.js' %}?v=1"></script>
-{% endblock %}
+<script src="{% static 'vendor/js/sortable.min.js' %}"></script>
+<script src="{% static 'js/interface-edit.js' %}"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="{% static 'js/telegram-webapp-auth.js' %}"></script>
+<script src="{% static 'js/context-menu.js' %}"></script>
+<script src="{% static 'js/glass.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}?v=20261115b"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}{{ form_title }}{% endblock %}
+
+{% block admin_content %}
+<form method="post" class="aui-form" style="max-width:600px">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="aui-form__errors">
+    {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title">{{ form_title }}</h2>
+    </div>
+    <div class="panel__body">
+      {% for field in form %}
+      <div class="aui-form__field">
+        <label class="aui-form__label" for="{{ field.id_for_label }}">
+          {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
+        </label>
+        {{ field }}
+        {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="aui-form__actions">
+    <button type="submit" class="btn--primary">
+      <i class="bi bi-check-lg"></i> {{ form_submit }}
+    </button>
+    <a href="{% url 'adminui:modules' %}" class="btn--secondary">Отмена</a>
+  </div>
+</form>
+{% endblock %}

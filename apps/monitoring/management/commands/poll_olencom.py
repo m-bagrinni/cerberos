@@ -31,6 +31,9 @@ OID_BASE = "1.3.6.1.4.1.3399.2.3.3"
 OID_NE_STATUS = f"{OID_BASE}.2.8.1.5"
 OID_NE_NAME   = f"{OID_BASE}.2.8.1.20"
 OID_NE_IP     = f"{OID_BASE}.1.2.1.1"
+OID_OPT_ALARM_FLAGS_A = f"{OID_BASE}.2.8.1.25"  # OPTA (HEX)
+OID_OPT_ALARM_FLAGS_B = f"{OID_BASE}.2.8.1.26"  # OPTB (HEX)
+OID_OPT_PARTNER_ALARM = f"{OID_BASE}.2.8.1.18"    # PartnerAlarm (INT)
 
 OID_SFP_PRESENT = f"{OID_BASE}.2.11.1.2"
 OID_SFP_INFO    = f"{OID_BASE}.2.11.1.4"
@@ -114,7 +117,7 @@ def parse_counter_pair(hex_bytes):
     }
 
 
-def snmpget(ip, community, oid, timeout=2, retries=1):
+def snmpget(ip, community, oid, timeout=1, retries=0):
     cmd = ["snmpget", "-v", "1", "-c", community,
            "-On", "-t", str(timeout), "-r", str(retries), ip, oid]
     try:
@@ -179,15 +182,26 @@ class Command(BaseCommand):
             m = metrics.get(metric_key)
             if m is None:
                 return
-            MetricValue.objects.create(
-                device=gateway,
-                ne_device=ne_device,
-                metric=m,
-                value=float(value) if value is not None else None,
-                raw_value=str(raw)[:512],
-                instance=str(instance)[:64],
-            )
-            saved += 1
+
+            # Пропускать None (таймаут SNMP) и 0.0 (ошибка парсинга) для SFP-метрик
+            if value is None:
+                return
+            if metric_key.startswith('sfp_') and isinstance(value, (int, float)) and value == 0.0:
+                return
+
+            try:
+                MetricValue.objects.create(
+                    device=gateway,
+                    ne_device=ne_device,
+                    metric=m,
+                    value=float(value),
+                    raw_value=str(raw)[:512] if raw else "",
+                    instance=str(instance)[:64] if instance else "",
+                )
+                saved += 1
+            except Exception as e:
+                self.stderr.write(f"save error {metric_key} {instance}: {e}")
+
 
         self.stdout.write(f"[POLL] {gw_ip} — {len(nes)} NE")
 
@@ -197,9 +211,17 @@ class Command(BaseCommand):
             # 1. Метаданные NE
             s_out = snmpget(gw_ip, community, f"{OID_NE_STATUS}.{ne_id}")
             s_val = parse_int(s_out)
-            if s_val is not None:
-                ne.status = NeDevice.STATUS_OK if s_val == 1 else NeDevice.STATUS_UNREACHABLE
-                save("ne_status", ne, "", s_val, s_out)
+            if s_out and s_out.strip():   # SNMP ответил (не пусто)
+                # Если s_val не распарсился — считаем, что NE живой (ответил)
+                ne.status = NeDevice.STATUS_OK if (s_val is None or s_val == 1) else NeDevice.STATUS_UNREACHABLE
+                save("ne_status", ne, "", s_val if s_val is not None else 1, s_out)
+            else:
+                # SNMP не ответил — unreachable, пропускаем остальные запросы
+                ne.status = NeDevice.STATUS_UNREACHABLE
+                ne.last_seen = now
+                ne.last_polled_at = now
+                ne.save(update_fields=["status", "last_seen", "last_polled_at"])
+                continue   # ← пропускаем остальные OID (экономия времени)
 
             n_out = snmpget(gw_ip, community, f"{OID_NE_NAME}.{ne_id}")
             n_hex = parse_hex(n_out)
@@ -214,6 +236,20 @@ class Command(BaseCommand):
             if ip_val:
                 ne.ne_ip = ip_val
                 save("ne_ip", ne, "", None, ip_val)
+
+            # Оптические алармы (OPTA)
+            alarm_a_out = snmpget(gw_ip, community, f"{OID_OPT_ALARM_FLAGS_A}.{ne_id}")
+            alarm_a_hex = parse_hex(alarm_a_out)
+            if alarm_a_hex:
+                save("opt_alarm_opta", ne, "", None,
+                     " ".join(f"{b:02X}" for b in alarm_a_hex))
+
+            # Оптические алармы (OPTB)
+            alarm_b_out = snmpget(gw_ip, community, f"{OID_OPT_ALARM_FLAGS_B}.{ne_id}")
+            alarm_b_hex = parse_hex(alarm_b_out)
+            if alarm_b_hex:
+                save("opt_alarm_optb", ne, "", None,
+                     " ".join(f"{b:02X}" for b in alarm_b_hex))
 
             ne.last_seen = now
             ne.last_polled_at = now

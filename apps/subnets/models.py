@@ -134,6 +134,15 @@ class IpAddress(models.Model):
     ip = models.GenericIPAddressField(db_index=True)
     hostname = models.CharField(max_length=255, blank=True, default="")
     mac = models.CharField(max_length=32, blank=True, default="")
+    station = models.ForeignKey(
+        'stations.Station', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='ip_addresses',
+        verbose_name="Станция",
+    )
+    description = models.CharField(
+        max_length=255, blank=True, default="",
+        verbose_name="Подпись (описание)",
+    )
 
     state = models.CharField(
         max_length=16, choices=STATE_CHOICES, default=STATE_UNKNOWN,
@@ -266,3 +275,7 @@ class SubnetScan(models.Model):
         ordering = ["-started_at"]
         verbose_name = "Сканирование подсети"
         verbose_name_plural = "Сканирования подсетей"
+
+# Регистрация модели TrafficSample
+from .models_traffic import TrafficSample  # noqa: F401
+from .models_traffic import BroadcastStormEvent  # noqa: F401

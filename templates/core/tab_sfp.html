@@ -49,7 +49,7 @@
             <span class="sfp-device-group__name">{{ group.device.name }}</span>
             <span class="sfp-device-group__ip c-mono">{{ group.device.ip }}</span>
             <span class="sfp-device-group__count">{{ group.sfps|length }} SFP</span>
-            <a href="/devices/{{ group.device.ip }}/sfp/" class="sfp-device-group__link">
+            <a href="/local/devices/{{ group.device.ip }}/sfp/" class="sfp-device-group__link">
                 Открыть <i class="bi bi-arrow-right"></i>
             </a>
         </div>
@@ -136,5 +136,9 @@
 <script>
 window.__TAB_SFP__ = {};
 </script>
-<script type="module" src="{% static 'js/tab-sfp.js' %}?v=1"></script>
+<script type="module" src="{% static 'js/tab-sfp.js' %}?v=1793429171"></script>
 {% endblock %}
+
+
+
+

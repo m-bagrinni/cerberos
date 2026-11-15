@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.devices.models import Device, NeDevice
 
-from .models import OpticalLink, Station, StationDevice, StationNe
+from .models import OpticalLink, Station, StationDevice, StationNe, OpticalClosure
 
 
 # ── Оборудование на станции ────────────────────────────────
@@ -23,12 +23,13 @@ class StationDeviceSerializer(serializers.ModelSerializer):
 class StationNeSerializer(serializers.ModelSerializer):
     ne_display_name = serializers.CharField(source="ne.display_name", read_only=True)
     ne_status = serializers.CharField(source="ne.status", read_only=True)
+    ne_id = serializers.IntegerField(source="ne.ne_id", read_only=True)   # ← порт на mux.LAZ
     gateway_ip = serializers.CharField(source="ne.gateway.ip", read_only=True)
 
     class Meta:
         model = StationNe
         fields = (
-            "id", "ne", "ne_display_name", "ne_status", "gateway_ip", "role",
+            "id", "ne", "ne_id", "ne_display_name", "ne_status", "gateway_ip", "role",
         )
 
 
@@ -37,34 +38,70 @@ class StationSerializer(serializers.ModelSerializer):
     devices = StationDeviceSerializer(many=True, read_only=True)
     nes = StationNeSerializer(many=True, read_only=True)
     links_count = serializers.SerializerMethodField()
+    agg_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Station
         fields = (
             "id", "slug", "name", "description",
             "x", "y", "latitude", "longitude", "sort_order",
-            "devices", "nes", "links_count", "created_at",
+            "devices", "nes", "links_count", "agg_status", "created_at",
         )
         read_only_fields = ("created_at",)
 
     def get_links_count(self, obj):
         return obj.links_a.count() + obj.links_b.count()
 
+    def get_agg_status(self, obj):
+        # Сначала смотрим на статусы NE/устройств
+        statuses = []
+        for sn in obj.nes.all():
+            statuses.append(sn.ne.status)
+        for sd in obj.devices.all():
+            statuses.append(sd.device.status)
+        if not statuses:
+            return "unknown"
+        if "unreachable" in statuses:
+            return "crit"
+        if all(s == "ok" for s in statuses):
+            return "ok"
+        if any(s == "ok" for s in statuses):
+            return "warn"
+        return "unknown"
+
 
 class StationListSerializer(serializers.ModelSerializer):
     devices_count = serializers.SerializerMethodField()
     nes_count = serializers.SerializerMethodField()
+    agg_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Station
         fields = ("id", "slug", "name", "x", "y", "sort_order",
-                  "devices_count", "nes_count")
+                  "devices_count", "nes_count", "agg_status")
 
     def get_devices_count(self, obj):
         return obj.devices.count()
 
     def get_nes_count(self, obj):
         return obj.nes.count()
+
+    def get_agg_status(self, obj):
+        # Локальный агрегат по NE / devices
+        statuses = []
+        for sn in obj.nes.all():
+            statuses.append(sn.ne.status)
+        for sd in obj.devices.all():
+            statuses.append(sd.device.status)
+        if not statuses:
+            return "unknown"
+        if "unreachable" in statuses:
+            return "crit"
+        if all(s == "ok" for s in statuses):
+            return "ok"
+        if any(s == "ok" for s in statuses):
+            return "warn"
+        return "unknown"
 
 
 # ── Порт (для формы создания линии) ────────────────────────
@@ -82,6 +119,12 @@ class PortSerializer(serializers.Serializer):
 
 
 # ── Оптическая линия ───────────────────────────────────────
+
+class OpticalClosureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OpticalClosure
+        fields = ("id", "name", "lat", "lon", "description", "expected_rx_dbm", "total_loss_db", "segment_loss_db", "expected_rx_b_dbm", "total_loss_b_db")
+
 class OpticalLinkSerializer(serializers.ModelSerializer):
     """
     ВАЖНО: station_a / station_b принимаются как slug (строка),
@@ -100,7 +143,26 @@ class OpticalLinkSerializer(serializers.ModelSerializer):
     ddm_a = serializers.SerializerMethodField()
     ddm_b = serializers.SerializerMethodField()
     end_b_label = serializers.CharField(read_only=True)
+    
+    # Доступность устройств на концах линии
+    device_a_reachable = serializers.SerializerMethodField()
+    device_b_reachable = serializers.SerializerMethodField()
     status_emoji = serializers.CharField(read_only=True)
+    def get_device_a_reachable(self, obj):
+        if obj.device_a:
+            return obj.device_a.is_reachable
+        return None  # Если устройство не привязано или это NE (а не Device)
+
+    def get_device_b_reachable(self, obj):
+        if obj.device_b:
+            return obj.device_b.is_reachable
+        return None
+
+    closures = OpticalClosureSerializer(many=True, read_only=True)
+    device_a_name = serializers.CharField(source="device_a.name", read_only=True, allow_null=True)
+    ne_a_name = serializers.CharField(source="ne_a.display_name", read_only=True, allow_null=True)
+    ne_b_name = serializers.CharField(source="ne_b.display_name", read_only=True, allow_null=True)
+    device_b_name = serializers.CharField(source="device_b.name", read_only=True, allow_null=True)
 
     class Meta:
         model = OpticalLink
@@ -108,15 +170,17 @@ class OpticalLinkSerializer(serializers.ModelSerializer):
             "id", "label", "description", "is_active",
             "station_a", "ne_a", "device_a", "port_a_type", "port_a_num",
             "station_b", "ne_b", "device_b", "port_b_type", "port_b_num",
-            "rx_a_dbm", "rx_b_dbm", "link_a_up", "link_b_up",
+            "rx_a_dbm", "tx_a_dbm", "temp_a_c", "bias_a_ma", "volt_a_v", "rx_b_dbm", "tx_b_dbm", "temp_b_c", "bias_b_ma", "volt_b_v", "link_a_up", "link_b_up",
             "link_status", "status_emoji",
+            "device_a_reachable", "device_b_reachable",
             "end_a_label", "end_b_label",
             "ddm_a", "ddm_b",
             "updated_at", "created_at",
-            "path_geojson",
+            "path_geojson", "closures", "device_a_name", "device_b_name",
+            "ne_a_name", "ne_b_name",
         )
         read_only_fields = (
-            "rx_a_dbm", "rx_b_dbm", "link_a_up", "link_b_up",
+            "rx_a_dbm", "tx_a_dbm", "temp_a_c", "bias_a_ma", "volt_a_v", "rx_b_dbm", "tx_b_dbm", "temp_b_c", "bias_b_ma", "volt_b_v", "link_a_up", "link_b_up",
             "link_status", "updated_at", "created_at",
         )
 

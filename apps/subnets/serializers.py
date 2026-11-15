@@ -71,16 +71,109 @@ class SubnetListSerializer(serializers.ModelSerializer):
 class IpAddressSerializer(serializers.ModelSerializer):
     subnet_cidr = serializers.CharField(source="subnet.cidr", read_only=True)
     last_octet = serializers.SerializerMethodField()
+    mac = serializers.SerializerMethodField()
+    station_name = serializers.CharField(source="station.name", read_only=True)
+    arp_mac = serializers.SerializerMethodField()
+    arp_device = serializers.SerializerMethodField()
+    arp_interface = serializers.SerializerMethodField()
+    is_device_ip = serializers.SerializerMethodField()
+    device_name = serializers.SerializerMethodField()
+    fdb_port = serializers.SerializerMethodField()
+    fdb_device = serializers.SerializerMethodField()
 
     class Meta:
         model = IpAddress
         fields = (
             "id", "subnet", "subnet_cidr", "ip", "last_octet",
-            "hostname", "mac", "state",
+            "hostname", "mac", "state", "station", "station_name", "description",
             "is_alive", "is_monitored", "is_reserved",
             "last_seen_at", "last_ping_at",
             "last_rtt_ms", "packet_loss_pct",
+            "arp_mac", "arp_device", "arp_interface", "is_device_ip", "device_name", "fdb_port", "fdb_device",
         )
+
+
+
+
+    def get_device_name(self, obj):
+        from apps.devices.models import Device
+        dev = Device.objects.filter(ip=obj.ip).first()
+        return dev.name if dev else None
+
+
+    def get_fdb_port(self, obj):
+        from apps.monitoring.models import ArpEntry, FdbEntry
+        arp = ArpEntry.objects.filter(ip=obj.ip).first()
+        if not arp:
+            return None
+        fdb_entries = list(FdbEntry.objects.filter(mac=arp.mac).select_related('device'))
+        if not fdb_entries:
+            return None
+        best = None
+        best_count = 999999
+        for fdb in fdb_entries:
+            count = FdbEntry.objects.filter(device=fdb.device, bridge_port=fdb.bridge_port).count()
+            if count < best_count:
+                best_count = count
+                best = fdb
+        if best:
+            return best.interface_name or str(best.bridge_port)
+        return None
+
+    def get_fdb_device(self, obj):
+        from apps.monitoring.models import ArpEntry, FdbEntry
+        arp = ArpEntry.objects.filter(ip=obj.ip).first()
+        if not arp:
+            return None
+        fdb_entries = list(FdbEntry.objects.filter(mac=arp.mac).select_related('device'))
+        if not fdb_entries:
+            return None
+        best = None
+        best_count = 999999
+        for fdb in fdb_entries:
+            count = FdbEntry.objects.filter(device=fdb.device, bridge_port=fdb.bridge_port).count()
+            if count < best_count:
+                best_count = count
+                best = fdb
+        return best.device.name if best else None
+
+    def get_is_device_ip(self, obj):
+        from apps.devices.models import Device
+        return Device.objects.filter(ip=obj.ip).exists()
+
+
+    def get_mac(self, obj):
+        # Если mac заполнен — возвращаем его
+        if obj.mac:
+            return obj.mac
+        # Иначе ищем в ArpEntry
+        from apps.monitoring.models import ArpEntry
+        arp = ArpEntry.objects.filter(ip=obj.ip).first()
+        return arp.mac if arp else ''
+
+    def get_arp_mac(self, obj):
+        from apps.monitoring.models import ArpEntry
+        entry = ArpEntry.objects.filter(ip=obj.ip).first()
+        return entry.mac if entry else None
+
+    def get_arp_device(self, obj):
+        from apps.monitoring.models import ArpEntry
+        entry = ArpEntry.objects.filter(ip=obj.ip).select_related('device').first()
+        return entry.device.name if entry else None
+
+    def get_arp_interface(self, obj):
+        from apps.monitoring.models import ArpEntry
+        entry = ArpEntry.objects.filter(ip=obj.ip).first()
+        if not entry:
+            return None
+        # Если в interface_name есть "VLAN" — извлекаем номер
+        if entry.interface_name and 'VLAN' in entry.interface_name.upper():
+            import re
+            match = re.search(r'VLAN\s*(\d+)', entry.interface_name, re.IGNORECASE)
+            if match:
+                return f"VLAN {match.group(1)}"
+        # Иначе показываем interface_name
+        return entry.interface_name or None
 
     def get_last_octet(self, obj):
         try:

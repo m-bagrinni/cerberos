@@ -2,10 +2,7 @@
 (function () {
   'use strict';
 
-  function csrf() {
-    const m = document.cookie.match(/csrftoken=([^;]+)/);
-    return m ? m[1] : '';
-  }
+  function csrf() { return Cerber.csrfToken(); }  // static/js/core.js
 
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.aui-icon-btn--poll');

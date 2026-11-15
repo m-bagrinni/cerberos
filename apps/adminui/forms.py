@@ -1,3 +1,5 @@
+from apps.accounts.models import Role, UserRole
+from apps.stations.models import OpticalClosure
 """Формы админ-панели."""
 from django import forms
 
@@ -49,13 +51,14 @@ class DeviceForm(forms.ModelForm):
     class Meta:
         model = Device
         fields = [
-            "name", "ip", "snmp_version", "snmp_community",
+            "name", "ip", "category", "snmp_version", "snmp_community",
             "snmp_port", "vendor", "profile", "profile_override",
             "ne_id", "ne_gateway_ip",
         ]
         widgets = {
             "name": forms.TextInput(attrs={"class": "aui-input", "placeholder": "ag.LAZ"}),
             "ip": forms.TextInput(attrs={"class": "aui-input mono", "placeholder": "172.16.101.2"}),
+            "category": forms.Select(attrs={"class": "aui-input"}),
             "snmp_version": forms.Select(attrs={"class": "aui-input"}),
             "snmp_community": forms.TextInput(attrs={"class": "aui-input mono", "placeholder": "private"}),
             "snmp_port": forms.NumberInput(attrs={"class": "aui-input", "min": 1, "max": 65535}),
@@ -68,6 +71,7 @@ class DeviceForm(forms.ModelForm):
         labels = {
             "name": "Имя",
             "ip": "IP-адрес",
+            "category": "Категория",
             "snmp_version": "SNMP-версия",
             "snmp_community": "Community",
             "snmp_port": "SNMP-порт",
@@ -296,10 +300,11 @@ class UserForm(forms.ModelForm):
     )
 
     class Meta:
-        from apps.devices.models import User
+        from apps.accounts.models import User
         model = User
         fields = [
-            "username", "email", "first_name", "last_name",
+            "username", "email", "last_name", "first_name", "middle_name",
+            "position", "position_ref", "department", "work_phone", "mobile_phone",
             "telegram_id", "is_staff", "is_active", "is_superuser",
         ]
         widgets = {
@@ -307,6 +312,12 @@ class UserForm(forms.ModelForm):
             "email": forms.EmailInput(attrs={"class": "aui-input"}),
             "first_name": forms.TextInput(attrs={"class": "aui-input"}),
             "last_name": forms.TextInput(attrs={"class": "aui-input"}),
+            "middle_name": forms.TextInput(attrs={"class": "aui-input"}),
+            "position": forms.TextInput(attrs={"class": "aui-input"}),
+            "position_ref": forms.Select(attrs={"class": "aui-input"}),
+            "department": forms.TextInput(attrs={"class": "aui-input"}),
+            "work_phone": forms.TextInput(attrs={"class": "aui-input"}),
+            "mobile_phone": forms.TextInput(attrs={"class": "aui-input"}),
             "telegram_id": forms.NumberInput(attrs={"class": "aui-input", "placeholder": "123456789"}),
             "is_staff": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
             "is_active": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
@@ -318,6 +329,7 @@ class UserForm(forms.ModelForm):
             "first_name": "Имя",
             "last_name": "Фамилия",
             "telegram_id": "Telegram ID",
+            "position_ref": "Должность (роль в системе)",
             "is_staff": "Staff (доступ в админку)",
             "is_active": "Активен",
             "is_superuser": "Superuser",
@@ -333,6 +345,26 @@ class UserForm(forms.ModelForm):
         return user
 
 
+    roles = forms.ModelMultipleChoiceField(
+        queryset=Role.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Роли (RBAC)"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['roles'].initial = Role.objects.filter(userrole__user=self.instance)
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            UserRole.objects.filter(user=user).delete()
+            for role in self.cleaned_data.get('roles', []):
+                UserRole.objects.create(user=user, role=role)
+        return user
+
 class UserCreateForm(UserForm):
     """Форма создания пользователя (пароль обязателен)."""
     new_password = forms.CharField(
@@ -340,6 +372,18 @@ class UserCreateForm(UserForm):
         label="Пароль",
         widget=forms.PasswordInput(attrs={"class": "aui-input"}),
     )
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        # Хэшируем пароль
+        password = self.cleaned_data.get("new_password")
+        if password:
+            user.set_password(password)
+        if commit:
+            user.save()
+            # M2M (роли) — сохраняем после основного save
+            self.save_m2m()
+        return user
 
 
 class AlertFilterForm(forms.Form):
@@ -380,3 +424,70 @@ class AlertFilterForm(forms.Form):
         ],
         widget=forms.Select(attrs={"class": "aui-input"}),
     )
+
+
+class ClosureForm(forms.ModelForm):
+    class Meta:
+        model = OpticalClosure
+        fields = ("link", "name", "lat", "lon", "description")
+        widgets = {
+            "link": forms.Select(attrs={"class": "form-select"}),
+            "name": forms.TextInput(attrs={"class": "form-input", "placeholder": "Например, Муфта 1"}),
+            "lat": forms.NumberInput(attrs={"class": "form-input", "step": "0.00001", "placeholder": "42.45678"}),
+            "lon": forms.NumberInput(attrs={"class": "form-input", "step": "0.00001", "placeholder": "76.12345"}),
+            "description": forms.Textarea(attrs={"class": "form-input", "rows": 3}),
+        }
+
+
+class StationForm(forms.ModelForm):
+    """Форма станции с выбором устройств."""
+    devices = forms.ModelMultipleChoiceField(
+        queryset=Device.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"class": "aui-input", "size": 10}),
+        label="Устройства на станции",
+        help_text="Выберите устройства, которые физически находятся на этой станции",
+    )
+
+    class Meta:
+        from apps.stations.models import Station
+        model = Station
+        fields = ("name", "slug", "latitude", "longitude", "sort_order", "devices")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "aui-input"}),
+            "slug": forms.TextInput(attrs={"class": "aui-input"}),
+            "latitude": forms.NumberInput(attrs={"class": "aui-input", "step": "0.000001"}),
+            "longitude": forms.NumberInput(attrs={"class": "aui-input", "step": "0.000001"}),
+            "sort_order": forms.NumberInput(attrs={"class": "aui-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Если редактируем станцию — предзаполняем devices
+        if self.instance and self.instance.pk:
+            self.fields['devices'].initial = [
+                sd.device for sd in self.instance.devices.all()
+            ]
+
+
+class DeviceCategoryForm(forms.ModelForm):
+    """Форма для категории устройств."""
+    class Meta:
+        from apps.devices.models import DeviceCategory
+        model = DeviceCategory
+        fields = ["slug", "name", "icon", "sort_order", "is_active"]
+        widgets = {
+            "slug": forms.TextInput(attrs={"class": "aui-input", "placeholder": "core"}),
+            "name": forms.TextInput(attrs={"class": "aui-input", "placeholder": "Верхний уровень"}),
+            "icon": forms.HiddenInput(),
+            "sort_order": forms.NumberInput(attrs={"class": "aui-input"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
+        }
+        labels = {
+            "slug": "Slug",
+            "name": "Название",
+            "icon": "Иконка (Bootstrap Icons)",
+            "sort_order": "Порядок сортировки",
+            "is_active": "Активна",
+        }
+

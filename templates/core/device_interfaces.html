@@ -4,7 +4,7 @@
 {% block title %}{{ device.name }} — Интерфейсы — Cerberus{% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/port-control.js' %}?v=1"></script>
+<script src="{% static 'js/port-control.js' %}?v=1793429171"></script>
 {% endblock %}
 
 {% block content %}
@@ -46,7 +46,13 @@
             <tr>
                 <td class="c-mono c-muted" style="font-size:11px">{{ row.iface.if_index }}</td>
                 <td style="font-weight:500">{{ row.iface.name|default:"—" }}</td>
-                <td class="c-muted" style="font-size:12px">{{ row.iface.alias|default:"" }}</td>
+                <td class="c-muted iface-alias"
+    data-iface-alias-pk="{{ row.iface.pk }}"
+    data-iface-alias-value="{{ row.iface.alias|default:'' }}"
+    style="font-size:12px;cursor:pointer"
+    title="Двойной клик для редактирования (SNMP SET)">
+    {{ row.iface.alias|default:"—" }}
+</td>
                 <td>
                     {% if row.iface.is_physical %}<span class="c-status c-status--ok" style="font-size:10px">phys</span>
                     {% elif row.iface.is_vlan %}<span class="c-status c-status--unknown" style="font-size:10px">vlan</span>

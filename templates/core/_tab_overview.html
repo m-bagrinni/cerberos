@@ -1,0 +1,44 @@
+{% load static %}
+
+<div class="c-card" style="margin-bottom:24px">
+    <div class="c-card__body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+                <h2 style="font-size:20px;font-weight:700;margin:0">
+                    {{ device.status_emoji }} {{ device.name }}
+                </h2>
+                <div class="c-mono c-muted" style="margin-top:4px;font-size:13px">
+                    {{ device.ip }}
+                </div>
+            </div>
+            <div style="text-align:right;font-size:12px">
+                <div class="c-muted">Последний опрос</div>
+                <div style="font-weight:500">
+                    {{ device.last_polled_at|date:"d.m.Y H:i:s"|default:"никогда" }}
+                </div>
+            </div>
+        </div>
+
+        <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+                   gap:16px;margin-top:20px">
+            <div>
+                <dt class="c-stat__label">Вендор</dt>
+                <dd style="font-weight:500;margin:4px 0 0">{{ device.vendor.name|default:"—" }}</dd>
+            </div>
+            <div>
+                <dt class="c-stat__label">Профиль</dt>
+                <dd style="font-weight:500;margin:4px 0 0">{{ device.effective_profile.name|default:"—" }}</dd>
+            </div>
+            <div>
+                <dt class="c-stat__label">sysDescr</dt>
+                <dd class="c-truncate" style="margin:4px 0 0">{{ device.sys_descr|default:"—" }}</dd>
+            </div>
+            <div>
+                <dt class="c-stat__label">sysObjectID</dt>
+                <dd class="c-mono c-truncate" style="margin:4px 0 0;font-size:13px">
+                    {{ device.sys_object_id|default:"—" }}
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>

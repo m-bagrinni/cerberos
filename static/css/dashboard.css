@@ -1,0 +1,155 @@
+/* ============================================================================
+   /local/ (templates/core/dashboard.html) — раскладка и компоненты страницы.
+
+   Подключается в ОБОИХ режимах оформления, до theme.css / glass.css:
+     • «Старый вид» (glass.css): этот файл даёт раскладку и прежние цвета
+       (тексты светлые — панели в glass.css серо-стеклянные);
+     • «Стекло» (theme.css): правила .theme-glass … специфичнее и перекрывают цвета.
+   Здесь — только то, что нужно странице; общие цвета/токены живут в теме.
+   ========================================================================== */
+
+[hidden] { display: none !important; }
+
+/* ── Шапка страницы ── */
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.page-head h1 { margin: 0 0 10px; }
+.page-head__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.page-head__meta { font-size: 12px; color: #64748b; }
+.page-head__meta.is-stale { color: #f2495c; }
+
+.chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; line-height: 1.2; white-space: nowrap; text-decoration: none;
+    color: #e2e8f0; background: rgba(17, 18, 23, 0.72); border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.chip b { font-weight: 600; }
+.chip--ok   { color: #73bf69; }
+.chip--warn { color: #f2cc0c; }
+.chip--crit { color: #f2495c; }
+a.chip:hover { border-color: #ff780a; }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; background: #8e8e8e; }
+.dot--ok { background: #73bf69; }
+.dot--warn { background: #f2cc0c; }
+.dot--crit { background: #f2495c; }
+.dot--unknown { background: #8e8e8e; }
+
+/* ── Раскладка: дерево + панель ── */
+.devices-tree-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; min-height: calc(100vh - 170px); }
+.devices-tree { padding: 12px; overflow-y: auto; max-height: calc(100vh - 160px); }
+.device-detail-panel { padding: 24px; overflow-y: auto; max-height: calc(100vh - 160px); min-width: 0; }
+
+/* ── Дерево ── */
+.tree-toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.tree-toolbar__search-wrap { position: relative; }
+.tree-toolbar__search-wrap i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 13px; pointer-events: none; }
+.tree-toolbar__search {
+    width: 100%; box-sizing: border-box; padding: 7px 10px 7px 30px; font-size: 13px;
+    color: #e2e8f0; background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; outline: none;
+}
+.tree-toolbar__search:focus { border-color: #ff780a; }
+.tree-toolbar__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tree-toolbar__check { font-size: 12px; color: #94a3b8; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.tree-toolbar__select {
+    font-size: 12px; color: #e2e8f0; background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 3px 6px;
+}
+.tree-toolbar__select option { background: #1a1b22; }
+.tree-empty { font-size: 12px; color: #64748b; padding: 8px 10px; }
+
+.tree-category { margin-bottom: 8px; }
+.tree-category__title {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 4px; cursor: pointer;
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;
+    transition: background 0.15s;
+}
+.tree-category__title:hover { background: rgba(255, 255, 255, 0.05); }
+.tree-category__title > i.bi-chevron-right { color: #ff780a; font-size: 12px; transition: transform 0.2s; }
+.tree-category.is-open > .tree-category__title > i.bi-chevron-right { transform: rotate(90deg); }
+.tree-category__icon { color: #0abfbc; font-size: 14px; }
+.tree-devices { display: none; padding-left: 16px; }
+.tree-category.is-open > .tree-devices { display: block; }
+.tree-count { margin-left: auto; font-size: 11px; color: #64748b; }
+
+.tree-device {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 4px; cursor: pointer;
+    font-size: 13px; color: #e2e8f0; border-left: 2px solid transparent; transition: background 0.15s;
+}
+.tree-device:hover { background: rgba(255, 255, 255, 0.05); }
+.tree-device.is-active { background: rgba(255, 120, 10, 0.15); border-left-color: #ff780a; color: #ff780a; }
+.tree-device__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-device__ip { margin-left: auto; font-size: 11px; color: #94a3b8; font-family: monospace; }
+.tree-device.is-active .tree-device__ip { color: inherit; opacity: 0.8; }
+.tree-device__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #8e8e8e; }
+.tree-device__dot--ok { background: #73bf69; }
+.tree-device__dot--warn { background: #ffcc00; }
+.tree-device__dot--crit { background: #f2495c; }
+.tree-device__dot--unknown { background: #8e8e8e; }
+
+/* ── Панель деталей ── */
+.detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.detail-title { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 20px; font-weight: 600; color: #fff; }
+.detail-subtitle { margin: 0; font-size: 13px; color: #94a3b8; font-family: monospace; }
+.detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px;
+    font-size: 13px; text-decoration: none; cursor: pointer;
+    color: #e2e8f0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.btn-ghost:hover { border-color: #ff780a; color: #ff780a; }
+.btn-ghost--accent { color: #ff780a; border-color: rgba(255, 120, 10, 0.5); }
+.detail-tabs { display: flex; gap: 4px; margin-bottom: 16px; overflow-x: auto; }
+.detail-tab { flex: 0 0 auto; }
+
+.detail-alerts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.detail-alerts:empty { display: none; }
+.detail-alert {
+    display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 6px; font-size: 13px; color: #e2e8f0;
+    border-left: 3px solid #f2cc0c; background: rgba(242, 204, 12, 0.1);
+}
+.detail-alert--crit, .detail-alert--power { border-left-color: #f2495c; background: rgba(242, 73, 92, 0.12); }
+.detail-alert__since { margin-left: auto; font-size: 11px; color: #94a3b8; white-space: nowrap; }
+
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.detail-section { padding: 12px 14px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); }
+.detail-section--wide { grid-column: 1 / -1; }
+.detail-section__title { margin-bottom: 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; }
+.detail-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 5px 0; font-size: 13px; }
+.detail-row__label { color: #94a3b8; flex-shrink: 0; }
+.detail-row__value { color: #e2e8f0; text-align: right; overflow-wrap: anywhere; }
+.detail-row__value--mono { font-family: monospace; }
+.detail-row__value--small { font-size: 11px; text-align: left; color: #cbd5e1; }
+.detail-row__value.is-stale { color: #f2495c; }
+
+/* ── Пустая панель ── */
+.detail-welcome { display: flex; flex-direction: column; gap: 20px; height: 100%; }
+.detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 220px; color: #94a3b8; text-align: center; }
+.detail-empty i { font-size: 44px; opacity: 0.5; }
+.detail-empty__hint { font-size: 12px; color: #94a3b8; }
+kbd { padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+
+.attention__list { display: flex; flex-direction: column; gap: 6px; }
+.attention__item {
+    display: grid; grid-template-columns: auto minmax(90px, 160px) auto 1fr; align-items: center; gap: 12px;
+    width: 100%; padding: 9px 12px; border-radius: 6px; cursor: pointer; text-align: left;
+    font: inherit; font-size: 13px; color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.attention__item:hover { border-color: #ff780a; }
+.attention__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attention__ip { font-family: monospace; font-size: 11px; color: #94a3b8; }
+.attention__reason { color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attention__more { color: #94a3b8; font-size: 11px; }
+
+@media (max-width: 768px) {
+    .devices-tree-layout { grid-template-columns: 1fr; min-height: 0; }
+    .devices-tree { max-height: 46vh; }
+    .device-detail-panel { max-height: none; padding: 16px; }
+    .detail-head { flex-direction: column; }
+    .attention__item { grid-template-columns: auto 1fr auto; }
+    .attention__reason { grid-column: 2 / -1; white-space: normal; }
+}
+
+/* glass.css («Старый вид») переопределяет padding полей со !important — место под иконку поиска */
+.tree-toolbar__search-wrap .tree-toolbar__search { padding-left: 32px !important; }

@@ -24,6 +24,13 @@ class StationViewSet(viewsets.ModelViewSet):
             return StationListSerializer
         return StationSerializer
 
+    def get_serializer_context(self):
+        """Передаём в сериализатор множество достижимых slug'ов (BFS)."""
+        context = super().get_serializer_context()
+        from .chain import compute_reachable
+        context["reachable"] = compute_reachable()
+        return context
+
     @action(detail=True, methods=["get"], url_path="ports")
     def ports(self, request, slug=None):
         """
@@ -154,6 +161,16 @@ class StationViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+
+    @action(detail=True, methods=["get"], url_path="ips")
+    def ips(self, request, slug=None):
+        """Возвращает IP, привязанные к станции."""
+        from apps.subnets.serializers import IpAddressSerializer
+        station = self.get_object()
+        ips = station.ip_addresses.all().select_related('subnet')
+        data = IpAddressSerializer(ips, many=True).data
+        return Response({"ok": True, "count": len(data), "ips": data})
+
 class OpticalLinkViewSet(viewsets.ModelViewSet):
     queryset = OpticalLink.objects.select_related(
         "station_a", "station_b", "ne_a", "ne_b", "device_a", "device_b",
@@ -175,6 +192,18 @@ class OpticalLinkViewSet(viewsets.ModelViewSet):
         link.link_status = link.recalc_status()
         link.save(update_fields=["link_status", "updated_at"])
 
+        return Response({"ok": True, "status": link.link_status})
+
+    @action(detail=False, methods=["post"], url_path="poll")
+    def poll(self, request):
+        """Глобальный опрос всех линий (запуск poll_optical_links_fast)."""
+        from apps.monitoring.tasks import poll_optical_links_fast
+        try:
+            poll_optical_links_fast.delay()
+            return Response({"ok": True, "message": "Опрос запущен"})
+        except Exception as e:
+            return Response({"ok": False, "error": str(e)}, status=500)
+
         return Response({
             "id": link.id,
             "label": link.label,
@@ -186,6 +215,27 @@ class OpticalLinkViewSet(viewsets.ModelViewSet):
             "end_a_label": link.end_a_label,
             "end_b_label": link.end_b_label,
             "updated_at": link.updated_at.isoformat() if link.updated_at else None,
+        })
+
+    @action(detail=False, methods=["post"], url_path="poll-all-now")
+    def poll_all_now(self, request):
+        """Запускает опрос всех оптических линий (через Celery)."""
+        from apps.monitoring.tasks import poll_optical_links
+        from apps.stations.models import OpticalLink
+        
+        # Собираем названия линий (station_a — station_b)
+        links = OpticalLink.objects.select_related('station_a', 'station_b').all()
+        link_names = []
+        for link in links:
+            name = f"{link.station_a.name} — {link.station_b.name}"
+            link_names.append(name)
+        
+        result = poll_optical_links.delay()
+        return Response({
+            "ok": True,
+            "task_id": result.id,
+            "links": link_names,
+            "count": len(link_names)
         })
 
 
@@ -200,3 +250,159 @@ def _last_metric(ne: NeDevice, key: str, instance: str):
         .first()
     )
     return mv
+
+
+# ─── Маршрут по графу линий (для линейки) ─────────────────────
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def route_between_points(request):
+    """
+    POST /api/v1/route/
+    Body: {"from": [lat, lng], "to": [lat, lng]}
+    Returns: {"path": [[lat, lng], ...], "distance_km": X, ...}
+    """
+    from .routing import find_shortest_path
+
+    try:
+        data = request.data
+        from_lat, from_lng = data["from"]
+        to_lat, to_lng = data["to"]
+    except (KeyError, ValueError, TypeError):
+        return Response({"error": "Invalid 'from' or 'to' (ожидается [lat, lng])"}, status=400)
+
+    result = find_shortest_path(from_lat, from_lng, to_lat, to_lng)
+    if not result:
+        return Response({"error": "Путь не найден"}, status=404)
+
+    return Response(result)
+
+
+
+# ── API: запуск опроса оптических линков ────────────────────
+from rest_framework.decorators import api_view
+
+
+@api_view(['POST'])
+def poll_links_api(request):
+    """Запуск poll_optical_links_fast через Celery."""
+    from apps.monitoring.tasks import poll_optical_links_fast
+    try:
+        poll_optical_links_fast.delay()
+        return Response({'ok': True, 'message': 'Опрос запущен'})
+    except Exception as e:
+        return Response({'ok': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# HTML-страница «Станции» (/local/stations/)
+# ============================================================
+
+from django.shortcuts import render  # noqa: E402
+
+
+def stations_list(request):
+    """
+    Вкладка «Станции» — список станций с оборудованием (NE + Device).
+    ?partial=1 → только партиал (для AJAX-обновления без F5).
+
+    Дополнительно: BFS по оптическим линкам от корня (bishkek).
+    Все станции, недостижимые от корня — crit.
+    """
+    from collections import deque
+    from apps.stations.models import OpticalLink, Station
+
+    stations = (
+        Station.objects
+        .prefetch_related("nes__ne__gateway", "devices__device__vendor")
+        .order_by("sort_order", "name")
+    )
+
+    links = (
+        OpticalLink.objects
+        .select_related("station_a", "station_b")
+        .filter(is_active=True)
+    )
+
+    # ── BFS: граф достижимости от корня ────────────────────
+    root = Station.objects.filter(slug="bishkek").first()
+
+    # Рёбра — только "живые" линки (не crit/unknown)
+    graph = {}
+    for l in links:
+        if l.link_status in ("crit", "unknown"):
+            continue
+        a, b = l.station_a_id, l.station_b_id
+        graph.setdefault(a, set()).add(b)
+        graph.setdefault(b, set()).add(a)
+
+    reachable = set()
+    if root:
+        queue = deque([root.id])
+        while queue:
+            node = queue.popleft()
+            if node in reachable:
+                continue
+            reachable.add(node)
+            for n in graph.get(node, set()):
+                if n not in reachable:
+                    queue.append(n)
+    # ──────────────────────────────────────────────────────
+
+    # Группируем связи по станции
+    links_by_station = {}
+    for l in links:
+        links_by_station.setdefault(l.station_a_id, []).append(l)
+        links_by_station.setdefault(l.station_b_id, []).append(l)
+
+    cards = []
+    for st in stations:
+        st_links = links_by_station.get(st.id, [])
+
+        nes = list(st.nes.all())
+        devices = list(st.devices.all())
+
+        # Агрегат статуса (учитываем NE, devices, optical links)
+        statuses = [sn.ne.status for sn in nes] + [sd.device.status for sd in devices]
+        link_statuses = [l.link_status for l in st_links]
+
+        if "unreachable" in statuses or "crit" in link_statuses:
+            agg_status = "crit"
+        elif "warn" in link_statuses or "degraded" in link_statuses:
+            agg_status = "warn"
+        elif not statuses and not link_statuses:
+            agg_status = "unknown"
+        elif statuses and all(s == "ok" for s in statuses):
+            agg_status = "ok"
+        elif any(s == "ok" for s in statuses):
+            agg_status = "warn"
+        else:
+            agg_status = "unknown"
+
+        # ── BFS override: если нет связи от корня — crit ──
+        if root and st.id not in reachable:
+            agg_status = "crit"
+
+        cards.append({
+            "station": st,
+            "links": st_links,
+            "links_count": len(st_links),
+            "ne_count": len(nes),
+            "device_count": len(devices),
+            "agg_status": agg_status,
+        })
+
+    if request.GET.get("partial"):
+        return render(request, "core/_stations_list_partial.html", {
+            "cards": cards,
+        })
+
+    return render(request, "core/stations_list.html", {
+        "cards": cards,
+        "total": len(cards),
+    })

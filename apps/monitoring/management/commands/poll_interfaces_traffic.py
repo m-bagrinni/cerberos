@@ -108,10 +108,10 @@ class Command(BaseCommand):
                 if dt > 0:
                     if prev.in_octets is not None and in_oct is not None:
                         delta = self._counter_delta(prev.in_octets, in_oct)
-                        in_bps = int(delta * 8 / dt)
+                        in_bps = int(delta * 8 / dt) if delta is not None else None
                     if prev.out_octets is not None and out_oct is not None:
                         delta = self._counter_delta(prev.out_octets, out_oct)
-                        out_bps = int(delta * 8 / dt)
+                        out_bps = int(delta * 8 / dt) if delta is not None else None
 
             InterfaceSample.objects.create(
                 interface=iface,
@@ -146,8 +146,12 @@ class Command(BaseCommand):
             return default
 
     def _counter_delta(self, prev, curr):
-        """Wrap-around для Counter64."""
+        """
+        Прирост Counter64 или None, если счётчик сбросился.
+        64-битный счётчик на практике не переполняется (10 Гбит/с → ~470 лет), поэтому
+        curr < prev — это перезагрузка устройства / сброс счётчиков, а не wrap-around.
+        Раньше считали (MAX - prev + curr) и получали скорости в эксабиты.
+        """
         if curr >= prev:
             return curr - prev
-        # откат счётчика — считаем как (MAX - prev + curr)
-        return (COUNTER64_MAX - prev) + curr
+        return None

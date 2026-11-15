@@ -1,8 +1,197 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Мультиплексоры{% endblock %}
 
+{% block extra_head %}
+<style>
+    .mux-layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 16px;
+        min-height: calc(100vh - 160px);
+    }
+    .mux-tree {
+        background: #181b1f;
+        border: 1px solid #2c3235;
+        border-radius: 6px;
+        padding: 12px;
+        overflow-y: auto;
+        max-height: calc(100vh - 180px);
+    }
+    .mux-gateway {
+        margin-bottom: 8px;
+    }
+    .mux-gateway__title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8e8e8e;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.15s;
+    }
+    .mux-gateway__title:hover {
+        background: #1f2226;
+    }
+    .mux-gateway__title i {
+        color: #ff780a;
+        font-size: 14px;
+        transition: transform 0.2s;
+    }
+    .mux-gateway.is-open .mux-gateway__title i {
+        transform: rotate(90deg);
+    }
+    .mux-gateway__nes {
+        display: none;
+        padding-left: 16px;
+    }
+    .mux-gateway.is-open .mux-gateway__nes {
+        display: block;
+    }
+    .mux-ne {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+        color: #ccccdc;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.15s;
+        border-left: 2px solid transparent;
+    }
+    .mux-ne:hover {
+        background: #1f2226;
+    }
+    .mux-ne.is-active {
+        background: rgba(255, 120, 10, 0.1);
+        border-left-color: #ff780a;
+        color: #ff780a;
+    }
+    .mux-ne__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .mux-ne__dot--ok { background: #73bf69; }
+    .mux-ne__dot--crit { background: #f2495c; }
+    .mux-ne__dot--unknown { background: #8e8e8e; }
+
+    .mux-detail {
+        background: #181b1f;
+        border: 1px solid #2c3235;
+        border-radius: 6px;
+        padding: 24px;
+        overflow-y: auto;
+        max-height: calc(100vh - 180px);
+    }
+    .mux-detail__empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #8e8e8e;
+        gap: 12px;
+    }
+    .mux-detail__empty i {
+        font-size: 48px;
+        opacity: 0.5;
+    }
+
+    .sfp-grid-detail {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .sfp-card {
+        background: #1a1d21;
+        border: 1px solid #2c3235;
+        border-radius: 6px;
+        padding: 16px;
+    }
+    .sfp-card--ok {
+        border-left: 3px solid #73bf69;
+    }
+    .sfp-card--crit {
+        border-left: 3px solid #f2495c;
+    }
+    .sfp-card--unknown {
+        border-left: 3px solid #8e8e8e;
+    }
+    .sfp-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .sfp-card__title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .sfp-card__title i {
+        color: #0abfbc;
+    }
+    .sfp-card__badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+    .sfp-card__badge--ok {
+        background: rgba(115,191,105,0.15);
+        color: #73bf69;
+        border: 1px solid rgba(115,191,105,0.4);
+    }
+    .sfp-card__badge--crit {
+        background: rgba(242,73,92,0.15);
+        color: #f2495c;
+        border: 1px solid rgba(242,73,92,0.4);
+    }
+    .sfp-card__badge--unknown {
+        background: rgba(142,142,142,0.15);
+        color: #8e8e8e;
+    }
+    .sfp-card__metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+    }
+    .sfp-metric {
+        background: #111217;
+        border: 1px solid #2c3235;
+        border-radius: 4px;
+        padding: 8px 10px;
+    }
+    .sfp-metric__label {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8e8e8e;
+        margin-bottom: 2px;
+    }
+    .sfp-metric__value {
+        font-size: 13px;
+        font-weight: 600;
+        color: #ccc;
+        font-family: monospace;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="app-main__header" style="position:relative;">
+
+<div class="app-main__header" style="position:relative; margin-bottom: 16px;">
     <button class="btn btn--primary"
             style="position:absolute; top:0; right:0;"
             onclick="pollAllGateways();">
@@ -14,223 +203,344 @@
     </p>
 </div>
 
-<div class="ne-tabs ne-tabs--main">
-    <button class="ne-tab is-active" data-mux-tab="devices">
-        <i class="bi bi-grid"></i> Устройства
-    </button>
-    <button class="ne-tab" data-mux-tab="metrics">
-        <i class="bi bi-graph-up"></i> Метрики
-    </button>
-</div>
-
-<div class="ne-tab-content is-active" data-mux-tab-content="devices">
-    {% if cards %}
-    <div class="device-group device-group--ok">
-        {% include "core/_mux_summary.html" %}
-
-        {% include "core/_mux_grid_partial.html" %}
-    </div>
-    {% else %}
-    <div class="alerts-empty">
-        <p>Мультиплексоры не найдены.</p>
-    </div>
-    {% endif %}
-</div>
-
-<div class="ne-tab-content" data-mux-tab-content="metrics">
-
-    <div class="mux-metrics-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex; gap:16px; flex-wrap:wrap;">
-            <div class="mux-metrics-group">
-                <label style="font-size:11px; color:var(--text-muted); margin-bottom:4px; display:block;">Порт</label>
-                <div class="mux-port-switch" id="mux-port-switch">
-                    <button class="is-active" data-port="1">SFP1</button>
-                    <button data-port="2">SFP2</button>
-                    <button data-port="3">SFP3</button>
+<div class="mux-layout">
+    {# Левая панель: дерево #}
+    <div class="mux-tree" id="mux-tree">
+        {% for gw_item in tree %}
+        <div class="mux-gateway {% if forloop.first %}is-open{% endif %}" data-gateway="{{ gw_item.gateway.id }}">
+            <div class="mux-gateway__title">
+                <i class="bi bi-chevron-right"></i>
+                <span>{{ gw_item.gateway.name }}</span>
+                <span style="margin-left:auto;font-size:11px;color:#555;">{{ gw_item.nes|length }}</span>
+            </div>
+            <div class="mux-gateway__nes">
+                {% for ne in gw_item.nes %}
+                <div class="mux-ne" data-ne-id="{{ ne.ne_id }}" data-ne-pk="{{ ne.id }}" data-ne-name="{{ ne.display_name }}">
+                    <span class="mux-ne__dot mux-ne__dot--{% if ne.status == 'ok' %}ok{% elif ne.status == 'crit' %}crit{% else %}unknown{% endif %}"></span>
+                    <span>NE-{{ ne.ne_id }} · {{ ne.display_name }}</span>
                 </div>
-            </div>
-            <div class="mux-metrics-group">
-                <label style="font-size:11px; color:var(--text-muted); margin-bottom:4px; display:block;">Период</label>
-                <div class="ne-charts-range" id="mux-period-switch">
-                    <button class="is-active" data-hours="1">1ч</button>
-                    <button data-hours="6">6ч</button>
-                    <button data-hours="24">24ч</button>
-                    <button data-hours="168">7д</button>
-                </div>
+                {% endfor %}
             </div>
         </div>
-        <div>
-            <button class="btn btn--primary" onclick="MuxMetrics.reload()">
-                <i class="bi bi-arrow-clockwise"></i> Обновить
-            </button>
-        </div>
+        {% endfor %}
     </div>
 
-    <div class="mux-main-charts">
-        <div class="mux-metrics-chart-card">
-            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-down-circle"></i> RX (dBm)</span></div>
-            <div class="mux-metrics-chart-body"><canvas id="mux-chart-rx"></canvas></div>
-        </div>
-        <div class="mux-metrics-chart-card">
-            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-up-circle"></i> TX (dBm)</span></div>
-            <div class="mux-metrics-chart-body"><canvas id="mux-chart-tx"></canvas></div>
-        </div>
-        <div class="mux-metrics-chart-card">
-            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-thermometer-half"></i> Температура (°C)</span></div>
-            <div class="mux-metrics-chart-body"><canvas id="mux-chart-temp"></canvas></div>
-        </div>
-        <div class="mux-metrics-chart-card">
-            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-lightning-charge"></i> Bias (mA)</span></div>
-            <div class="mux-metrics-chart-body"><canvas id="mux-chart-bias"></canvas></div>
-        </div>
-        
-        {# НОВЫЕ: Трафик #}
-        <div class="mux-metrics-chart-card">
-            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-down-square"></i> Трафик</span></div>
-            <div class="mux-metrics-chart-body"><canvas id="mux-chart-lan-in"></canvas></div>
-        </div>
-        <div class="mux-metrics-chart-card">
-            <div class="mux-metrics-chart-head"><span class="mux-metrics-chart-title"><i class="bi bi-arrow-up-square"></i> Трафик LAN (Out)</span></div>
-            <div class="mux-metrics-chart-body"><canvas id="mux-chart-lan-out"></canvas></div>
-        </div>
-    </div>
-
-    <h3 class="ne-detail__section" style="margin-top:24px;">Состояние портов</h3>
-    <div class="mux-ne-grid" id="mux-ne-grid">
-        <div style="padding:20px; text-align:center;">Загрузка...</div>
-    </div>
-
-</div>
-
-<div id="ne-modal" class="ne-modal" style="display:none;">
-    <div class="ne-modal__overlay" onclick="closeNeModal()"></div>
-    <div class="ne-modal__content">
-        <div class="ne-modal__header">
-            <h2 class="ne-modal__title" id="ne-modal-title">NE</h2>
-            <button class="ne-modal__close" onclick="closeNeModal()"><i class="bi bi-x-lg"></i></button>
-        </div>
-        <div class="ne-modal__body" id="ne-modal-body">
-            <div class="ne-modal__loading">Загрузка…</div>
-        </div>
-    </div>
-</div>
-
-<div id="ne-rename" class="ne-modal" style="display:none;">
-    <div class="ne-modal__overlay" onclick="closeNeRename()"></div>
-    <div class="ne-modal__content ne-modal__content--sm">
-        <div class="ne-modal__header">
-            <h2 class="ne-modal__title">Переименовать NE</h2>
-            <button class="ne-modal__close" onclick="closeNeRename()"><i class="bi bi-x-lg"></i></button>
-        </div>
-        <div class="ne-modal__body">
-            <label class="ne-modal__label">
-                Имя
-                <input type="text" id="ne-rename-input" class="ne-modal__input" maxlength="128">
-            </label>
-            <div class="ne-modal__actions">
-                <button class="btn btn--ghost" onclick="closeNeRename()">Отмена</button>
-                <button class="btn btn--primary" onclick="submitNeRename()">Сохранить</button>
-            </div>
+    {# Правая панель: детали #}
+    <div class="mux-detail" id="mux-detail">
+        <div class="mux-detail__empty">
+            <i class="bi bi-hdd-network"></i>
+            <div>Выберите NE в дереве слева</div>
         </div>
     </div>
 </div>
 
 <script>
-window.MUX_GATEWAY_IP = "{{ cards.0.ne.gateway.ip|default:'' }}";
-window.MUX_NE_LIST = [
-    {% for c in cards %}{"id": {{ c.ne.id }}, "ne_id": {{ c.ne.ne_id }}, "name": "{{ c.ne.display_name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
-];
+window.__MUX_DATA__ = {{ cards_json|safe }};
 
-var _renameNeId = null;
-
-function getCookie(name) {
-    var m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    return m ? decodeURIComponent(m[2]) : '';
-}
-
-function openNeModal(neId) {
-    var modal = document.getElementById('ne-modal');
-    var body = document.getElementById('ne-modal-body');
-    var title = document.getElementById('ne-modal-title');
-    var card = document.querySelector('[data-ne-id="' + neId + '"]');
-    var name = card ? card.querySelector('.device-card__name').textContent : ('NE-' + neId);
-    title.textContent = name;
-    body.innerHTML = '<div class="ne-modal__loading">Загрузка…</div>';
-    modal.style.display = 'flex';
-    fetch('/modal/ne/' + neId + '/')
-        .then(function(r) { return r.text(); })
-        .then(function(html) {
-            body.innerHTML = html;
-            if (window.NeModal) {
-                window.NeModal.bind(neId, body);
-            }
-        })
-        .catch(function() { body.innerHTML = '<div class="ne-modal__error">Ошибка загрузки</div>'; });
-}
-
-function closeNeModal() {
-    if (window.NeModal) {
-        try { window.NeModal.cleanup(); } catch (e) {}
-    }
-    var body = document.getElementById('ne-modal-body');
-    if (body) body.innerHTML = '';
-    document.getElementById('ne-modal').style.display = 'none';
-}
-
-function openNeRename(neId, currentName) {
-    _renameNeId = neId;
-    var inp = document.getElementById('ne-rename-input');
-    inp.value = currentName || '';
-    document.getElementById('ne-rename').style.display = 'flex';
-    setTimeout(function(){ inp.focus(); }, 50);
-}
-function closeNeRename() {
-    document.getElementById('ne-rename').style.display = 'none';
-    _renameNeId = null;
-}
-function submitNeRename() {
-    if (!_renameNeId) return;
-    var name = document.getElementById('ne-rename-input').value.trim();
-    fetch('/api/v1/ne/' + _renameNeId + '/rename/', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-        body: JSON.stringify({name: name})
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-        if (data.ok) {
-            var card = document.querySelector('[data-ne-id="' + _renameNeId + '"]');
-            if (card) card.querySelector('.device-card__name').textContent = data.name;
-            closeNeRename();
-        } else {
-            alert('Ошибка: ' + (data.error || 'unknown'));
-        }
-    })
-    .catch(function(e){ alert('Ошибка сети: ' + e); });
-}
-
-// --- Главные вкладки страницы ---
-document.querySelectorAll('.ne-tabs--main .ne-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-        var target = tab.dataset.muxTab;
-        document.querySelectorAll('.ne-tabs--main .ne-tab').forEach(function(t){
-            t.classList.toggle('is-active', t === tab);
+document.addEventListener('DOMContentLoaded', () => {
+    // Раскрытие/скрытие шлюзов
+    document.querySelectorAll('.mux-gateway__title').forEach(title => {
+        title.addEventListener('click', () => {
+            title.closest('.mux-gateway').classList.toggle('is-open');
         });
-        document.querySelectorAll('[data-mux-tab-content]').forEach(function(c){
-            c.classList.toggle('is-active', c.dataset.muxTabContent === target);
+    });
+
+    // Клик по NE → загрузка деталей справа
+    document.querySelectorAll('.mux-ne').forEach(el => {
+        el.addEventListener('click', () => {
+            document.querySelectorAll('.mux-ne').forEach(x => x.classList.remove('is-active'));
+            el.classList.add('is-active');
+
+            const neId = el.dataset.neId;
+            const nePk = el.dataset.nePk;
+            const neName = el.dataset.neName;
+            loadNeDetail(neId, nePk, neName);
         });
-        if (target === 'metrics' && window.MuxMetrics) {
-            window.MuxMetrics.load();
-        }
     });
 });
 
-// Клик по карточке NE
-document.addEventListener('click', function(e) {
-    var card = e.target.closest('.mux-card');
-    if (card && !e.target.closest('.device-card__edit')) {
-        openNeModal(card.dataset.neId);
+async function loadNeDetail(neId, nePk, neName) {
+    const panel = document.getElementById('mux-detail');
+    panel.innerHTML = '<div class="mux-detail__empty"><div>Загрузка...</div></div>';
+
+    try {
+        // Находим данные NE в __MUX_DATA__
+        const allCards = window.__MUX_DATA__ || [];
+        const card = allCards.find(c => c.ne_pk == nePk);
+
+        if (!card) {
+            panel.innerHTML = '<div class="mux-detail__empty"><div>Нет данных</div></div>';
+            return;
+        }
+
+        const sfp = card.sfp || {};
+        const lan = card.lan || {};
+
+        // Карточка SFP
+        const renderSfpCard = (port, d) => {
+            if (!d) return '';
+            const linkVal = d.link;
+            const isUp = linkVal === 1;
+            const statusClass = isUp ? 'ok' : (linkVal === 0 ? 'crit' : 'unknown');
+            const statusText = isUp ? 'UP' : (linkVal === 0 ? 'DOWN' : '—');
+
+            return `
+                <div class="sfp-card sfp-card--${statusClass}">
+                    <div class="sfp-card__header">
+                        <div class="sfp-card__title">
+                            <i class="bi bi-hdd-network"></i> SFP${port}
+                        </div>
+                        <span class="sfp-card__badge sfp-card__badge--${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="sfp-card__metrics">
+                        <div class="sfp-metric">
+                            <div class="sfp-metric__label">RX</div>
+                            <div class="sfp-metric__value">${d.rx != null ? d.rx.toFixed(2) + ' dBm' : '—'}</div>
+                        </div>
+                        <div class="sfp-metric">
+                            <div class="sfp-metric__label">TX</div>
+                            <div class="sfp-metric__value">${d.tx != null ? d.tx.toFixed(2) + ' dBm' : '—'}</div>
+                        </div>
+                        <div class="sfp-metric">
+                            <div class="sfp-metric__label">TEMP</div>
+                            <div class="sfp-metric__value">${d.temp != null ? d.temp.toFixed(1) + ' °C' : '—'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // LAN карточка
+        const renderLan = () => {
+            const lanKeys = Object.keys(lan);
+            if (!lanKeys.length) return '';
+
+            let html = `
+                <div class="lan-section">
+                    <div class="lan-section__title">LAN</div>
+                    <div class="lan-grid">
+            `;
+
+            lanKeys.forEach(k => {
+                const d = lan[k];
+                const isUp = d.link === 'up';
+                html += `
+                    <div class="lan-card ${isUp ? 'lan-card--up' : 'lan-card--down'}">
+                        <div class="lan-card__num">${d.idx || k}</div>
+                        <div class="lan-card__pvid">PVID: ${d.pvid || '—'}</div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            return html;
+        };
+
+        let cardsHtml = '';
+        // Проходим по всем SFP-портам (все ключи из sfp)
+        Object.keys(sfp).sort((a, b) => parseInt(a) - parseInt(b)).forEach(port => {
+            cardsHtml += renderSfpCard(port, sfp[port]);
+        });
+
+        panel.innerHTML = `
+            <div style="margin-bottom: 24px;">
+                <div style="font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 4px;">
+                    NE-${neId} · ${neName}
+                </div>
+                <div style="font-size: 13px; color: #8e8e8e; font-family: monospace;">
+                    pk: ${nePk}
+                </div>
+            </div>
+            <div class="sfp-grid-detail">${cardsHtml}</div>
+            ${renderLan()}
+        `;
+    } catch (e) {
+        panel.innerHTML = `<div class="mux-detail__empty"><div style="color: #f2495c;">Ошибка: ${e.message}</div></div>`;
+    }
+}
+</script>
+
+<!-- Контекстное меню для NE -->
+<div id="ne-ctx-menu" class="ne-ctx-menu">
+    <div class="ne-ctx-item" data-action="poll-ne">
+        <i class="bi bi-arrow-repeat"></i> Опросить NE
+    </div>
+    <div class="ne-ctx-item" data-action="poll-sfp">
+        <i class="bi bi-usb-plug"></i> Опросить SFP
+    </div>
+    <div class="ne-ctx-item" data-action="open-on-map">
+        <i class="bi bi-geo-alt"></i> Открыть на карте
+    </div>
+    <hr>
+    <div class="ne-ctx-item" data-action="copy-name">
+        <i class="bi bi-clipboard"></i> Копировать имя
+    </div>
+</div>
+
+
+{% endblock %}
+
+<style>
+.ne-ctx-menu {
+    position: fixed;
+    z-index: 10000;
+    background: #181b1f;
+    border: 1px solid #2c3235;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    padding: 4px 0;
+    min-width: 200px;
+    display: none;
+}
+.ne-ctx-menu.is-open {
+    display: block;
+}
+.ne-ctx-item {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #ccccdc;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+}
+.ne-ctx-item:hover {
+    background: #22252b;
+    color: #fff;
+}
+.ne-ctx-item i {
+    color: #8e8e8e;
+    width: 16px;
+    text-align: center;
+}
+.ne-ctx-item:hover i {
+    color: #ff780a;
+}
+.ne-ctx-menu hr {
+    border: none;
+    border-top: 1px solid #2c3235;
+    margin: 4px 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const menu = document.getElementById('ne-ctx-menu');
+    if (!menu) return;
+    
+    let currentNe = null;
+    
+    // Правый клик на NE (делегирование)
+    document.addEventListener('contextmenu', (e) => {
+        console.log('[NE ctx] contextmenu event');
+        const el = e.target.closest('.mux-ne');
+        if (!el) { console.log('[NE ctx] not a mux-ne'); return; }
+        console.log('[NE ctx] mux-ne found:', el);
+        
+        e.preventDefault();
+        currentNe = {
+            ne_id: el.dataset.neId,
+            ne_pk: el.dataset.nePk,
+            ne_name: el.dataset.neName,
+        };
+        
+        // Позиция
+        let left = e.clientX;
+        let top = e.clientY;
+        const menuWidth = 200;
+        const menuHeight = 200;
+        
+        if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
+        if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 10;
+        
+        menu.style.left = left + 'px';
+        menu.style.top = top + 'px';
+        menu.classList.add('is-open');
+    });
+    
+    // Скрытие меню
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target)) menu.classList.remove('is-open');
+    });
+    
+    // Обработка кликов
+    menu.addEventListener('click', async (e) => {
+        const item = e.target.closest('.ne-ctx-item');
+        if (!item || !currentNe) return;
+        
+        const action = item.dataset.action;
+        menu.classList.remove('is-open');
+        
+        switch (action) {
+            case 'poll-ne':
+                try {
+                    const resp = await fetch(`/api/v1/ne/${currentNe.ne_pk}/poll-now/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        credentials: 'same-origin',
+                    });
+                    if (resp.ok) {
+                        if (typeof showToast === 'function') showToast(`Опрос NE-${currentNe.ne_id} запущен`, 'success');
+                    } else {
+                        if (typeof showToast === 'function') showToast(`Ошибка: HTTP ${resp.status}`, 'error');
+                    }
+                } catch (err) {
+                    if (typeof showToast === 'function') showToast('Ошибка сети: ' + err.message, 'error');
+                }
+                break;
+            case 'poll-sfp':
+                try {
+                    const resp = await fetch(`/api/v1/ne/${currentNe.ne_pk}/poll-now/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        credentials: 'same-origin',
+                    });
+                    if (resp.ok) {
+                        if (typeof showToast === 'function') showToast(`Опрос SFP NE-${currentNe.ne_id} запущен`, 'success');
+                    } else {
+                        if (typeof showToast === 'function') showToast(`Ошибка: HTTP ${resp.status}`, 'error');
+                    }
+                } catch (err) {
+                    if (typeof showToast === 'function') showToast('Ошибка сети: ' + err.message, 'error');
+                }
+                break;
+            case 'open-detail':
+                if (typeof window.openNeModal === 'function') {
+                    window.openNeModal(currentNe.ne_pk);
+                } else {
+                    window.open(`/api/v1/ne/${currentNe.ne_pk}/`, '_blank');
+                }
+                break;
+            case 'copy-name':
+                navigator.clipboard.writeText(currentNe.ne_name).then(() => {
+                    if (typeof showToast === 'function') showToast(`Имя ${currentNe.ne_name} скопировано`, 'success');
+                });
+                break;
+        }
+    });
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 });
 </script>
+
+{% block extra_js %}
+<script src="{% static 'js/ne-modal.js' %}?v=1793429171"></script>
+<script src="{% static 'js/mux-metrics.js' %}?v=1793429171"></script>
+<link rel="stylesheet" href="{% static 'css/mux-metrics.css' %}?v=1793429171">
+<script src="{% static 'vendor/js/sortable.min.js' %}"></script>
+<script src="{% static 'js/mux-sortable.js' %}?v=1793429171"></script>
 {% endblock %}

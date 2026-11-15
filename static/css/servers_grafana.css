@@ -1,0 +1,316 @@
+/* =========================================
+   GRAFANA STYLE ДЛЯ СЕРВЕРОВ
+   ========================================= */
+:root {
+    --bg-main: #0b0c0e;
+    --bg-panel: #161719;
+    --bg-hover: #22252a;
+    --border: #2c3235;
+    --text-main: #ccccdc;
+    --text-muted: #8e8e8e;
+    --accent: #ff780a;
+    --green: #73bf69;
+    --red: #f2495c;
+}
+
+.g-wrapper {
+    display: flex;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+    background: var(--bg-main);
+}
+
+/* --- ЛЕВАЯ ПАНЕЛЬ (Дерево) --- */
+.g-sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+}
+
+.g-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.g-sidebar-header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-main);
+}
+
+.g-sidebar-filters {
+    padding: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.g-filter-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.g-filter-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.g-filter-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.g-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.g-server-item {
+    padding: 10px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text-main);
+    transition: background 0.2s;
+}
+
+.g-server-item:hover {
+    background: var(--bg-hover);
+}
+
+.g-server-item.active {
+    background: var(--bg-hover);
+    border-left: 3px solid var(--accent);
+}
+
+.g-server-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.g-server-ip {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.g-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.g-status-dot.online { background: var(--green); }
+.g-status-dot.offline { background: var(--red); }
+
+/* --- ПРАВАЯ ПАНЕЛЬ (Детали) --- */
+.g-detail {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.g-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.g-empty i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* --- ЗАГОЛОВКИ --- */
+.g-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.g-detail-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.g-detail-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* --- ВКЛАДКИ --- */
+.g-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+}
+
+.g-tab {
+    padding: 10px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.g-tab:hover {
+    color: var(--text-main);
+}
+
+.g-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* --- КАРТОЧКИ И ТАБЛИЦЫ --- */
+.g-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.g-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.g-table th {
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+}
+
+.g-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-main);
+}
+
+.g-table tr:last-child td {
+    border-bottom: none;
+}
+
+.g-table tr:hover td {
+    background: var(--bg-hover);
+}
+
+/* --- КНОПКИ --- */
+.g-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+}
+
+.g-btn:hover {
+    background: var(--bg-hover);
+}
+
+.g-btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.g-btn-primary:hover {
+    background: #e66a00;
+}
+
+/* --- МОДАЛКИ --- */
+.g-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.g-modal-content {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 400px;
+    padding: 24px;
+}
+
+.g-modal-content h3 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    color: var(--text-main);
+}
+
+.g-input {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    border-radius: 4px;
+}
+
+.g-input:disabled {
+    background: rgba(0,0,0,0.2);
+    color: var(--text-muted);
+}
+
+/* Принудительное растягивание правой панели */
+#server-detail-panel {
+    flex-grow: 1;
+    width: 100%;
+}
+
+#server-detail-panel .g-wrapper {
+    display: block !important;
+    height: auto !important;
+}
+
+#server-detail-panel .g-detail {
+    width: 100% !important;
+    padding: 0 !important;
+}

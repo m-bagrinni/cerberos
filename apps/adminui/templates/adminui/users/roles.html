@@ -1,0 +1,55 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Роли: {{ user_obj.username }}{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:users' %}" class="btn--secondary">
+  <i class="bi bi-arrow-left"></i> К пользователям
+</a>
+{% endblock %}
+
+{% block admin_content %}
+
+<form method="post" class="aui-form" style="max-width:700px">
+  {% csrf_token %}
+
+  <div class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title">Назначить роли</h2>
+    </div>
+    <div class="panel__body">
+      <p class="text-muted" style="margin-bottom:12px">
+        Пользователь: <strong>{{ user_obj.username }}</strong>
+      </p>
+
+      {% for role in roles %}
+      <label style="display:flex;align-items:flex-start;gap:12px;padding:12px;background:var(--bg-elevated);border-radius:var(--radius);margin-bottom:8px;cursor:pointer">
+        <input type="checkbox" name="roles" value="{{ role.pk }}"
+               {% if role.pk in user_role_ids %}checked{% endif %}
+               style="margin-top:4px;accent-color:var(--primary)">
+        <div style="flex:1">
+          <div style="font-weight:600;color:var(--text-strong)">
+            {{ role.name }}
+            {% if role.is_system %}<span class="badge badge--info" style="margin-left:6px">system</span>{% endif %}
+          </div>
+          {% if role.description %}
+          <div class="text-muted" style="font-size:12px;margin-top:2px">{{ role.description }}</div>
+          {% endif %}
+          <div class="text-muted" style="font-size:11px;margin-top:4px">
+            {{ role.permissions.count }} разрешений
+          </div>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="aui-form__actions">
+    <button type="submit" class="btn--primary">
+      <i class="bi bi-check-lg"></i> Сохранить
+    </button>
+    <a href="{% url 'adminui:users' %}" class="btn--secondary">Отмена</a>
+  </div>
+</form>
+
+{% endblock %}

@@ -1,0 +1,5 @@
+<div class="tree-device" data-slug="{{ d.ip }}" data-name="{{ d.name }}" data-vendor="{{ d.vendor.name|default:'' }}" title="{{ d.lamp_title }}">
+    <span class="tree-device__dot tree-device__dot--{{ d.lamp }}"></span>
+    <span class="tree-device__name">{{ d.name }}</span>
+    <span class="tree-device__ip">{{ d.ip }}</span>
+</div>

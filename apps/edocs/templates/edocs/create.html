@@ -1,0 +1,80 @@
+{% extends "edocs/base_edocs.html" %}
+
+{% block edocs_content %}
+<div class="edocs-card" style="max-width: 600px; margin: 0 auto;">
+  <div class="edocs-card__head"><i class="bi bi-pencil-square"></i> Новое письмо / Поручение</div>
+  <div class="edocs-card__body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="edocs-field">
+        <label>Кому (Получатель)</label>
+        <select name="recipient" required>
+          <option value="">— Выберите сотрудника —</option>
+          {% for emp in employees %}
+            <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="edocs-field">
+        <label>Тип документа</label>
+        <select name="document_type">
+          <option value="execution">Исполнение (требует действий)</option>
+          <option value="approval">Согласование (требует подтверждения)</option>
+          <option value="review">Ознакомление (просто прочитать)</option>
+          <option value="info">Информация (к сведению)</option>
+        </select>
+      </div>
+
+      <div class="edocs-field">
+        <label>Тема</label>
+        <input type="text" name="title" required placeholder="Например: Согласование акта">
+      </div>
+
+      <div class="edocs-field">
+        <label>Текст письма</label>
+        <textarea name="message" rows="4" placeholder="Комментарий к документу..."></textarea>
+      </div>
+
+      <div class="edocs-field">
+        <label>Файл (необязательно)</label>
+        <input type="file" name="file">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+        <a href="{% url 'edocs:sent' %}" class="edocs-btn" style="background:transparent; color:var(--text-muted); border:1px solid var(--border);">Отмена</a>
+        <button type="submit" class="edocs-btn"><i class="bi bi-send"></i> Отправить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+
+<script>
+  window.addEventListener('load', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const toId = urlParams.get('to');
+    if (!toId) return;
+    
+    const select = document.querySelector('select[name="recipient"]');
+    if (!select) {
+      console.error('❌ Select not found');
+      return;
+    }
+    
+    console.log('🔍 Trying to select recipient:', toId);
+    console.log('📋 Available options:', Array.from(select.options).map(o => o.value));
+    
+    for (let i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === toId) {
+        select.selectedIndex = i;
+        console.log('✅ Recipient selected:', toId);
+        return;
+      }
+    }
+    console.error('❌ Option not found for ID:', toId);
+  });
+</script>
+{% endblock %}

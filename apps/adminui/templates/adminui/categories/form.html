@@ -1,0 +1,171 @@
+{% extends "adminui/base_admin.html" %}
+{% block admin_title %}{{ form_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .icon-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 12px;
+        background: #111217;
+        border: 1px solid #2c3235;
+        border-radius: 6px;
+        margin-top: 8px;
+    }
+    .icon-picker__item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        aspect-ratio: 1;
+        background: #1a1d21;
+        border: 1px solid #2c3235;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 20px;
+        color: #8e8e8e;
+        transition: all 0.15s;
+    }
+    .icon-picker__item:hover {
+        background: #22252b;
+        border-color: #ff780a;
+        color: #ff780a;
+    }
+    .icon-picker__item.is-selected {
+        background: rgba(255, 120, 10, 0.15);
+        border-color: #ff780a;
+        color: #ff780a;
+    }
+    .icon-picker-search {
+        width: 100%;
+        padding: 8px 12px;
+        background: #0b0c0e;
+        border: 1px solid #3d444b;
+        border-radius: 4px;
+        color: #ccccdc;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+    .icon-preview {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 13px;
+        color: #8e8e8e;
+    }
+    .icon-preview i {
+        font-size: 24px;
+        color: #ff780a;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<form method="post" class="aui-form">
+    {% csrf_token %}
+    <div class="panel">
+        <div class="panel__header">
+            <h2 class="panel__title">{{ form_title }}</h2>
+        </div>
+        <div class="panel__body">
+
+            <div class="aui-form__field">
+                <label class="aui-form__label">Slug</label>
+                {{ form.slug }}
+                {% if form.slug.errors %}<div class="aui-form__error">{{ form.slug.errors|join:", " }}</div>{% endif %}
+            </div>
+
+            <div class="aui-form__field">
+                <label class="aui-form__label">Название</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="aui-form__error">{{ form.name.errors|join:", " }}</div>{% endif %}
+            </div>
+
+            <div class="aui-form__field">
+                <label class="aui-form__label">Иконка</label>
+                {{ form.icon }}
+                <div class="icon-preview">
+                    <i class="bi {{ form.icon.value|default:'bi-hdd-network' }}" id="icon-preview"></i>
+                    <span id="icon-name">{{ form.icon.value|default:'bi-hdd-network' }}</span>
+                </div>
+                <input type="text" id="icon-search" class="icon-picker-search" placeholder="Поиск иконок..." style="margin-top:12px;">
+                <div class="icon-picker" id="icon-picker"></div>
+            </div>
+
+            <div class="aui-form__field">
+                <label class="aui-form__label">Порядок сортировки</label>
+                {{ form.sort_order }}
+                {% if form.sort_order.errors %}<div class="aui-form__error">{{ form.sort_order.errors|join:", " }}</div>{% endif %}
+            </div>
+
+            <div class="aui-form__field">
+                <label class="aui-form__label">{{ form.is_active }} Активна</label>
+                {% if form.is_active.errors %}<div class="aui-form__error">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+            </div>
+
+        </div>
+    </div>
+    <div class="aui-form__actions">
+        <button type="submit" class="btn--primary">{{ form_submit }}</button>
+        <a href="{% url 'adminui:categories' %}" class="btn--secondary">Отмена</a>
+    </div>
+</form>
+
+<script>
+// Список иконок (Bootstrap Icons, самые нужные)
+const ICONS = [
+    'bi-hdd-network', 'bi-hdd-stack', 'bi-server', 'bi-router', 'bi-pc-display',
+    'bi-diagram-3', 'bi-diagram-2', 'bi-share', 'bi-link-45deg', 'bi-ethernet',
+    'bi-building', 'bi-buildings', 'bi-house', 'bi-geo-alt', 'bi-pin-map',
+    'bi-wifi', 'bi-broadcast', 'bi-antenna', 'bi-cloud', 'bi-cloud-arrow-up',
+    'bi-cpu', 'bi-memory', 'bi-motherboard', 'bi-device-hdd', 'bi-device-ssd',
+    'bi-usb-plug', 'bi-plug', 'bi-lightning', 'bi-lightning-charge', 'bi-battery',
+    'bi-tag', 'bi-tags', 'bi-bookmark', 'bi-flag', 'bi-star',
+    'bi-shield', 'bi-shield-check', 'bi-lock', 'bi-unlock', 'bi-key',
+    'bi-graph-up', 'bi-graph-down', 'bi-bar-chart', 'bi-pie-chart', 'bi-activity',
+    'bi-gear', 'bi-tools', 'bi-wrench', 'bi-sliders', 'bi-funnel',
+    'bi-box', 'bi-boxes', 'bi-archive', 'bi-inbox', 'bi-collection',
+    'bi-globe', 'bi-globe2', 'bi-translate', 'bi-map', 'bi-compass',
+    'bi-person', 'bi-people', 'bi-person-circle', 'bi-person-badge', 'bi-people-fill',
+];
+
+const picker = document.getElementById('icon-picker');
+const searchInput = document.getElementById('icon-search');
+const hiddenInput = document.querySelector('input[name="icon"]');
+const previewIcon = document.getElementById('icon-preview');
+const previewName = document.getElementById('icon-name');
+
+let selectedIcon = hiddenInput.value || 'bi-hdd-network';
+
+function renderIcons(filter = '') {
+    const filtered = ICONS.filter(icon => icon.toLowerCase().includes(filter.toLowerCase()));
+    picker.innerHTML = filtered.map(icon => `
+        <div class="icon-picker__item ${icon === selectedIcon ? 'is-selected' : ''}" data-icon="${icon}" title="${icon}">
+            <i class="bi ${icon}"></i>
+        </div>
+    `).join('');
+
+    picker.querySelectorAll('.icon-picker__item').forEach(item => {
+        item.addEventListener('click', () => {
+            selectedIcon = item.dataset.icon;
+            hiddenInput.value = selectedIcon;
+            previewIcon.className = 'bi ' + selectedIcon;
+            previewName.textContent = selectedIcon;
+
+            picker.querySelectorAll('.icon-picker__item').forEach(i => i.classList.remove('is-selected'));
+            item.classList.add('is-selected');
+        });
+    });
+}
+
+searchInput.addEventListener('input', (e) => {
+    renderIcons(e.target.value);
+});
+
+renderIcons();
+</script>
+{% endblock %}

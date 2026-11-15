@@ -105,7 +105,7 @@
                     var name = card.dataset.name;
                     var action = btn.dataset.action;
                     
-                    if (action === 'stop' && !confirm('Остановить ' + name + '?')) return;
+                    if (action === 'stop' && !(await CerberConfirm('Остановить ' + name + '?'))) return;
                     
                     btn.disabled = true;
                     btn.textContent = '...';
@@ -115,7 +115,6 @@
                             headers: { 'X-CSRFToken': csrf() },
                         });
                         var result = await r.json();
-                        console.log('[' + action + ']', name, result);
                         setTimeout(loadAll, 1500);
                     } catch (e) {
                         console.error(e);
@@ -180,7 +179,6 @@
                             headers: { 'X-CSRFToken': csrf() },
                         });
                         var result = await r.json();
-                        console.log('[' + endpoint + ']', result);
                         setTimeout(loadAll, 500);
                     } catch (e) {
                         console.error(e);
@@ -213,7 +211,8 @@
                     '<span class="services-event__time">' + time + '</span>' +
                     icon +
                     '<span class="services-event__action services-event__action--' + e.action + '">' + e.action + '</span>' +
-                    '<span class="services-event__target">' + e.target_type + ': ' + e.target_name + '</span>' +
+                    (e.is_system ? '<span class="badge" style="background: var(--bg-elevated); color: var(--text-muted); font-size: 9px; margin-right: 5px;">СИСТЕМА</span>' : '') +
+                    '<span class="services-event__target">' + (e.is_system ? e.target_name : e.target_type + ': ' + e.target_name) + '</span>' +
                 '</div>';
             }).join('');
         } catch (e) {
@@ -233,8 +232,7 @@
 
     // ═══ Start ═══
     function start() {
-        loadAll();
-        timer = setInterval(loadAll, refreshInterval);
+        timer = Cerber.poll(loadAll, refreshInterval, { immediate: true });  // пауза в фоне
     }
 
     document.addEventListener('DOMContentLoaded', start);

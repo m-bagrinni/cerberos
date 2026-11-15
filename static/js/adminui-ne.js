@@ -2,10 +2,7 @@
 (function () {
   'use strict';
 
-  function csrf() {
-    const m = document.cookie.match(/csrftoken=([^;]+)/);
-    return m ? m[1] : '';
-  }
+  function csrf() { return Cerber.csrfToken(); }  // static/js/core.js
 
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.aui-icon-btn--rename');
@@ -13,7 +10,7 @@
 
     const pk = btn.dataset.pk;
     const oldName = btn.dataset.name;
-    const newName = prompt('Новое имя NE:', oldName);
+    const newName = await CerberPrompt('Новое имя NE:', oldName);
     if (!newName || newName === oldName) return;
 
     const url = window.CERBER_NE_RENAME_URL.replace('__PK__', pk);

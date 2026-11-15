@@ -1,0 +1,35 @@
+{% extends "accounts/base_auth.html" %}
+
+{% block title %}Вход — Cerberus{% endblock %}
+{% block auth_title %}Вход{% endblock %}
+{% block auth_subtitle %}Войдите в систему{% endblock %}
+
+{% block auth_content %}
+<form method="post">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div class="auth-messages">
+    {% for err in form.non_field_errors %}
+    <div class="msg msg--error">{{ err }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% for field in form %}
+  <div class="aui-form__field">
+    <label class="aui-form__label">{{ field.label }}</label>
+    {{ field }}
+    {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
+  </div>
+  {% endfor %}
+
+  <button type="submit" class="btn--primary">
+    <i class="bi bi-box-arrow-in-right"></i> Войти
+  </button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+Нет аккаунта? <a href="{% url 'accounts:register' %}">Зарегистрироваться</a>
+{% endblock %}

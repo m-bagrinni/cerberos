@@ -108,3 +108,31 @@ class DeviceViewSet(viewsets.ModelViewSet):
         device = self.get_object()
         qs = Vlan.objects.filter(device=device).order_by("vlan_id")
         return Response(VlanSerializer(qs, many=True).data)
+
+
+# ─── Live-статусы устройств ──────────────────────────────
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def device_statuses(request):
+    """
+    GET /api/v1/devices/statuses/
+    Возвращает краткий статус всех устройств (для live-обновления).
+    """
+    from apps.devices.models import Device
+    devices = Device.objects.all().only("ip", "name", "status", "is_reachable", "last_polled_at")
+    data = []
+    for d in devices:
+        data.append({
+            "ip": d.ip,
+            "name": d.name,
+            "status": d.status,
+            "is_reachable": d.is_reachable,
+            "last_polled_at": d.last_polled_at.isoformat() if d.last_polled_at else None,
+        })
+    return Response({"ok": True, "devices": data})
+

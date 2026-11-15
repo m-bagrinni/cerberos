@@ -1,0 +1,183 @@
+{% extends "adminui/base_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Рисование маршрута: {{ link }}{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:links' %}" class="btn--secondary">
+    <i class="bi bi-arrow-left"></i> Назад к линиям
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div style="display: flex; gap: 20px; height: calc(100vh - 160px);">
+    <div style="flex: 1; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+        <div id="map" style="width: 100%; height: 100%;"></div>
+    </div>
+    <div style="width: 320px; flex-shrink: 0;">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">Управление</h2>
+            </div>
+            <div class="panel__body">
+                <p class="text-muted" style="font-size: 12px; margin-bottom: 15px;">
+                    Кликайте по карте, чтобы поставить точку. Точки соединяются линией. Перетаскивайте точки для исправления.
+                </p>
+                
+                <button id="save-btn" class="btn--primary" style="width: 100%; margin-bottom: 10px;">
+                    <i class="bi bi-save"></i> Сохранить маршрут
+                </button>
+                <button id="clear-btn" class="btn--danger" style="width: 100%; margin-bottom: 10px;">
+                    <i class="bi bi-trash"></i> Очистить все
+                </button>
+                <button id="finish-btn" class="btn--secondary" style="width: 100%; background: var(--ok); color: #fff; border-color: var(--ok);">
+                    <i class="bi bi-check-lg"></i> Завершить на станции Б
+                </button>
+                
+                <div id="status" style="margin-top: 15px; font-size: 12px; color: var(--text-muted); text-align: center;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ stations|json_script:"stations-data" }}
+
+<link rel="stylesheet" href="{% static "vendor/leaflet/leaflet.css" %}" />
+<script src="{% static "vendor/leaflet/leaflet.js" %}"></script>
+
+<script>
+    const START_LAT = 42.8669;
+    const START_LON = 74.5519;
+    
+    const existingPath = {{ link.path_geojson|default:"[]"|safe }};
+    const stations = JSON.parse(document.getElementById('stations-data').textContent);
+
+    const map = L.map('map').setView([START_LAT, START_LON], 13);
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Отрисовка станций
+    stations.forEach(s => {
+        if (!s.lat || !s.lon) return;
+        const isA = s.type === 'station_a';
+        const color = isA ? '#73bf69' : '#f2495c';
+        const icon = L.divIcon({
+            className: 'station-marker',
+            html: `<div style="background: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+        L.marker([s.lat, s.lon], { icon: icon, draggable: false, zIndexOffset: 1000 })
+            .addTo(map)
+            .bindTooltip(s.name, { direction: 'top' });
+    });
+
+    // Линия и точки
+    let points = existingPath.length > 0 ? existingPath : [];
+    let polyline = L.polyline(points, { color: '#0abfbc', weight: 4 }).addTo(map);
+
+    function updateMap() {
+        polyline.setLatLngs(points);
+        
+        // Удаляем старые маркеры (кроме станций)
+        map.eachLayer(layer => {
+            if (layer instanceof L.Marker && !layer.options.icon?.options?.className?.includes('station-marker')) {
+                map.removeLayer(layer);
+            }
+        });
+
+        // Добавляем новые маркеры
+        points.forEach((p, idx) => {
+            const marker = L.marker(p, { draggable: true }).addTo(map);
+            
+            marker.on('dragend', (e) => {
+                const newLatLng = e.target.getLatLng();
+                points[idx] = [newLatLng.lat, newLatLng.lng];
+                polyline.setLatLngs(points);
+            });
+
+            marker.on('click', () => {
+                if (confirm(`Удалить точку ${idx + 1}?`)) {
+                    points.splice(idx, 1);
+                    updateMap();
+                }
+            });
+
+            marker.bindTooltip(`${idx + 1}`);
+        });
+
+        document.getElementById('status').textContent = `Точек: ${points.length}`;
+    }
+
+    map.on('click', (e) => {
+        let lat = e.latlng.lat;
+        let lon = e.latlng.lng;
+
+        // Первая точка привязывается к станции А
+        if (points.length === 0) {
+            const stationA = stations.find(s => s.type === 'station_a');
+            if (stationA) {
+                lat = stationA.lat;
+                lon = stationA.lon;
+            }
+        }
+
+        points.push([lat, lon]);
+        updateMap();
+    });
+
+    updateMap();
+
+    document.getElementById('clear-btn').addEventListener('click', () => {
+        if (confirm('Удалить все точки?')) {
+            points = [];
+            updateMap();
+        }
+    });
+
+    document.getElementById('finish-btn').addEventListener('click', () => {
+        const stationB = stations.find(s => s.type === 'station_b');
+        if (!stationB) {
+            alert('Станция Б не найдена');
+            return;
+        }
+        if (points.length === 0) {
+            alert('Сначала добавьте хотя бы одну точку!');
+            return;
+        }
+        points.push([stationB.lat, stationB.lon]);
+        updateMap();
+    });
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+        if (points.length < 2) {
+            alert('Добавьте хотя бы 2 точки!');
+            return;
+        }
+
+        fetch('/admin/stations/opticallink/{{ link.id }}/save-path/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({ path_geojson: points }),
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('status').textContent = '✅ Маршрут сохранен!';
+                document.getElementById('status').style.color = 'var(--ok)';
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(err => {
+            alert('Ошибка сети: ' + err);
+        });
+    });
+</script>
+{% endblock %}

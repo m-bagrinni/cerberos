@@ -20,6 +20,14 @@
             <div class="modal-info-grid__value">{{ device.ent_model|default:"—" }}</div>
         </div>
         <div class="modal-info-grid__item">
+            <div class="modal-info-grid__label">Управление</div>
+            <div class="modal-info-grid__value">
+                <a href="http://{{ device.ip }}/" target="_blank" class="c-status c-status--ok" style="text-decoration: none; padding: 4px 10px; border-radius: 4px; display: inline-block;">
+                    <i class="bi bi-box-arrow-up-right"></i> Веб-интерфейс
+                </a>
+            </div>
+        </div>
+        <div class="modal-info-grid__item">
             <div class="modal-info-grid__label">Профиль</div>
             <div class="modal-info-grid__value">{{ device.effective_profile.name|default:"—" }}</div>
         </div>

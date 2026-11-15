@@ -6,10 +6,7 @@
   const result = document.getElementById('snmp-test-result');
   if (!btn || !result) return;
 
-  function csrf() {
-    const m = document.cookie.match(/csrftoken=([^;]+)/);
-    return m ? m[1] : '';
-  }
+  function csrf() { return Cerber.csrfToken(); }  // static/js/core.js
 
   btn.addEventListener('click', async () => {
     const ip = document.getElementById('id_ip').value.trim();

@@ -405,7 +405,7 @@
             })
             .catch(function(e) {
                 console.error('[openNeModal] error:', e);
-                body.innerHTML = '<div style="color:var(--crit);padding:20px">Ошибка загрузки: ' + e.message + '</div>';
+                body.innerHTML = '<div style="color:var(--crit);padding:20px">Ошибка загрузки: ' + Cerber.escapeHtml(e.message) + '</div>';
             });
     };
 

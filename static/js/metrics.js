@@ -36,7 +36,6 @@ async function apiGet(path) {
 // --- Последние значения ---
 async function loadLatest(ip) {
     const data = await apiGet(`/devices/${encodeURIComponent(ip)}/metrics/?latest=true`);
-    console.log('[metrics] latest:', data.length, 'записей');
     for (const row of data) {
         // Ищем карточку по data-metric-key, потом внутри — [data-field="value"]
         const card = document.querySelector(`[data-metric-key="${row.metric_key}"]`);
@@ -58,7 +57,6 @@ async function loadHistory(ip, key, hours) {
     const data = await apiGet(
         `/devices/${encodeURIComponent(ip)}/metric-history/?key=${encodeURIComponent(key)}&hours=${hours}`
     );
-    console.log(`[metrics] history ${key}:`, data.length, 'точек');
     return data;
 }
 
@@ -182,9 +180,8 @@ function setupRangePickers(ip) {
 }
 
 // --- Main ---
-document.addEventListener('DOMContentLoaded', async () => {
+async function initMetrics() {
     const info = window.__METRICS__;
-    console.log('[metrics] init:', info);
 
     if (!info || !info.ip || !info.keys?.length) {
         console.warn('[metrics] нет __METRICS__ — выход');
@@ -209,12 +206,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupRangePickers(ip);
 
-    setInterval(async () => {
+    // Cerber.poll: не опрашиваем в фоновой вкладке и не запускаем новый цикл, пока не кончился прошлый
+    Cerber.poll(async () => {
         try { await loadLatest(ip); } catch (e) { console.error(e); }
         for (const key of keys) {
             try { await buildChart(ip, key, DEFAULT_HOURS); } catch (e) {}
         }
     }, REFRESH_MS);
 
-    console.log('[metrics] готово, авто-обновление каждые', REFRESH_MS / 1000, 'сек');
-});
+}
+
+window.initMetrics = initMetrics;
+
+// Автозапуск, если данные уже есть (для обычной страницы)
+if (window.__METRICS__) {
+    document.addEventListener('DOMContentLoaded', initMetrics);
+}

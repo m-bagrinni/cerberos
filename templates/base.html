@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#111217">
     <title>{% block title %}Cerberus{% endblock %}</title>
@@ -16,79 +16,155 @@
     <script src="{% static 'vendor/js/chartjs-adapter-luxon.min.js' %}"></script>
     <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
 
-    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
-    <link rel="stylesheet" href="{% static 'css/stations.css' %}?v=56">
+    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=1793429171">
+    <link rel="stylesheet" href="{% static 'css/stations.css' %}?v=1793429171">
 
     {% block extra_head %}{% endblock %}
+
+<style>
+  /* === Мобильная адаптация Cerberus (WebApp) === */
+  @media (max-width: 768px) {
+    /* 1. Убираем сайдбар */
+    /* .app-sidebar теперь управляется из mobile.css */
+
+    /* 2. Контент на всю ширину (сбрасываем отступ слева, который был под сайдбар) */
+    .app-main, .app-content, .main-content, .container {
+      margin-left: 0 !important;
+      padding: 10px !important;
+      width: 100% !important;
+      max-width: 100vw !important;
+      box-sizing: border-box !important;
+    }
+
+    /* 3. Сетки в колонку (карточки) */
+    .grid, .grid-2, .grid-3, .grid-4, 
+    .cards-grid, .stats-grid, .dashboard-grid, 
+    .subnets-grid, .devices-grid {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+    }
+
+    /* 4. Карточки */
+    .card, .stat-card, .device-card, .subnet-card {
+      padding: 15px !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    /* 5. Кнопки */
+    .btn { width: 100% !important; margin-bottom: 8px !important; }
+    .btn-group, .actions { flex-direction: column !important; width: 100% !important; }
+
+    /* 6. Шапки страниц */
+    .page-header, .header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+
+    /* 7. Таблицы (если есть) */
+    .table-responsive { overflow-x: auto !important; }
+  }
+</style>
+    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=1793429171">
+    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    {% block extra_css %}{% endblock %}
+    <script src="{% static 'js/core.js' %}?v=1"></script>
 </head>
-<body>
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %}>
 
 <div class="app-layout">
 
     <aside class="app-sidebar">
-        <a href="{% url 'dashboard' %}" class="app-sidebar__brand">
+        <!-- Кнопка скрытия/показа сайдбара -->
+        <button id="sidebar-toggle" class="sidebar-toggle" title="Скрыть/показать меню">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <a href="/" class="app-sidebar__brand">
             <i class="bi bi-shield-shaded"></i>
             <span>Cerberus</span>
         </a>
 
         <nav class="app-sidebar__nav">
-            <a href="{% url 'dashboard' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
-                <i class="bi bi-speedometer2"></i>
-                <span>Обзор</span>
-            </a>
-            <a href="{% url 'alerts_list' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'alerts_list' %}is-active{% endif %}">
-                <i class="bi bi-bell"></i>
-                <span>Алерты</span>
-                {% if alerts_firing_total %}
-                <span class="app-sidebar__badge {% if alerts_firing_crit %}app-sidebar__badge--crit{% else %}app-sidebar__badge--warn{% endif %}">
-                    {{ alerts_firing_total }}
-                </span>
-                {% endif %}
-            </a>
-            <a href="{% url 'tab_metrics' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'tab_metrics' %}is-active{% endif %}">
-                <i class="bi bi-graph-up"></i>
-                <span>Метрики</span>
-            </a>
-            <a href="{% url 'tab_sfp' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'tab_sfp' %}is-active{% endif %}">
-                <i class="bi bi-usb-plug"></i>
-                <span>SFP/DDM</span>
-            </a>
-            <a href="{% url 'multiplexers_list' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'multiplexers_list' %}is-active{% endif %}">
-                <i class="bi bi-hdd-network"></i>
-                <span>Мультиплексоры</span>
-            </a>
+    {# === МОДУЛЬ ЛВС (local) === #}
+    {% if user.can_local or user.is_superuser %}
+        {% if '/local/' in request.path or request.path == '/' or '/alerts/' in request.path or '/analytics/' in request.path %}
+            <a href="/local/" class="app-sidebar__link {% if request.path == '/local/' %}is-active{% endif %}"><i class="bi bi-speedometer2"></i><span>Обзор</span></a>
+            <a href="/alerts/" class="app-sidebar__link {% if '/alerts/' in request.path %}is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span></a>
+            <a href="/local/stations/" class="app-sidebar__link {% if '/stations/' in request.path %}is-active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i><span>Диспетчерская</span></a>
 
-            <a href="{% url 'stations_list' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'stations_list' %}is-active{% endif %}">
-                <i class="bi bi-diagram-3"></i>
-                <span>Станции</span>
-            </a>
+            {% if not user.position_ref.is_readonly or user.is_superuser %}
+                <a href="/local/metrics/" class="app-sidebar__link"><i class="bi bi-graph-up"></i><span>Метрики</span></a>
+                <a href="/local/sfp/" class="app-sidebar__link"><i class="bi bi-usb-plug"></i><span>SFP/DDM</span></a>
+                <a href="/local/multiplexers/" class="app-sidebar__link"><i class="bi bi-hdd-network"></i><span>Мультиплексоры</span></a>
+                <a href="/analytics/" class="app-sidebar__link"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></a>
+                <a href="/local/subnets/" class="app-sidebar__link"><i class="bi bi-hdd-network"></i><span>Подсети</span></a>
+            {% endif %}
+        {% endif %}
+    {% endif %}
 
+    {# === МОДУЛЬ СЕРВЕРЫ (servers) === #}
+    {% if user.can_servers or user.is_superuser %}
+        {% if '/servers/' in request.path %}
+            <a href="/servers/" class="app-sidebar__link is-active"><i class="bi bi-hdd-rack"></i><span>Серверы</span></a>
+            {% if not user.position_ref.is_readonly or user.is_superuser %}
+                <a href="/servers/api/ad-users/" class="app-sidebar__link"><i class="bi bi-people"></i><span>Пользователи AD</span></a>
+            {% endif %}
+        {% endif %}
+    {% endif %}
 
-            <a href="{% url 'subnets_list' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'subnets_list' or request.resolver_match.url_name == 'subnet_detail' %}is-active{% endif %}">
-                <i class="bi bi-hdd-network"></i>
-                <span>Подсети</span>
-            </a>
-        </nav>
+    {# === МОДУЛЬ E-DOCS (edocs) === #}
+    {% if user.can_edocs or user.is_superuser %}
+        {% if '/edocs/' in request.path %}
+            <a href="/edocs/" class="app-sidebar__link {% if request.path == '/edocs/' %}is-active{% endif %}"><i class="bi bi-inbox"></i><span>Входящие</span></a>
+            <a href="/edocs/sent/" class="app-sidebar__link"><i class="bi bi-send"></i><span>Исходящие</span></a>
+            <a href="/edocs/employees/" class="app-sidebar__link"><i class="bi bi-people"></i><span>Сотрудники</span></a>
+            <a href="/edocs/create/" class="app-sidebar__link" style="color: var(--primary);"><i class="bi bi-pencil-square"></i><span>Написать</span></a>
+        {% endif %}
+    {% endif %}
+
+    <hr style="border-color: var(--border); margin: 12px 0;">
+    
+    <a href="/services/" class="app-sidebar__link {% if '/services/' in request.path %}is-active{% endif %}"><i class="bi bi-gear-wide-connected"></i><span>Службы</span></a>
+    
+    {% if user.is_admin_access and not user.position_ref.is_readonly %}
+        <a href="/admin-ui/" class="app-sidebar__link {% if '/admin-ui/' in request.path %}is-active{% endif %}"><i class="bi bi-shield-lock"></i><span>Админ-панель</span></a>
+    {% endif %}
+</nav>
 
         <div class="app-sidebar__bottom">
-            <a href="{% url 'services_page' %}"
-               class="app-sidebar__link {% if request.resolver_match.url_name == 'services_page' %}is-active{% endif %}">
-                <i class="bi bi-gear-wide-connected"></i>
-                <span>Службы</span>
+            <a href="/" class="app-sidebar__link app-sidebar__link--muted">
+                <i class="bi bi-grid"></i>
+                <span>Модули</span>
             </a>
-            <a href="/admin-ui/" class="app-sidebar__link">
-                <i class="bi bi-shield-lock"></i>
-                <span>Админ-панель</span>
+
+            {# === Пользователь === #}
+            {% if user.is_authenticated %}
+            <a href="/accounts/profile/" class="app-sidebar__link">
+                <i class="bi bi-person-circle"></i>
+                <span>{{ user.get_full_name|default:user.username }}</span>
             </a>
-        </div>
-    </aside>
+            {% if ui_theme_glass %}
+            <a href="{% url 'set_ui_theme' 'classic' %}?next={{ request.get_full_path|urlencode }}" class="app-sidebar__link app-sidebar__link--muted" title="Вернуть прежнее оформление (только для вас)">
+                <i class="bi bi-circle-half"></i><span>Старый вид</span>
+            </a>
+            {% else %}
+            <a href="{% url 'set_ui_theme' 'glass' %}?next={{ request.get_full_path|urlencode }}" class="app-sidebar__link app-sidebar__link--muted" title="Попробовать новое оформление">
+                <i class="bi bi-stars"></i><span>Тема «Стекло»</span>
+            </a>
+            {% endif %}
+            <a href="{% url 'accounts:logout' %}" class="app-sidebar__link app-sidebar__link--muted">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Выйти</span>
+            </a>
+            {% else %}
+            <a href="{% url 'accounts:login' %}" class="app-sidebar__link">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span>Войти</span>
+            </a>
+            <a href="{% url 'accounts:register' %}" class="app-sidebar__link app-sidebar__link--muted">
+                <i class="bi bi-person-plus"></i>
+                <span>Регистрация</span>
+            </a>
+            {% endif %}
+        </aside>
 
     <main class="app-main">
 
@@ -105,7 +181,9 @@
         </div>
         {% endif %}
 
+        <div id="device-detail-content">
         {% block content %}{% endblock %}
+        </div>
 
         <footer style="padding:32px 0 16px;text-align:center;font-size:12px;color:var(--text-disabled);border-top:1px solid var(--border);margin-top:32px">
             Cerberus — multi-vendor SNMP monitoring
@@ -115,10 +193,293 @@
 </div>
 
 {% block extra_js %}{% endblock %}
-    <script src="{% static 'js/ne-modal.js' %}?v=10"></script>
-    <script src="{% static 'js/mux-metrics.js' %}?v=5"></script>
-    <link rel="stylesheet" href="{% static 'css/mux-metrics.css' %}?v=1">
-    <script src="{% static 'vendor/js/sortable.min.js' %}"></script>
-    <script src="{% static 'js/mux-sortable.js' %}?v=3"></script>
+    {# Мультиплексорные скрипты — только для страницы мультиплексоров #}
+<script src="{% static 'js/interface-edit.js' %}?v=1793429171"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+{% load static %}
+<script src="{% static 'js/telegram-webapp-auth.js' %}?v=1793429171"></script>
+
+
+
+<!-- Мобильное меню -->
+
+<!-- Мобильная навигация -->
+
+
+<!-- Мобильное меню (гамбургер) -->
+<button id="mobile-menu-btn" class="mobile-menu-btn" style="display:none; position:fixed; top:10px; left:10px; z-index:10600;">
+    <i class="bi bi-list"></i>
+</button>
+<div id="mobile-overlay" class="mobile-overlay"></div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.getElementById("mobile-menu-btn");
+    const sidebar = document.querySelector(".app-sidebar");
+    const overlay = document.getElementById("mobile-overlay");
+
+    if (btn && sidebar && overlay) {
+        if (window.innerWidth <= 768) {
+            btn.style.display = "flex";
+        }
+
+        btn.addEventListener("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            sidebar.classList.toggle("mobile-open");
+            overlay.classList.toggle("active");
+        });
+
+        overlay.addEventListener("click", function(e) {
+            e.preventDefault();
+            sidebar.classList.remove("mobile-open");
+            overlay.classList.remove("active");
+        });
+    }
+});
+</script>
+
+<!-- Кастомное контекстное меню -->
+<div id="custom-context-menu" style="display: none; position: fixed; z-index: 10000; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.5); padding: 4px 0; min-width: 200px;">
+  <div class="ctx-item" data-action="poll" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-arrow-repeat" style="color: var(--primary);"></i> Опросить устройство
+  </div>
+  <div class="ctx-item" data-action="web" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-box-arrow-up-right" style="color: var(--tiffany);"></i> Открыть веб-интерфейс
+  </div>
+  <div class="ctx-item" data-action="copy" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+    <i class="bi bi-clipboard" style="color: var(--text-muted);"></i> Копировать IP
+  </div>
+</div>
+<style>
+  .ctx-item:hover { background: var(--bg-hover); }
+</style>
+
+<script src="{% static 'js/context-menu.js' %}?v=1793429171"></script>
+
+<!-- Toast-уведомления -->
+<div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 100000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+<style>
+  .cerber-toast {
+    background: rgba(24, 27, 31, 0.95);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 4px;
+    border-left: 4px solid var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    font-size: 13px;
+    pointer-events: auto;
+    animation: toast-in 0.3s ease;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cerber-toast--success { border-left-color: var(--ok); }
+  .cerber-toast--error { border-left-color: var(--crit); }
+  .cerber-toast--info { border-left-color: var(--tiffany); }
+  
+  @keyframes toast-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const layout = document.querySelector('.app-layout');
+    
+    if (toggleBtn && layout) {
+        toggleBtn.addEventListener('click', () => {
+            layout.classList.toggle('is-sidebar-hidden');
+            // Сохраняем состояние
+            if (layout.classList.contains('is-sidebar-hidden')) {
+                localStorage.setItem('cerber-sidebar-hidden', '1');
+            } else {
+                localStorage.removeItem('cerber-sidebar-hidden');
+            }
+            // Обновляем карту
+            setTimeout(() => {
+                if (window._map) window._map.invalidateSize();
+            }, 350);
+        });
+        
+        // Восстанавливаем состояние ТОЛЬКО на мобильных (ПК всегда развёрнут)
+        if (window.innerWidth < 769) {
+            if (localStorage.getItem('cerber-sidebar-hidden') === '1') {
+                layout.classList.add('is-sidebar-hidden');
+            }
+        } else {
+            // На ПК — принудительно развёрнут и сбрасываем «застрявший» флаг
+            layout.classList.remove('is-sidebar-hidden');
+            localStorage.removeItem('cerber-sidebar-hidden');
+        }
+    }
+});
+</script>
+<script>
+// ─── Контекстное меню для NE (глобально) ──────────────────
+(function() {
+    // Ждём, пока DOM загрузится
+    function initNeContextMenu() {
+        const menu = document.getElementById('ne-ctx-menu');
+        if (!menu) {
+            // Если меню ещё нет — пробуем позже
+            setTimeout(initNeContextMenu, 100);
+            return;
+        }
+        
+        // Обработчик правого клика
+        document.addEventListener('contextmenu', function(e) {
+            const el = e.target.closest('.mux-ne');
+            if (!el) return;
+            
+            e.preventDefault();
+            
+            // Позиция
+            let left = e.clientX;
+            let top = e.clientY;
+            const menuWidth = 200;
+            const menuHeight = 200;
+            
+            if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
+            if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 10;
+            
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+            menu.classList.add('is-open');
+            
+            window._currentNe = {
+                ne_id: el.dataset.neId,
+                ne_pk: el.dataset.nePk,
+                ne_name: el.dataset.neName,
+            };
+            
+            console.log('[NE ctx] opened for', el.dataset.neName);
+        });
+        
+        // Скрытие меню
+        document.addEventListener('click', function(e) {
+            if (menu && !menu.contains(e.target)) menu.classList.remove('is-open');
+        });
+        
+        // Обработка кликов по пунктам меню
+        menu.addEventListener('click', async function(e) {
+            const item = e.target.closest('.ne-ctx-item');
+            if (!item || !window._currentNe) return;
+            
+            const action = item.dataset.action;
+            menu.classList.remove('is-open');
+            
+            const ne = window._currentNe;
+            
+            if (action === 'poll-ne') {
+                try {
+                    const resp = await fetch(`/api/v1/ne/${ne.ne_pk}/poll-now/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        credentials: 'same-origin',
+                    });
+                    if (resp.ok) {
+                        if (typeof showToast === 'function') showToast(`Опрос NE-${ne.ne_id} запущен`, 'success');
+                    } else {
+                        if (typeof showToast === 'function') showToast(`Ошибка: HTTP ${resp.status}`, 'error');
+                    }
+                } catch (err) {
+                    if (typeof showToast === 'function') showToast('Ошибка сети: ' + err.message, 'error');
+                }
+            } else if (action === 'poll-sfp') {
+                try {
+                    const resp = await fetch(`/api/v1/ne/${ne.ne_pk}/poll-now/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        credentials: 'same-origin',
+                    });
+                    if (resp.ok) {
+                        if (typeof showToast === 'function') showToast(`Опрос SFP NE-${ne.ne_id} запущен`, 'success');
+                    } else {
+                        if (typeof showToast === 'function') showToast(`Ошибка: HTTP ${resp.status}`, 'error');
+                    }
+                } catch (err) {
+                    if (typeof showToast === 'function') showToast('Ошибка сети: ' + err.message, 'error');
+                }
+            } else if (action === 'open-on-map') {
+                // Переход на карту с центрированием на станции NE
+                window.location.href = `/local/stations/?ne=${ne.ne_pk}`;
+            } else if (action === 'copy-name') {
+                navigator.clipboard.writeText(ne.ne_name).then(() => {
+                    if (typeof showToast === 'function') showToast(`Имя ${ne.ne_name} скопировано`, 'success');
+                });
+            }
+        });
+        
+        // Функция для CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        console.log('[NE ctx] initialized');
+    }
+    
+    // Запускаем после загрузки DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initNeContextMenu);
+    } else {
+        initNeContextMenu();
+    }
+})();
+</script>
+    <script src="{% static 'js/glass.js' %}"></script>
+
+<script>
+// УМНАЯ ПОКРАСКА DDM (Запускается на всех страницах)
+(function() {
+})();
+</script>
+<div id="ip-modal" class="modal-backdrop" hidden>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">IP Адрес</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+    </div>
+</div>
+
+<!-- === Мобильная нижняя навигация (bottom nav) === -->
+<nav class="mobile-bottom-nav" aria-label="Мобильная навигация">
+    <a href="{% url 'stations_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'stations_list' %} active{% endif %}">
+        <i class="bi bi-broadcast"></i>
+        <span>Диспетчерская</span>
+    </a>
+    <a href="{% url 'alerts_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'alerts_list' %} active{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>Алерты</span>
+    </a>
+    <a href="{% url 'dashboard' %}" class="mbn-item{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}">
+        <i class="bi bi-grid-1x2"></i>
+        <span>Обзор</span>
+    </a>
+    <a href="{% url 'services_page' %}" class="mbn-item{% if request.resolver_match.url_name == 'services_page' %} active{% endif %}">
+        <i class="bi bi-hdd-stack"></i>
+        <span>Службы</span>
+    </a>
+    <a href="{% url 'subnets_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'subnets_list' %} active{% endif %}">
+        <i class="bi bi-diagram-3"></i>
+        <span>Подсети</span>
+    </a>
+</nav>
+
 </body>
 </html>

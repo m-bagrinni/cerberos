@@ -20,6 +20,7 @@ from apps.monitoring.models import Interface
 from apps.monitoring.snmp import SnmpClient, SnmpError, SnmpTarget
 
 OID_IF_ADMIN_STATUS = "1.3.6.1.2.1.2.2.1.7"
+OID_VLAN_PVID = "1.3.6.1.2.1.17.7.1.4.5.1.1"
 
 IF_ADMIN_UP = 1
 IF_ADMIN_DOWN = 2
@@ -33,6 +34,7 @@ class Command(BaseCommand):
         parser.add_argument("if_index", nargs="?", type=int)
         parser.add_argument("state", nargs="?", choices=["up", "down"])
         parser.add_argument("--list", action="store_true")
+        parser.add_argument("--set-pvid", type=int, help="Установить PVID (VLAN ID)")
         parser.add_argument("--user-id", type=int, default=None,
                             help="ID пользователя для аудита")
 
@@ -50,8 +52,13 @@ class Command(BaseCommand):
         if_index = opts["if_index"]
         state = opts["state"]
 
-        if not if_index or not state:
-            self.stderr.write("Укажите ifIndex и state (up/down)")
+        if not if_index or (not state and not opts.get("set_pvid")):
+            self.stderr.write("Укажите ifIndex и state (up/down) или --set-pvid")
+            return
+
+        # Обработка смены PVID
+        if opts.get("set_pvid"):
+            self._set_pvid(device, if_index, opts["set_pvid"])
             return
 
         # запись в аудит
@@ -119,3 +126,22 @@ class Command(BaseCommand):
             admin = "up" if i.admin_status == 1 else "down"
             oper = "up" if i.oper_status == 1 else "down"
             self.stdout.write(f"{i.if_index:>8} {i.name:<20} {admin:<8} {oper:<8}")
+
+    def _set_pvid(self, device, if_index: int, vlan_id: int):
+        """Устанавливает PVID для порта (стандартный OID)."""
+        self.stdout.write(f"Установка PVID={vlan_id} для порта ifIndex={if_index} на {device.name}...")
+        try:
+            asyncio.run(self._do_set_pvid(device, if_index, vlan_id))
+            self.stdout.write(self.style.SUCCESS(f"OK — PVID {if_index} → {vlan_id}"))
+        except Exception as e:
+            self.stderr.write(f"Ошибка SNMP SET: {e}")
+
+    async def _do_set_pvid(self, device, if_index: int, vlan_id: int):
+        client = SnmpClient(SnmpTarget(
+            host=device.ip,
+            community=device.snmp_write_community or device.snmp_community or "private",
+            port=device.snmp_port,
+            timeout=5.0, retries=2,
+        ))
+        oid = f"{OID_VLAN_PVID}.{if_index}"
+        await client.set_value(oid, vlan_id, value_type="Integer")

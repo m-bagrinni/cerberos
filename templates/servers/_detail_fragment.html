@@ -1,0 +1,207 @@
+{% load static %}
+<div class="g-wrapper" style="height: 100%;" data-server-id="{{ server.id }}">
+    <div class="g-detail" style="padding: 0;">
+        <div class="g-detail-header">
+            <div>
+                <h2 class="g-detail-title">{{ server.name }}</h2>
+                <div class="g-detail-subtitle">{{ server.ip_address }}</div>
+            </div>
+            <div>
+                {% if server.last_seen %}
+                    <span style="color: var(--green); font-weight: 500; font-size: 13px;">● Онлайн</span>
+                {% else %}
+                    <span style="color: var(--red); font-weight: 500; font-size: 13px;">● Недоступен</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="g-tabs">
+            <a href="#" class="g-tab active" data-tab="overview">Обзор</a>
+            <a href="#" class="g-tab" data-tab="users">Пользователи</a>
+            <a href="#" class="g-tab" data-tab="groups">Группы</a>
+            <a href="#" class="g-tab" data-tab="services">Службы</a>
+        </div>
+
+        <div id="tab-overview" class="tab-pane">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                <div class="g-card" style="padding: 20px;">
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">CPU Load</div>
+                    <div id="metric-cpu" style="font-size: 24px; font-weight: 700; color: var(--text-main);">—</div>
+                </div>
+                <div class="g-card" style="padding: 20px;">
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">RAM Used</div>
+                    <div id="metric-ram" style="font-size: 24px; font-weight: 700; color: var(--text-main);">—</div>
+                </div>
+                <div class="g-card" style="padding: 20px;">
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Disk Used</div>
+                    <div id="metric-disk" style="font-size: 24px; font-weight: 700; color: var(--text-main);">—</div>
+                </div>
+            </div>
+
+            <!-- Два блока со списками пользователей -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                <div class="g-card" style="padding: 20px;">
+                    <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-main);">🟢 Сейчас онлайн</h3>
+                    <div id="online-users-list" style="color: var(--text-muted);">Загрузка...</div>
+                </div>
+                <div class="g-card" style="padding: 20px;">
+                    <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-main);">🕒 Последние входы</h3>
+                    <div id="last-logins-list" style="color: var(--text-muted);">Загрузка...</div>
+                </div>
+            </div>
+            <div class="g-card" style="padding: 24px;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-main);">График нагрузки (24ч)</h3>
+                <canvas id="metrics-chart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-users" class="tab-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-main);">Пользователи AD</h3>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-refresh-users" class="g-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+                    <button id="btn-add-user" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Добавить</button>
+                </div>
+            </div>
+            <div class="g-card">
+                <table class="g-table">
+                    <thead>
+                        <tr>
+                            <th>Логин</th>
+                            <th>ФИО</th>
+                            <th>Статус</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ad-users-body">
+                        <tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-groups" class="tab-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <h3 style="margin: 0; font-size: 16px; color: var(--text-main);">Группы Active Directory</h3>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); cursor: pointer;">
+                        <input type="checkbox" id="filter-custom-groups" checked> Только свои
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-refresh-groups" class="g-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+                    <button id="btn-create-group" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Создать</button>
+                </div>
+            </div>
+            <div class="g-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-main);">Группы AD</h3>
+                <div style="display: flex; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; cursor: pointer;">
+                        <input type="checkbox" id="filter-custom-groups" checked> Только свои (гр_)
+                    </label>
+                    <button id="btn-add-group" class="g-btn g-btn-primary">+ Создать группу</button>
+                </div>
+            </div>
+
+            <table class="g-table">
+                    <thead>
+                        <tr>
+                            <th>Название группы</th>
+                            <th>Описание</th>
+                            <th>Участников</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ad-groups-body">
+                        <tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-services" class="tab-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-main);">Службы Windows (Linux systemd)</h3>
+                <button id="btn-refresh-services" class="g-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+            </div>
+            <div class="g-card">
+                <table class="g-table">
+                    <thead>
+                        <tr>
+                            <th>Имя службы</th>
+                            <th>Состояние</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dc-services-body">
+                        <tr><td colspan="3" style="text-align: center; padding: 20px; color: var(--text-muted);">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модалки -->
+<div id="user-modal" class="g-modal">
+    <div class="g-modal-content">
+        <h3>Редактирование</h3>
+        <input type="text" id="modal-login" disabled class="g-input">
+        <input type="text" id="modal-name" placeholder="ФИО" class="g-input">
+        <input type="email" id="modal-email" placeholder="Email" class="g-input">
+        <input type="password" id="modal-password" placeholder="Новый пароль" class="g-input">
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="modal-cancel" class="g-btn">Отмена</button>
+            <button id="modal-save" class="g-btn g-btn-primary">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div id="add-user-modal" class="g-modal">
+    <div class="g-modal-content">
+        <h3>Добавить пользователя</h3>
+        <input type="text" id="add-login" placeholder="Логин *" class="g-input">
+        <input type="text" id="add-name" placeholder="ФИО *" class="g-input">
+        <input type="email" id="add-email" placeholder="Email" class="g-input">
+        <input type="password" id="add-password" placeholder="Пароль *" class="g-input">
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="add-modal-cancel" class="g-btn">Отмена</button>
+            <button id="add-modal-save" class="g-btn g-btn-primary">Создать</button>
+        </div>
+    </div>
+</div>
+
+<div id="create-group-modal" class="g-modal">
+    <div class="g-modal-content">
+        <h3>Создать группу</h3>
+        <input type="text" id="create-group-name" placeholder="Название группы (например, гр_Новая) *" class="g-input">
+        <input type="text" id="create-group-desc" placeholder="Описание (необязательно)" class="g-input">
+        <select id="create-group-type" class="g-input" style="margin-bottom: 20px;">
+            <option value="global">Глобальная безопасность (Global)</option>
+            <option value="domainlocal">Локальная домена (Domain Local)</option>
+            <option value="universal">Универсальная (Universal)</option>
+        </select>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="create-group-cancel" class="g-btn">Отмена</button>
+            <button id="create-group-save" class="g-btn g-btn-primary">Создать</button>
+        </div>
+    </div>
+</div>
+
+<div id="group-modal" class="g-modal">
+    <div class="g-modal-content" style="width: 500px;">
+        <h3 id="group-modal-title">Группа: ...</h3>
+        <div style="margin-bottom: 12px;">
+            <input type="text" id="group-add-login" placeholder="Логин пользователя для добавления" class="g-input">
+        </div>
+        <button id="group-add-btn" class="g-btn g-btn-primary" style="margin-bottom: 16px;">Добавить в группу</button>
+        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: var(--text-muted);">Участники:</h4>
+        <div id="group-members-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px;">
+            Загрузка...
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+            <button id="group-modal-close" class="g-btn">Закрыть</button>
+        </div>
+    </div>
+</div>

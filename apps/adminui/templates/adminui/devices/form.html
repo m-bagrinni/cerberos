@@ -30,7 +30,7 @@
       </div>
       <div class="panel__body">
         {% for field in form %}
-          {% if field.name in "name,ip,vendor,profile,profile_override" %}
+          {% if field.name in "name,ip,category,vendor,profile,profile_override" %}
           <div class="aui-form__field">
             <label class="aui-form__label" for="{{ field.id_for_label }}">
               {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}

@@ -1,0 +1,182 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+<link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
+<link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/glass.css' %}">
+<style>
+    /* 1. Фон: Серый с графитовыми разводами */
+    html, body.login {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+        background-color: #d1d5db !important;
+        background-image: 
+            radial-gradient(circle at 10% 20%, rgba(75, 85, 99, 0.4) 0%, transparent 50%), 
+            radial-gradient(circle at 90% 80%, rgba(55, 65, 81, 0.3) 0%, transparent 50%) !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    /* 2. Абсолютное центрирование контейнера */
+    #container {
+        background: transparent !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    #header, #branding, #user-tools, .breadcrumbs { display: none !important; }
+    
+    #content {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+        width: auto !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+    /* 3. Карточка */
+    .auth-card {
+        width: 100%;
+        max-width: 420px;
+        background: rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(25px) saturate(150%) !important; 
+        -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.7) !important;
+        border-radius: 16px;
+        padding: 40px 32px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        position: relative;
+        z-index: 10;
+    }
+    
+    /* Текст и иконки */
+    .auth-card__logo { text-align: center; margin-bottom: 20px; }
+    .auth-card__logo i { font-size: 48px; color: #ff780a; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+    .auth-card__title { font-size: 22px; font-weight: 700; color: #1f2937 !important; text-align: center; margin: 0 0 4px; }
+    .auth-card__subtitle { font-size: 14px; color: #4b5563 !important; text-align: center; margin: 0 0 24px; }
+    
+    /* Поля ввода */
+    .auth-card .aui-form__field { margin-bottom: 16px; }
+    .auth-card .aui-form__label { display: block; color: #374151 !important; font-size: 12px; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; font-weight: 700; }
+    .auth-card .aui-input {
+        width: 100%; box-sizing: border-box; background: rgba(255, 255, 255, 0.8) !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important; border-radius: 8px; color: #111827 !important;
+        padding: 12px; font-size: 14px;
+    }
+    .auth-card .aui-input:focus { outline: none; border-color: #ff780a; box-shadow: 0 0 0 3px rgba(255, 120, 10, 0.2); }
+    .auth-card .aui-form__error { color: #e11d48; font-size: 12px; margin-top: 4px; }
+    
+    /* Кнопки */
+    .auth-card .btn--primary {
+        width: 100%; justify-content: center; padding: 14px; margin-top: 10px;
+        background: #ff780a !important; color: #fff !important; border: none; border-radius: 8px;
+        font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.2s;
+        display: flex; align-items: center;
+    }
+    .auth-card .btn--primary:hover { background: #e06b00 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,120,10,0.4); }
+    
+    .auth-messages { margin-bottom: 16px; }
+    .auth-messages .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 8px; }
+    .auth-messages .msg--error { background: rgba(225, 29, 72, 0.1); color: #e11d48; border: 1px solid #e11d48; }
+    
+    /* Заголовок для "Доступ запрещен" */
+    .access-denied-title { font-size: 24px; font-weight: 700; color: #e11d48 !important; margin-bottom: 15px; text-align: center; }
+    .access-denied-text { color: #374151 !important; font-size: 15px; line-height: 1.6; margin-bottom: 25px; text-align: center; }
+    
+    .btn-cerber-outline {
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; box-sizing: border-box; padding: 14px; margin-top: 12px;
+        border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+        background: rgba(255,255,255,0.5);
+        color: #4b5563 !important; text-decoration: none; font-size: 15px; font-weight: 600;
+        transition: 0.2s;
+    }
+    .btn-cerber-outline:hover { background: rgba(255,255,255,0.9); color: #1f2937 !important; }
+</style>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+{% block usertools %}{% endblock %}
+{% block nav-global %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <div class="auth-card__logo"><i class="bi bi-shield-lock-fill"></i></div>
+    
+    {% if user.is_authenticated %}
+        <h1 class="access-denied-title">Доступ запрещён</h1>
+        <p class="access-denied-text">
+            Вы вошли как <b>{{ user.username }}</b>, но у вашей учётной записи <b>нет прав</b> для доступа в административную панель <b>Cerberus</b>.
+        </p>
+        <a href="/" class="btn--primary" style="text-decoration: none;">
+            <i class="bi bi-house-door-fill" style="margin-right: 8px;"></i> На главную
+        </a>
+        <a href="/accounts/logout/" class="btn-cerber-outline">
+            <i class="bi bi-box-arrow-right" style="margin-right: 8px;"></i> Выйти из аккаунта
+        </a>
+    {% else %}
+        <h1 class="auth-card__title">Вход в Cerberus</h1>
+        <p class="auth-card__subtitle">Введите учётные данные администратора</p>
+
+        {% if form.errors and not form.non_field_errors %}
+            <div class="auth-messages"><div class="msg msg--error">Пожалуйста, исправьте ошибку ниже.</div></div>
+        {% endif %}
+        {% if form.non_field_errors %}
+            <div class="auth-messages">
+                {% for error in form.non_field_errors %}
+                    <div class="msg msg--error">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form action="{{ app_path }}" method="post" id="login-form">{% csrf_token %}
+            <div class="aui-form__field">
+                <label class="aui-form__label" for="id_username">Логин</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="aui-form__error">{{ form.username.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="aui-form__field">
+                <label class="aui-form__label" for="id_password">Пароль</label>
+                {{ form.password }}
+                <input type="hidden" name="next" value="{{ next }}">
+                {% if form.password.errors %}<div class="aui-form__error">{{ form.password.errors|join:", " }}</div>{% endif %}
+            </div>
+            <button type="submit" class="btn--primary">
+                <i class="bi bi-box-arrow-in-right" style="margin-right: 8px;"></i> Войти
+            </button>
+        </form>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var inputs = document.querySelectorAll("#login-form input[type='text'], #login-form input[type='password']");
+        inputs.forEach(function(input) {
+            input.classList.add("aui-input");
+        });
+    });
+</script>
+{% endblock %}

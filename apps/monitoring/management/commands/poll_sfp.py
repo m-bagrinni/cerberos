@@ -234,9 +234,9 @@ class Command(BaseCommand):
     async def _fetch_3630(self, client) -> dict:
         temp = self._to_dict(await client.walk(OID_3630_TEMP))
         temp_state = self._to_dict(await client.walk(OID_3630_TEMP_STATE))
-        voltage = self._to_dict(await client.walk(OID_3630_VOLTAGE))
+        voltage = self._to_dict(await client.walk(OID_3630_VOLTAGE))  # OID 7 (3.358 V -> 335)
         voltage_state = self._to_dict(await client.walk(OID_3630_VOLTAGE_STATE))
-        bias = self._to_dict(await client.walk(OID_3630_BIAS))
+        bias = self._to_dict(await client.walk("1.3.6.1.4.1.171.14.72.1.4.1.1.32"))  # OID 32 (30.140 mA -> 30140)
         bias_state = self._to_dict(await client.walk(OID_3630_BIAS_STATE))
         tx = self._to_dict(await client.walk(OID_3630_TX))
         tx_state = self._to_dict(await client.walk(OID_3630_TX_STATE))
@@ -254,11 +254,11 @@ class Command(BaseCommand):
             if t is None and txv is None and rxv is None:
                 continue
             modules[idx] = {
-                "temperature_c": t / 100.0 if t is not None else None,
-                "voltage_v": v / 1000.0 if v is not None else None,
-                "bias_current_ma": b / 1000.0 if b is not None else None,
-                "tx_power_dbm": self._to_dbm(txv),
-                "rx_power_dbm": self._to_dbm(rxv),
+                "temperature_c": t / 1000.0 if t is not None else None,       # 41969 -> 41.969
+                "voltage_v": v / 100.0 if v is not None else None,             # 335 -> 3.35
+                "bias_current_ma": b / 1000.0 if b is not None else None,      # 30140 -> 30.14
+                "tx_power_dbm": self._to_dbm(txv),                             # 5789 -> -2.36
+                "rx_power_dbm": self._to_dbm(rxv),                             # 522 -> -12.82
                 "temp_state": self._state_str(temp_state.get(idx)),
                 "voltage_state": self._state_str(voltage_state.get(idx)),
                 "bias_state": self._state_str(bias_state.get(idx)),
@@ -271,9 +271,21 @@ class Command(BaseCommand):
     # Save
     # ----------------------------------------------------------------
     def _save(self, device, data):
+        from apps.devices.models import MetricDefinition
+        from apps.monitoring.models import MetricValue
+        from django.utils import timezone
+
         ifaces = {i.if_index: i for i in Interface.objects.filter(device=device)}
         saved = 0
         skipped = 0
+
+        # Находим метрики
+        metrics = {
+            'sfp_rx_dbm': MetricDefinition.objects.filter(key='sfp_rx_dbm').first(),
+            'sfp_tx_dbm': MetricDefinition.objects.filter(key='sfp_tx_dbm').first(),
+            'sfp_temp': MetricDefinition.objects.filter(key='sfp_temp').first(),
+        }
+
         for idx, m in data["modules"].items():
             if idx not in ifaces:
                 skipped += 1
@@ -283,6 +295,34 @@ class Command(BaseCommand):
                 defaults=m,
             )
             saved += 1
+
+            # Записываем в MetricValue для графиков
+            now = timezone.now()
+            if metrics['sfp_rx_dbm'] and m.get('rx_power_dbm') is not None:
+                MetricValue.objects.create(
+                    device=device,
+                    metric=metrics['sfp_rx_dbm'],
+                    instance=str(idx),
+                    ts=now,
+                    value=m['rx_power_dbm']
+                )
+            if metrics['sfp_tx_dbm'] and m.get('tx_power_dbm') is not None:
+                MetricValue.objects.create(
+                    device=device,
+                    metric=metrics['sfp_tx_dbm'],
+                    instance=str(idx),
+                    ts=now,
+                    value=m['tx_power_dbm']
+                )
+            if metrics['sfp_temp'] and m.get('temperature_c') is not None:
+                MetricValue.objects.create(
+                    device=device,
+                    metric=metrics['sfp_temp'],
+                    instance=str(idx),
+                    ts=now,
+                    value=m['temperature_c']
+                )
+
         self.stdout.write(f"  сохранено SFP: {saved}")
         if skipped:
             self.stdout.write(f"  ifIndex без Interface в БД: {skipped}")
@@ -327,12 +367,11 @@ class Command(BaseCommand):
         return round(10 * math.log10(mw), 2)
 
     def _to_dbm(self, val):
-        """Для 3630: µW или ddBm×100 → dBm."""
+        """Для 3630: сырое значение (µW * 100) -> dBm."""
         if val is None or val == 0:
             return None
-        if val > 10000:
-            return round(10 * math.log10(val / 1000), 2)
-        return round(val / 100.0, 2)
+        # Формула: 10 * log10(val / 10000)
+        return round(10 * math.log10(val / 10000.0), 2)
 
     def _state_str(self, val):
         if val is None:

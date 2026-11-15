@@ -140,13 +140,13 @@ def interface_traffic_history(request, pk):
     from datetime import timedelta
     from django.utils import timezone
     from rest_framework.decorators import api_view, permission_classes
-    from rest_framework.permissions import AllowAny
+    from rest_framework.permissions import IsAuthenticated
     from rest_framework.response import Response
     from .models import Interface, InterfaceSample
 
     # декораторы применяются вручную — т.к. внутри функции
     @api_view(["GET"])
-    @permission_classes([AllowAny])
+    @permission_classes([IsAuthenticated])
     def _view(request, pk):
         try:
             hours = int(request.query_params.get("hours", 24))
@@ -184,6 +184,73 @@ def interface_traffic_history(request, pk):
 
 
 # ============================================================
+# DDM history для интерфейса (SFP RX/TX)
+# ============================================================
+
+def interface_ddm_history(request, pk):
+    """
+    История DDM (SFP RX/TX) для интерфейса за N часов.
+    ?hours=1|6|24|168 (по умолчанию 24)
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+    from rest_framework.decorators import api_view, permission_classes
+    from rest_framework.permissions import IsAuthenticated
+    from rest_framework.response import Response
+    from .models import Interface, MetricValue
+
+    @api_view(["GET"])
+    @permission_classes([IsAuthenticated])
+    def _view(request, pk):
+        try:
+            hours = int(request.query_params.get("hours", 24))
+        except (TypeError, ValueError):
+            hours = 24
+        hours = max(1, min(hours, 24 * 30))
+
+        try:
+            iface = Interface.objects.get(pk=pk)
+        except Interface.DoesNotExist:
+            return Response({"error": "interface not found"}, status=404)
+
+        since = timezone.now() - timedelta(hours=hours)
+        qs = (
+            MetricValue.objects
+            .filter(
+                device=iface.device,
+                instance=iface.if_index,
+                metric__key__in=["sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp", "sfp_bias", "sfp_voltage"],
+                ts__gte=since,
+            )
+            .order_by("ts")
+            .values("ts", "metric__key", "value")
+        )
+
+        # Группируем по ts (округление до минуты, чтобы RX и TX совпали)
+        by_ts = {}
+        for row in qs:
+            ts = row["ts"]
+            ts_min = ts.replace(second=0, microsecond=0).isoformat()
+            if ts_min not in by_ts:
+                by_ts[ts_min] = {"ts": ts_min}
+            key = row["metric__key"]
+            if key == "sfp_rx_dbm":
+                by_ts[ts_min]["rx_dbm"] = row["value"]
+            elif key == "sfp_tx_dbm":
+                by_ts[ts_min]["tx_dbm"] = row["value"]
+            elif key == "sfp_temp":
+                by_ts[ts_min]["temp_c"] = row["value"]
+            elif key == "sfp_bias":
+                by_ts[ts_min]["bias_ma"] = row["value"]
+            elif key == "sfp_voltage":
+                by_ts[ts_min]["volt_v"] = row["value"]
+
+        return Response(list(by_ts.values()))
+
+    return _view(request, pk)
+
+
+# ============================================================
 # Суммарный трафик устройства (для Tab 2 «Метрики»)
 # ============================================================
 
@@ -197,13 +264,13 @@ def device_traffic_summary(request, ip):
     from django.utils import timezone
     from django.db.models import Sum
     from rest_framework.decorators import api_view, permission_classes
-    from rest_framework.permissions import AllowAny
+    from rest_framework.permissions import IsAuthenticated
     from rest_framework.response import Response
     from apps.devices.models import Device
     from .models import Interface, InterfaceSample
 
     @api_view(["GET"])
-    @permission_classes([AllowAny])
+    @permission_classes([IsAuthenticated])
     def _view(request, ip):
         try:
             hours = int(request.query_params.get("hours", 24))
@@ -384,6 +451,48 @@ def ne_metric_history(request, ne_id):
         "ne_id": ne.id,
         "ne_name": ne.display_name,
         "points": points,
+    })
+
+
+@require_GET
+def ne_ddm_ports(request, ne_id):
+    """
+    Возвращает список портов (instance) с DDM для NE.
+    GET /api/v1/ne/<pk>/ddm-ports/
+    """
+    from apps.devices.models import NeDevice
+    from apps.monitoring.models import MetricValue
+
+    try:
+        ne = NeDevice.objects.get(id=ne_id)
+    except NeDevice.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "ne not found"}, status=404)
+
+    # Уникальные instance, где есть sfp_rx_dbm
+    instances = (
+        MetricValue.objects
+        .filter(ne_device=ne, metric__key="sfp_rx_dbm")
+        .values_list("instance", flat=True)
+        .distinct()
+        .order_by("instance")
+    )
+    
+    ports = []
+    for inst in instances:
+        rx = MetricValue.objects.filter(ne_device=ne, metric__key="sfp_rx_dbm", instance=inst).order_by("-ts").first()
+        tx = MetricValue.objects.filter(ne_device=ne, metric__key="sfp_tx_dbm", instance=inst).order_by("-ts").first()
+        ports.append({
+            "instance": inst,
+            "rx": rx.value if rx else None,
+            "tx": tx.value if tx else None,
+            "updated_at": rx.ts.isoformat() if rx else None,
+        })
+    
+    return JsonResponse({
+        "ok": True,
+        "ne_id": ne.id,
+        "ne_name": ne.display_name,
+        "ports": ports,
     })
 
 
@@ -569,5 +678,109 @@ def gateway_poll_now(request, gateway_ip):
     try:
         call_command("poll_olencom", gateway_ip)
         return JsonResponse({"ok": True, "message": f"Poll завершён для {gateway_ip}"})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+# ============================================================
+# Interface — установка ifAlias (SNMP SET)
+# ============================================================
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+
+@api_view(["POST"])
+def set_interface_alias(request, pk):
+    """Установить описание (ifAlias) интерфейса через SNMP SET (subprocess)."""
+    import subprocess
+    from django.shortcuts import get_object_or_404
+    from apps.monitoring.models import Interface
+
+    iface = get_object_or_404(
+        Interface.objects.select_related("device"), pk=pk,
+    )
+    new_alias = (request.data.get("alias") or "").strip()[:255]
+    device = iface.device
+
+    community = (
+        getattr(device, "snmp_write_community", None)
+        or device.snmp_community
+    )
+    if not community:
+        return Response(
+            {"ok": False, "error": "Не задана write-community"},
+            status=400,
+        )
+
+    v = str(device.snmp_version or "2c").strip().lower()
+    if v in ("2", "2c", "v2", "v2c"):
+        v = "2c"
+    elif v in ("1", "v1"):
+        v = "1"
+    else:
+        v = "2c"
+
+    oid = f".1.3.6.1.2.1.31.1.1.1.18.{iface.if_index}"
+
+    try:
+        cmd = [
+            "snmpset", "-v", v, "-c", community,
+            "-t", "3", "-r", "1",
+            device.ip, oid, "s", new_alias,
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "").strip()[:300]
+            return Response(
+                {"ok": False, "error": err or "snmpset failed"},
+                status=400,
+            )
+    except Exception as e:
+        return Response(
+            {"ok": False, "error": f"{type(e).__name__}: {e}"},
+            status=400,
+        )
+
+    iface.alias = new_alias
+    iface.save(update_fields=["alias"])
+    return Response({"ok": True, "alias": iface.alias})
+
+
+
+
+@require_POST
+@require_POST
+def device_poll_interfaces_now(request, ip):
+    """POST — запустить poll интерфейсов для одного устройства."""
+    from apps.devices.models import Device
+    from django.core.management import call_command
+
+    try:
+        device = Device.objects.get(ip=ip)
+    except Device.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "not found"}, status=404)
+
+    try:
+        call_command("poll_interfaces", ip)
+        return JsonResponse({"ok": True, "message": f"Интерфейсы опрошены для {ip}"})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_POST
+def device_poll_now(request, ip):
+    """POST — запустить poll для одного устройства (синхронно)."""
+    from apps.devices.models import Device
+    from django.core.management import call_command
+
+    try:
+        device = Device.objects.get(ip=ip)
+    except Device.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "not found"}, status=404)
+
+    try:
+        call_command("poll_device", ip)
+        return JsonResponse({"ok": True, "message": f"Poll завершён для {ip}"})
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)

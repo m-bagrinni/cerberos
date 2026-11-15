@@ -37,16 +37,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     snmp \
     fping \
     iputils-ping \
+    iproute2 \
+    arping \
+    tcpdump \
+    libcap2-bin \
     curl \
     tini \
     ca-certificates \
     gnupg \
+    libreoffice-writer-nogui \
+    libreoffice-calc-nogui \
+    libreoffice-impress-nogui \
+    fonts-dejavu-core \
+    fonts-liberation \
     && install -m 0755 -d /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
     && chmod a+r /etc/apt/keyrings/docker.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends docker-ce-cli \
+    && setcap cap_net_raw,cap_net_admin=eip /usr/bin/tcpdump \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv

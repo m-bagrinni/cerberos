@@ -225,3 +225,76 @@ class SfpModule(models.Model):
 
     def __str__(self):
         return f"SFP {self.interface.name}"
+
+
+class ArpEntry(models.Model):
+    """ARP-запись с коммутатора (IP ↔ MAC)."""
+    device = models.ForeignKey(
+        "devices.Device", on_delete=models.CASCADE, related_name="arp_entries",
+    )
+    ip = models.GenericIPAddressField()
+    mac = models.CharField(max_length=17)  # AA:BB:CC:DD:EE:FF
+    vlan_id = models.IntegerField(null=True, blank=True)
+    interface_index = models.IntegerField(null=True, blank=True)  # if_index порта
+    interface_name = models.CharField(max_length=128, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "ARP-запись"
+        verbose_name_plural = "ARP-записи"
+        unique_together = ("device", "ip", "vlan_id")
+        indexes = [
+            models.Index(fields=["ip"]),
+            models.Index(fields=["mac"]),
+        ]
+
+    def __str__(self):
+        return f"{self.ip} → {self.mac} (на {self.device.name})"
+
+
+class FdbEntry(models.Model):
+    """FDB-запись (MAC ↔ порт) с коммутатора."""
+    device = models.ForeignKey(
+        "devices.Device", on_delete=models.CASCADE, related_name="fdb_entries",
+    )
+    mac = models.CharField(max_length=17)  # AA:BB:CC:DD:EE:FF
+    bridge_port = models.IntegerField()  # dot1dBasePort (внутренний порт моста)
+    if_index = models.IntegerField(null=True, blank=True)  # if_index физического порта
+    interface_name = models.CharField(max_length=128, blank=True)
+    vlan_id = models.IntegerField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "FDB-запись"
+        verbose_name_plural = "FDB-записи"
+        unique_together = ("device", "mac", "vlan_id", "bridge_port")
+        indexes = [
+            models.Index(fields=["mac"]),
+            models.Index(fields=["device", "bridge_port"]),
+        ]
+
+    def __str__(self):
+        return f"{self.mac} → порт {self.bridge_port} (на {self.device.name})"
+
+
+class InterfaceStatusHistory(models.Model):
+    """
+    История изменений oper_status интерфейса.
+    """
+    interface = models.ForeignKey(
+        Interface, on_delete=models.CASCADE,
+        related_name="status_history",
+    )
+    old_status = models.SmallIntegerField(null=True, blank=True)
+    new_status = models.SmallIntegerField()
+    changed_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(fields=["interface", "-changed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.interface.name}: {self.old_status} → {self.new_status} @ {self.changed_at}"
+

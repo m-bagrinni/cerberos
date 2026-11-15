@@ -2,28 +2,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-
 # ============================================================
 # Пользователь
-# ============================================================
-
-class User(AbstractUser):
-    """Кастомный пользователь — на будущее для разграничения доступа."""
-    telegram_id = models.BigIntegerField(
-        null=True, blank=True, unique=True,
-        help_text="Telegram chat_id для уведомлений",
-    )
-
-    class Meta:
-        verbose_name = "Пользователь"
-        verbose_name_plural = "Пользователи"
-
-    def __str__(self):
-        return self.username
-
-
-# ============================================================
-# Вендоры
 # ============================================================
 
 class Vendor(models.Model):
@@ -50,7 +30,6 @@ class Vendor(models.Model):
 
     def __str__(self):
         return self.name
-
 
 # ============================================================
 # Профили устройств
@@ -142,7 +121,6 @@ class DeviceProfile(models.Model):
                 metrics[m.key] = m
         return metrics
 
-
 # ============================================================
 # Метрики
 # ============================================================
@@ -197,10 +175,52 @@ class MetricDefinition(models.Model):
     def __str__(self):
         return f"{self.profile.slug}.{self.key}"
 
-
 # ============================================================
 # Устройство
 # ============================================================
+
+class DeviceCategory(models.Model):
+    """
+    Категория устройств (core, access_line, access_branch, ...).
+    """
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=128)
+    icon = models.CharField(max_length=64, blank=True, default="bi-hdd-network")
+    sort_order = models.IntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Категория устройств"
+        verbose_name_plural = "Категории устройств"
+        ordering = ("sort_order", "name")
+
+    def __str__(self):
+        return self.name
+
+
+class DeviceSubcategory(models.Model):
+    """
+    Подкатегория устройств (например, филиал внутри категории «Доступ — филиалы»).
+    """
+    category = models.ForeignKey(
+        DeviceCategory,
+        on_delete=models.CASCADE,
+        related_name="subcategories",
+        verbose_name="Категория",
+    )
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=128)
+    sort_order = models.IntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Подкатегория устройств"
+        verbose_name_plural = "Подкатегории устройств"
+        ordering = ("sort_order", "name")
+
+    def __str__(self):
+        return f"{self.category.name} / {self.name}"
+
 
 class Device(models.Model):
     """Сетевое устройство."""
@@ -215,6 +235,21 @@ class Device(models.Model):
 
     name = models.CharField(max_length=128)
     ip = models.GenericIPAddressField(unique=True)
+    sort_order = models.IntegerField(default=0, verbose_name="Порядок сортировки")
+    category = models.ForeignKey(
+        DeviceCategory,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="devices",
+        verbose_name="Категория",
+    )
+    subcategory = models.ForeignKey(
+        DeviceSubcategory,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="devices",
+        verbose_name="Подкатегория",
+    )
     description = models.TextField(blank=True)
 
     snmp_version = models.CharField(
@@ -272,6 +307,11 @@ class Device(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    ping_fail_count = models.IntegerField(default=0, help_text="Счетчик неудачных пингов подряд")
+    ping_ok_count = models.IntegerField(default=0, help_text="Счетчик успешных пингов подряд")
+    last_ping_at = models.DateTimeField(null=True, blank=True, help_text="Время последнего пинга")
+    is_reachable = models.BooleanField(default=True, help_text="Доступно ли устройство (по ping)")
+
     class Meta:
         verbose_name = "Устройство"
         verbose_name_plural = "Устройства"
@@ -294,7 +334,6 @@ class Device(models.Model):
             self.STATUS_UNREACHABLE: "🔴",
             self.STATUS_UNKNOWN: "⚪",
         }.get(self.status, "⚪")
-
 
 # ============================================================
 # Discovery-снимки
@@ -345,7 +384,7 @@ class ActionLog(models.Model):
         Device, on_delete=models.CASCADE, related_name="actions",
     )
     user = models.ForeignKey(
-        "devices.User", null=True, blank=True,
+        "accounts.User", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="actions",
     )
     action = models.CharField(max_length=32, choices=ACTION_CHOICES)
@@ -370,11 +409,9 @@ class ActionLog(models.Model):
     def __str__(self):
         return f"{self.get_action_display()} {self.target} на {self.device.name} [{self.status}]"
 
-
 # ============================================================
 # NeDevice — удалённые NE (мультиплексоры за шлюзом)
 # ============================================================
-
 
 class NeDevice(models.Model):
     """

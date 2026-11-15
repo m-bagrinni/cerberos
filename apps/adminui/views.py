@@ -1,5 +1,10 @@
+from django.views import View
+from django.urls import reverse_lazy
+from .forms import ClosureForm
 """Кастомная админ-панель Cerberus."""
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from apps.accounts.permissions import (
+    PermissionRequiredMixin, get_user_permissions, has_perm,
+)
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -8,30 +13,33 @@ from django.views.generic import (
 )
 
 from apps.devices.models import (
-    Device, DeviceProfile, MetricDefinition, NeDevice, User, Vendor,
+    Device, DeviceProfile, MetricDefinition, NeDevice, Vendor, DeviceCategory,
 )
+from apps.accounts.models import User
 from apps.monitoring.models import MetricValue
 from apps.alerts.models import Alert
 from apps.subnets.models import Subnet, IpAddress
 
 from .forms import (
-    DeviceFilterForm, DeviceForm, MetricDefinitionForm,
-    AlertFilterForm, ProfileFilterForm, ProfileForm, SubnetForm, VendorForm,
+    DeviceFilterForm,
+    DeviceForm,
+    MetricDefinitionForm,
+    AlertFilterForm,
+    ProfileFilterForm,
+    ProfileForm,
+    SubnetForm,
+    VendorForm,
+    StationForm,
+    DeviceCategoryForm,
 )
-
-
-class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    login_url = "/admin/login/"
-
-    def test_func(self):
-        return self.request.user.is_staff
 
 
 # ============================================================
 # Dashboard
 # ============================================================
 
-class DashboardView(AdminRequiredMixin, TemplateView):
+class DashboardView(PermissionRequiredMixin, TemplateView):
+    permission_required = "admin.access"
     template_name = "adminui/dashboard.html"
 
     def get_context_data(self, **kwargs):
@@ -56,7 +64,8 @@ class DashboardView(AdminRequiredMixin, TemplateView):
 # Devices — CRUD
 # ============================================================
 
-class DeviceListView(AdminRequiredMixin, ListView):
+class DeviceListView(PermissionRequiredMixin, ListView):
+    permission_required = "device.view"
     model = Device
     template_name = "adminui/devices/list.html"
     context_object_name = "devices"
@@ -90,7 +99,8 @@ class DeviceListView(AdminRequiredMixin, ListView):
         return ctx
 
 
-class DeviceDetailView(AdminRequiredMixin, TemplateView):
+class DeviceDetailView(PermissionRequiredMixin, TemplateView):
+    permission_required = "device.view"
     template_name = "adminui/devices/detail.html"
 
     def get_context_data(self, **kwargs):
@@ -129,7 +139,8 @@ class DeviceDetailView(AdminRequiredMixin, TemplateView):
         return ctx
 
 
-class DeviceCreateView(AdminRequiredMixin, CreateView):
+class DeviceCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "device.create"
     model = Device
     form_class = DeviceForm
     template_name = "adminui/devices/form.html"
@@ -145,7 +156,8 @@ class DeviceCreateView(AdminRequiredMixin, CreateView):
         return reverse("adminui:device_detail", args=[self.object.pk])
 
 
-class DeviceUpdateView(AdminRequiredMixin, UpdateView):
+class DeviceUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "device.update"
     model = Device
     form_class = DeviceForm
     template_name = "adminui/devices/form.html"
@@ -161,7 +173,8 @@ class DeviceUpdateView(AdminRequiredMixin, UpdateView):
         return reverse("adminui:device_detail", args=[self.object.pk])
 
 
-class DeviceDeleteView(AdminRequiredMixin, DeleteView):
+class DeviceDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "device.delete"
     model = Device
     template_name = "adminui/devices/delete_confirm.html"
 
@@ -173,7 +186,8 @@ class DeviceDeleteView(AdminRequiredMixin, DeleteView):
 # Profiles — list + placeholders (детали — Этап 3.2)
 # ============================================================
 
-class ProfileListView(AdminRequiredMixin, ListView):
+class ProfileListView(PermissionRequiredMixin, ListView):
+    permission_required = "profile.view"
     model = DeviceProfile
     template_name = "adminui/profiles/list.html"
     context_object_name = "profiles"
@@ -201,7 +215,8 @@ class ProfileListView(AdminRequiredMixin, ListView):
         return ctx
 
 
-class ProfileCreateView(AdminRequiredMixin, CreateView):
+class ProfileCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "profile.create"
     model = DeviceProfile
     form_class = ProfileForm
     template_name = "adminui/profiles/form.html"
@@ -217,8 +232,9 @@ class ProfileCreateView(AdminRequiredMixin, CreateView):
         return reverse("adminui:profile_detail", args=[self.object.pk])
 
 
-class ProfileDetailView(AdminRequiredMixin, TemplateView):
+class ProfileDetailView(PermissionRequiredMixin, TemplateView):
     """Карточка профиля + inline-таблица метрик."""
+    permission_required = "profile.view"
     template_name = "adminui/profiles/detail.html"
 
     def get_context_data(self, **kwargs):
@@ -237,7 +253,8 @@ class ProfileDetailView(AdminRequiredMixin, TemplateView):
         return ctx
 
 
-class ProfileUpdateView(AdminRequiredMixin, UpdateView):
+class ProfileUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "profile.update"
     model = DeviceProfile
     form_class = ProfileForm
     template_name = "adminui/profiles/form.html"
@@ -253,7 +270,8 @@ class ProfileUpdateView(AdminRequiredMixin, UpdateView):
         return reverse("adminui:profile_detail", args=[self.object.pk])
 
 
-class ProfileDeleteView(AdminRequiredMixin, DeleteView):
+class ProfileDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "profile.delete"
     model = DeviceProfile
     template_name = "adminui/profiles/delete_confirm.html"
 
@@ -282,7 +300,8 @@ class ProfileDeleteView(AdminRequiredMixin, DeleteView):
         return reverse("adminui:profiles")
 
 
-class ProfileCloneView(AdminRequiredMixin, TemplateView):
+class ProfileCloneView(PermissionRequiredMixin, TemplateView):
+    permission_required = "profile.clone"
     template_name = "adminui/profiles/clone.html"
 
     def get_context_data(self, **kwargs):
@@ -333,7 +352,7 @@ class ProfileCloneView(AdminRequiredMixin, TemplateView):
         return redirect("adminui:profile_detail", pk=new_profile.pk)
 
 
-class ProfilesPlaceholderView(AdminRequiredMixin, TemplateView):
+class ProfilesPlaceholderView(PermissionRequiredMixin, TemplateView):
     template_name = "adminui/placeholder.html"
 
     def get_context_data(self, **kwargs):
@@ -347,8 +366,9 @@ class ProfilesPlaceholderView(AdminRequiredMixin, TemplateView):
 # Остальные — пока заглушки
 # ============================================================
 
-class MetricCreateView(AdminRequiredMixin, CreateView):
+class MetricCreateView(PermissionRequiredMixin, CreateView):
     """Добавление метрики в профиль."""
+    permission_required = "metric.create"
     model = MetricDefinition
     form_class = MetricDefinitionForm
     template_name = "adminui/metrics/form.html"
@@ -373,8 +393,9 @@ class MetricCreateView(AdminRequiredMixin, CreateView):
         return reverse("adminui:profile_detail", args=[self.profile.pk])
 
 
-class MetricUpdateView(AdminRequiredMixin, UpdateView):
+class MetricUpdateView(PermissionRequiredMixin, UpdateView):
     """Редактирование метрики."""
+    permission_required = "metric.update"
     model = MetricDefinition
     form_class = MetricDefinitionForm
     template_name = "adminui/metrics/form.html"
@@ -398,8 +419,9 @@ class MetricUpdateView(AdminRequiredMixin, UpdateView):
         return reverse("adminui:profile_detail", args=[self.profile.pk])
 
 
-class MetricDeleteView(AdminRequiredMixin, DeleteView):
+class MetricDeleteView(PermissionRequiredMixin, DeleteView):
     """Удаление метрики."""
+    permission_required = "metric.delete"
     model = MetricDefinition
     template_name = "adminui/metrics/delete_confirm.html"
 
@@ -419,8 +441,9 @@ class MetricDeleteView(AdminRequiredMixin, DeleteView):
         return reverse("adminui:profile_detail", args=[self.profile.pk])
 
 
-class VendorListView(AdminRequiredMixin, ListView):
+class VendorListView(PermissionRequiredMixin, ListView):
     """Список вендоров."""
+    permission_required = "vendor.view"
     model = Vendor
     template_name = "adminui/vendors/list.html"
     context_object_name = "vendors"
@@ -433,7 +456,8 @@ class VendorListView(AdminRequiredMixin, ListView):
         ).order_by("name")
 
 
-class VendorCreateView(AdminRequiredMixin, CreateView):
+class VendorCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "vendor.create"
     model = Vendor
     form_class = VendorForm
     template_name = "adminui/vendors/form.html"
@@ -449,7 +473,8 @@ class VendorCreateView(AdminRequiredMixin, CreateView):
         return reverse("adminui:vendors")
 
 
-class VendorUpdateView(AdminRequiredMixin, UpdateView):
+class VendorUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "vendor.update"
     model = Vendor
     form_class = VendorForm
     template_name = "adminui/vendors/form.html"
@@ -465,7 +490,8 @@ class VendorUpdateView(AdminRequiredMixin, UpdateView):
         return reverse("adminui:vendors")
 
 
-class VendorDeleteView(AdminRequiredMixin, DeleteView):
+class VendorDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "vendor.delete"
     model = Vendor
     template_name = "adminui/vendors/delete_confirm.html"
 
@@ -489,8 +515,9 @@ class VendorDeleteView(AdminRequiredMixin, DeleteView):
         return reverse("adminui:vendors")
 
 
-class NeListView(AdminRequiredMixin, ListView):
+class NeListView(PermissionRequiredMixin, ListView):
     """Список NE (Olencom) с фильтром по шлюзу."""
+    permission_required = "ne.view"
     model = NeDevice
     template_name = "adminui/ne/list.html"
     context_object_name = "ne_list"
@@ -522,8 +549,9 @@ class NeListView(AdminRequiredMixin, ListView):
         return ctx
 
 
-class NeDetailView(AdminRequiredMixin, TemplateView):
+class NeDetailView(PermissionRequiredMixin, TemplateView):
     """Карточка NE (Olencom) + графики метрик."""
+    permission_required = "ne.view"
     template_name = "adminui/ne/detail.html"
 
     def get_context_data(self, **kwargs):
@@ -538,7 +566,6 @@ class NeDetailView(AdminRequiredMixin, TemplateView):
 
         # Метрики NE: берём из MetricValue с этим ne_device
         # (не из profile — у NE своя структура, но фактически метрики лежат в MetricValue)
-        from apps.monitoring.models import MetricValue
         metric_rows = (
             MetricValue.objects
             .filter(ne_device=ne)
@@ -600,8 +627,9 @@ class NeDetailView(AdminRequiredMixin, TemplateView):
         return ctx
 
 
-class SubnetListView(AdminRequiredMixin, ListView):
+class SubnetListView(PermissionRequiredMixin, ListView):
     """Список подсетей с прогресс-барами."""
+    permission_required = "subnet.view"
     model = Subnet
     template_name = "adminui/subnets/list.html"
     context_object_name = "subnets"
@@ -621,7 +649,8 @@ class SubnetListView(AdminRequiredMixin, ListView):
         return ctx
 
 
-class SubnetCreateView(AdminRequiredMixin, CreateView):
+class SubnetCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "subnet.create"
     model = Subnet
     form_class = SubnetForm
     template_name = "adminui/subnets/form.html"
@@ -637,7 +666,8 @@ class SubnetCreateView(AdminRequiredMixin, CreateView):
         return reverse("adminui:subnets")
 
 
-class SubnetUpdateView(AdminRequiredMixin, UpdateView):
+class SubnetUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "subnet.update"
     model = Subnet
     form_class = SubnetForm
     template_name = "adminui/subnets/form.html"
@@ -653,7 +683,8 @@ class SubnetUpdateView(AdminRequiredMixin, UpdateView):
         return reverse("adminui:subnets")
 
 
-class SubnetDeleteView(AdminRequiredMixin, DeleteView):
+class SubnetDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "subnet.delete"
     model = Subnet
     template_name = "adminui/subnets/delete_confirm.html"
 
@@ -661,8 +692,9 @@ class SubnetDeleteView(AdminRequiredMixin, DeleteView):
         return reverse("adminui:subnets")
 
 
-class AlertListView(AdminRequiredMixin, ListView):
+class AlertListView(PermissionRequiredMixin, ListView):
     """Список алертов с фильтрами."""
+    permission_required = "alert.view"
     model = Alert
     template_name = "adminui/alerts/list.html"
     context_object_name = "alerts"
@@ -714,9 +746,10 @@ class AlertListView(AdminRequiredMixin, ListView):
         return ctx
 
 
-class UserListView(AdminRequiredMixin, ListView):
+class UserListView(PermissionRequiredMixin, ListView):
     """Список пользователей."""
-    from apps.devices.models import User as UserModel
+    permission_required = "user.view"
+    from apps.accounts.models import User as UserModel
     model = UserModel
     template_name = "adminui/users/list.html"
     context_object_name = "users"
@@ -728,8 +761,9 @@ class UserListView(AdminRequiredMixin, ListView):
         )
 
 
-class UserCreateView(AdminRequiredMixin, CreateView):
-    from apps.devices.models import User as UserModel
+class UserCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "user.create"
+    from apps.accounts.models import User as UserModel
     model = UserModel
     template_name = "adminui/users/form.html"
 
@@ -748,8 +782,9 @@ class UserCreateView(AdminRequiredMixin, CreateView):
         return reverse("adminui:users")
 
 
-class UserUpdateView(AdminRequiredMixin, UpdateView):
-    from apps.devices.models import User as UserModel
+class UserUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "user.update"
+    from apps.accounts.models import User as UserModel
     model = UserModel
     template_name = "adminui/users/form.html"
 
@@ -768,8 +803,9 @@ class UserUpdateView(AdminRequiredMixin, UpdateView):
         return reverse("adminui:users")
 
 
-class UserDeleteView(AdminRequiredMixin, DeleteView):
-    from apps.devices.models import User as UserModel
+class UserDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "user.delete"
+    from apps.accounts.models import User as UserModel
     model = UserModel
     template_name = "adminui/users/delete_confirm.html"
 
@@ -790,8 +826,93 @@ class UserDeleteView(AdminRequiredMixin, DeleteView):
         return reverse("adminui:users")
 
 
-class AlertDetailView(AdminRequiredMixin, TemplateView):
+class RoleListView(PermissionRequiredMixin, ListView):
+    """Список ролей."""
+    permission_required = "admin.access"
+    from apps.accounts.models import Role as RoleModel
+    model = RoleModel
+    template_name = "adminui/roles/list.html"
+    context_object_name = "roles"
+    paginate_by = 50
+
+    def get_queryset(self):
+        from django.db.models import Count
+        return (
+            self.model.objects
+            .prefetch_related("permissions")
+            .annotate(users_count=Count("userrole", distinct=True))
+            .order_by("name")
+        )
+
+
+class RoleDetailView(PermissionRequiredMixin, TemplateView):
+    """Карточка роли — список разрешений."""
+    permission_required = "admin.access"
+    template_name = "adminui/roles/detail.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.accounts.models import Role
+        ctx = super().get_context_data(**kwargs)
+        ctx["role"] = get_object_or_404(Role, pk=kwargs["pk"])
+        # Группируем permissions по group
+        from django.db.models import Count
+        perms = ctx["role"].permissions.all().order_by("group", "code")
+        groups = {}
+        for p in perms:
+            groups.setdefault(p.group, []).append(p)
+        ctx["perm_groups"] = groups
+        ctx["users"] = (
+            User.objects
+            .filter(user_roles__role=ctx["role"])
+            .order_by("username")
+        )
+        return ctx
+
+
+class UserRolesView(PermissionRequiredMixin, UpdateView):
+    """Назначение ролей пользователю."""
+    permission_required = "user.manage_roles"
+    model = User
+    template_name = "adminui/users/roles.html"
+    fields = []
+
+    def get_context_data(self, **kwargs):
+        from apps.accounts.models import Role, UserRole
+        ctx = super().get_context_data(**kwargs)
+        user = self.object
+        ctx["user_obj"] = user
+        ctx["roles"] = Role.objects.all().order_by("name")
+        ctx["user_role_ids"] = set(
+            user.user_roles.values_list("role_id", flat=True)
+        )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        from apps.accounts.models import Role, UserRole
+        user = self.get_object()
+        selected_ids = request.POST.getlist("roles")
+        # Удаляем старые
+        UserRole.objects.filter(user=user).delete()
+        # Добавляем новые
+        for rid in selected_ids:
+            try:
+                role = Role.objects.get(pk=rid)
+                UserRole.objects.create(
+                    user=user, role=role, assigned_by=request.user,
+                )
+            except Role.DoesNotExist:
+                pass
+        from django.contrib import messages
+        messages.success(
+            request,
+            f"Роли обновлены: {user.user_roles.count()} назначено",
+        )
+        return redirect("adminui:users")
+
+
+class AlertDetailView(PermissionRequiredMixin, TemplateView):
     """Карточка алерта."""
+    permission_required = "alert.view"
     template_name = "adminui/alerts/detail.html"
 
     def get_context_data(self, **kwargs):
@@ -799,3 +920,473 @@ class AlertDetailView(AdminRequiredMixin, TemplateView):
         alert = get_object_or_404(Alert, pk=kwargs["pk"])
         ctx["alert"] = alert
         return ctx
+
+
+# ============================================================
+# Modules (платформенные)
+# ============================================================
+
+class ModuleListView(PermissionRequiredMixin, ListView):
+    """Список модулей."""
+    permission_required = "admin.access"
+    from apps.core.models import Module as ModuleModel
+    model = ModuleModel
+    template_name = "adminui/modules/list.html"
+    context_object_name = "modules"
+    paginate_by = 50
+
+    def get_queryset(self):
+        return self.model.objects.all().order_by("sort_order", "name")
+
+
+class ModuleCreateView(PermissionRequiredMixin, CreateView):
+    """Создание модуля."""
+    permission_required = "admin.access"
+    from apps.core.models import Module as ModuleModel
+    model = ModuleModel
+    fields = [
+        "slug", "name", "description", "icon", "color",
+        "url_prefix", "is_active", "is_installed", "sort_order",
+    ]
+    template_name = "adminui/modules/form.html"
+    success_url = "/admin-ui/modules/"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "Новый модуль"
+        ctx["form_submit"] = "Создать"
+        ctx["module"] = None
+        return ctx
+
+
+class ModuleUpdateView(PermissionRequiredMixin, UpdateView):
+    """Редактирование модуля."""
+    permission_required = "admin.access"
+    from apps.core.models import Module as ModuleModel
+    model = ModuleModel
+    fields = [
+        "slug", "name", "description", "icon", "color",
+        "url_prefix", "is_active", "is_installed", "sort_order",
+    ]
+    template_name = "adminui/modules/form.html"
+    success_url = "/admin-ui/modules/"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = f"Модуль: {self.object.name}"
+        ctx["form_submit"] = "Сохранить"
+        ctx["module"] = self.object
+        return ctx
+
+
+# ── Оптические муфты ─────────────────────────────────────────
+from apps.stations.models import OpticalClosure, OpticalLink
+
+class ClosureListView(PermissionRequiredMixin, ListView):
+    model = OpticalClosure
+    template_name = "adminui/closures/list.html"
+    context_object_name = "closures"
+    paginate_by = 50
+    permission_required = "device.view"  # или можно сделать отдельное право
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("link")
+        q = self.request.GET.get("q", "").strip()
+        link_id = self.request.GET.get("link", "").strip()
+        if q:
+            qs = qs.filter(name__icontains=q)
+        if link_id:
+            qs = qs.filter(link_id=link_id)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["links"] = OpticalLink.objects.all()
+        ctx["q"] = self.request.GET.get("q", "")
+        ctx["selected_link"] = self.request.GET.get("link", "")
+        return ctx
+
+
+class ClosureCreateView(PermissionRequiredMixin, CreateView):
+    model = OpticalClosure
+    form_class = ClosureForm
+    template_name = "adminui/closures/form.html"
+    success_url = reverse_lazy("adminui:closures")
+    permission_required = "device.create"
+
+
+class ClosureUpdateView(PermissionRequiredMixin, UpdateView):
+    model = OpticalClosure
+    form_class = ClosureForm
+    template_name = "adminui/closures/form.html"
+    success_url = reverse_lazy("adminui:closures")
+    permission_required = "device.update"
+
+
+class ClosureDeleteView(PermissionRequiredMixin, DeleteView):
+    model = OpticalClosure
+    template_name = "adminui/closures/confirm_delete.html"
+    success_url = reverse_lazy("adminui:closures")
+    permission_required = "device.delete"
+
+# ── Станции ─────────────────────────────────────────────────────
+from apps.stations.models import Station, OpticalLink
+
+class StationListView(PermissionRequiredMixin, ListView):
+    model = Station
+    template_name = "adminui/stations/list.html"
+    context_object_name = "stations"
+    paginate_by = 50
+    permission_required = "device.view"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(name__icontains=q)
+        return qs
+
+class StationCreateView(PermissionRequiredMixin, CreateView):
+    model = Station
+    form_class = StationForm
+    template_name = "adminui/stations/form.html"
+    success_url = reverse_lazy("adminui:stations")
+    permission_required = "device.create"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # Сохраняем связи StationDevice
+        self.save_station_devices()
+        return response
+
+    def save_station_devices(self):
+        from apps.stations.models import StationDevice
+        station = self.object
+        devices = self.request.POST.getlist('devices')
+        # Удаляем старые связи
+        StationDevice.objects.filter(station=station).delete()
+        # Создаём новые
+        for device_id in devices:
+            try:
+                StationDevice.objects.create(station=station, device_id=int(device_id))
+            except Exception:
+                pass
+
+class StationUpdateView(PermissionRequiredMixin, UpdateView):
+    model = Station
+    form_class = StationForm
+    template_name = "adminui/stations/form.html"
+    success_url = reverse_lazy("adminui:stations")
+    permission_required = "device.update"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.save_station_devices()
+        return response
+
+    def save_station_devices(self):
+        from apps.stations.models import StationDevice
+        station = self.object
+        devices = self.request.POST.getlist('devices')
+        StationDevice.objects.filter(station=station).delete()
+        for device_id in devices:
+            try:
+                StationDevice.objects.create(station=station, device_id=int(device_id))
+            except Exception:
+                pass
+
+class StationDeleteView(PermissionRequiredMixin, DeleteView):
+    model = Station
+    template_name = "adminui/stations/confirm_delete.html"
+    success_url = reverse_lazy("adminui:stations")
+    permission_required = "device.delete"
+
+
+# ── Оптические линии ────────────────────────────────────────────
+class OpticalLinkListView(PermissionRequiredMixin, ListView):
+    model = OpticalLink
+    template_name = "adminui/links/list.html"
+    context_object_name = "links"
+    paginate_by = 50
+    permission_required = "device.view"
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("station_a", "station_b")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(label__icontains=q) | qs.filter(station_a__name__icontains=q) | qs.filter(station_b__name__icontains=q)
+        return qs
+
+class OpticalLinkCreateView(PermissionRequiredMixin, CreateView):
+    model = OpticalLink
+    fields = ("label", "station_a", "station_b", "device_a", "ne_a", "port_a_type", "port_a_num", "device_b", "ne_b", "port_b_type", "port_b_num", "is_active")
+    template_name = "adminui/links/form.html"
+    success_url = reverse_lazy("adminui:links")
+    permission_required = "device.create"
+
+class OpticalLinkUpdateView(PermissionRequiredMixin, UpdateView):
+    model = OpticalLink
+    fields = ("label", "station_a", "station_b", "device_a", "ne_a", "port_a_type", "port_a_num", "device_b", "ne_b", "port_b_type", "port_b_num", "is_active")
+    template_name = "adminui/links/form.html"
+    success_url = reverse_lazy("adminui:links")
+    permission_required = "device.update"
+
+class OpticalLinkDuplicateView(PermissionRequiredMixin, View):
+    """Дублирование оптической линии (создаёт копию и открывает форму редактирования)."""
+    permission_required = "device.create"
+
+    def get(self, request, pk):
+        from django.shortcuts import redirect
+        from apps.stations.models import OpticalLink
+        link = get_object_or_404(OpticalLink, pk=pk)
+        
+        # Копируем все поля, кроме id, created_at, updated_at
+        new_link = OpticalLink.objects.create(
+            label=f"{link.label} (копия)" if link.label else "",
+            description=link.description,
+            station_a=link.station_a,
+            station_b=link.station_b,
+            device_a=link.device_a,
+            ne_a=link.ne_a,
+            port_a_type=link.port_a_type,
+            port_a_num=link.port_a_num,
+            device_b=link.device_b,
+            ne_b=link.ne_b,
+            port_b_type=link.port_b_type,
+            port_b_num=link.port_b_num,
+            path_geojson=link.path_geojson,
+            is_active=False,  # копия неактивна, пока не настроена
+        )
+        
+        return redirect("adminui:link_update", pk=new_link.pk)
+
+
+class OpticalLinkDeleteView(PermissionRequiredMixin, DeleteView):
+    model = OpticalLink
+    template_name = "adminui/links/confirm_delete.html"
+    success_url = reverse_lazy("adminui:links")
+    permission_required = "device.delete"
+
+# ── Рисование маршрута в кастомной админке ──────────────────────
+from django.shortcuts import get_object_or_404, render
+from django.contrib.admin.views.decorators import staff_member_required
+
+@staff_member_required
+def draw_path_adminui(request, link_id):
+    link = get_object_or_404(OpticalLink, id=link_id)
+    
+    points = []
+    if link.station_a and link.station_a.latitude and link.station_a.longitude:
+        points.append({
+            'lat': float(link.station_a.latitude),
+            'lon': float(link.station_a.longitude),
+            'name': link.station_a.name,
+            'type': 'station_a'
+        })
+    if link.station_b and link.station_b.latitude and link.station_b.longitude:
+        points.append({
+            'lat': float(link.station_b.latitude),
+            'lon': float(link.station_b.longitude),
+            'name': link.station_b.name,
+            'type': 'station_b'
+        })
+    
+    return render(request, 'adminui/links/draw.html', {
+        'link': link,
+        'stations': points
+    })
+
+# ── Управление ролями (RBAC) ────────────────────────────────────
+from apps.accounts.models import Role, Permission
+from django import forms
+
+class RoleForm(forms.ModelForm):
+    class Meta:
+        model = Role
+        fields = ("name", "slug", "permissions")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-input", "placeholder": "Название роли"}),
+            "slug": forms.TextInput(attrs={"class": "form-input", "placeholder": "slug (латиницей)"}),
+            "permissions": forms.CheckboxSelectMultiple(),
+        }
+
+class RoleListView(PermissionRequiredMixin, ListView):
+    model = Role
+    template_name = "adminui/roles/list.html"
+    context_object_name = "roles"
+    permission_required = "system.admin.access"
+
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related("permissions", "userrole_set")
+
+class RoleCreateView(PermissionRequiredMixin, CreateView):
+    model = Role
+    form_class = RoleForm
+    template_name = "adminui/roles/form.html"
+    success_url = reverse_lazy("adminui:roles")
+    permission_required = "system.admin.access"
+
+class RoleUpdateView(PermissionRequiredMixin, UpdateView):
+    model = Role
+    form_class = RoleForm
+    template_name = "adminui/roles/form.html"
+    success_url = reverse_lazy("adminui:roles")
+    permission_required = "system.admin.access"
+
+class RoleDeleteView(PermissionRequiredMixin, DeleteView):
+    model = Role
+    template_name = "adminui/roles/confirm_delete.html"
+    success_url = reverse_lazy("adminui:roles")
+    permission_required = "system.admin.access"
+
+
+# ─── Категории устройств ──────────────────────────────────
+
+class CategoryListView(PermissionRequiredMixin, ListView):
+    permission_required = "profile.view"
+    model = DeviceCategory
+    template_name = "adminui/categories/list.html"
+    context_object_name = "categories"
+    paginate_by = 50
+
+
+class CategoryCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "profile.create"
+    model = DeviceCategory
+    form_class = DeviceCategoryForm
+    template_name = "adminui/categories/form.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "Новая категория"
+        ctx["form_submit"] = "Создать"
+        return ctx
+
+    def get_success_url(self):
+        return reverse("adminui:categories")
+
+
+class CategoryUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "profile.update"
+    model = DeviceCategory
+    form_class = DeviceCategoryForm
+    template_name = "adminui/categories/form.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = f"Категория: {self.object.name}"
+        ctx["form_submit"] = "Сохранить"
+        return ctx
+
+    def get_success_url(self):
+        return reverse("adminui:categories")
+
+
+class CategoryDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "profile.delete"
+    model = DeviceCategory
+    template_name = "adminui/categories/delete_confirm.html"
+
+    def get_success_url(self):
+        return reverse("adminui:categories")
+
+
+# ─── API для категорий (переименование, удаление) ──────────
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_protect
+import json
+
+def _api_perm(perm):
+    """JSON-API админки: вход + право (как у соответствующих CBV). Без него — 401/403 JSON."""
+    import functools
+
+    def deco(view):
+        @functools.wraps(view)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return JsonResponse({"ok": False, "error": "authentication required"}, status=401)
+            if not has_perm(request.user, perm):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            return view(request, *args, **kwargs)
+        return wrapper
+    return deco
+
+
+@require_POST
+@csrf_protect
+@_api_perm("profile.update")
+def category_rename_api(request):
+    from apps.devices.models import DeviceCategory
+    try:
+        data = json.loads(request.body)
+        slug = data.get("slug")
+        name = data.get("name")
+        if not slug or not name:
+            return JsonResponse({"ok": False, "error": "slug и name обязательны"}, status=400)
+        try:
+            cat = DeviceCategory.objects.get(slug=slug)
+        except DeviceCategory.DoesNotExist:
+            return JsonResponse({"ok": False, "error": "Категория не найдена"}, status=404)
+        cat.name = name
+        cat.save(update_fields=["name"])
+        return JsonResponse({"ok": True, "slug": slug, "name": name})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_POST
+@csrf_protect
+@_api_perm("profile.create")
+def subcategory_create_api(request):
+    from apps.devices.models import DeviceCategory, DeviceSubcategory
+    from django.utils.text import slugify
+    try:
+        data = json.loads(request.body)
+        category_slug = data.get("category_slug")
+        name = data.get("name")
+        if not category_slug or not name:
+            return JsonResponse({"ok": False, "error": "category_slug и name обязательны"}, status=400)
+        try:
+            cat = DeviceCategory.objects.get(slug=category_slug)
+        except DeviceCategory.DoesNotExist:
+            return JsonResponse({"ok": False, "error": "Категория не найдена"}, status=404)
+        
+        # Генерируем slug
+        base_slug = slugify(name) or "subcategory"
+        slug = base_slug
+        counter = 1
+        while DeviceSubcategory.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        
+        sub = DeviceSubcategory.objects.create(
+            category=cat,
+            slug=slug,
+            name=name,
+        )
+        return JsonResponse({"ok": True, "slug": slug, "name": name, "id": sub.id})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_POST
+@csrf_protect
+@_api_perm("profile.delete")
+def category_delete_api(request):
+    from apps.devices.models import DeviceCategory
+    try:
+        data = json.loads(request.body)
+        slug = data.get("slug")
+        if not slug:
+            return JsonResponse({"ok": False, "error": "slug обязателен"}, status=400)
+        try:
+            cat = DeviceCategory.objects.get(slug=slug)
+        except DeviceCategory.DoesNotExist:
+            return JsonResponse({"ok": False, "error": "Категория не найдена"}, status=404)
+        cat.delete()
+        return JsonResponse({"ok": True, "slug": slug})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта</title>
+    <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
+    <script src="/static/vendor/leaflet/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background: #111; }
+        #map { width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // 1. Инициализация карты
+        const map = L.map('map', { zoomControl: true }).setView([42.7, 74.6], 8);
+        
+        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            attribution: '© Esri, Maxar', maxZoom: 19
+        }).addTo(map);
+
+        // 2. Иконка (абсолютные пути)
+        const customIcon = L.icon({
+            iconUrl: '/static/vendor/leaflet/images/marker-icon.png',
+            iconRetinaUrl: '/static/vendor/leaflet/images/marker-icon-2x.png',
+            shadowUrl: '/static/vendor/leaflet/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        let markers = [];
+        let polyline = null;
+
+        // 3. Слушаем сообщения от родительского окна
+        window.addEventListener('message', function(event) {
+            const data = event.data;
+            if (data.type === 'update_route') {
+                console.log("Карта получила данные:", data);
+                drawRoute(data.stationA, data.stationB, data.path);
+            }
+        });
+
+        // 4. Отрисовка
+        function drawRoute(stA, stB, path) {
+            // Очищаем старые слои
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            if (polyline) { map.removeLayer(polyline); polyline = null; }
+
+            // Если есть сохраненный маршрут из БД (path)
+            if (path && path.length > 0) {
+                console.log("Рисуем путь из БД, точек:", path.length);
+                polyline = L.polyline(path, {color: '#ff780a', weight: 4}).addTo(map);
+                map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                
+                // Ставим маркеры на начало и конец
+                const firstPoint = path[0];
+                const lastPoint = path[path.length - 1];
+                if (firstPoint && firstPoint.length === 2) {
+                    markers.push(L.marker(firstPoint, {icon: customIcon}).addTo(map).bindPopup('Начало'));
+                }
+                if (lastPoint && lastPoint.length === 2) {
+                    markers.push(L.marker(lastPoint, {icon: customIcon}).addTo(map).bindPopup('Конец'));
+                }
+                return;
+            }
+
+            // Если маршрута нет, рисуем прямую между станциями
+            const bounds = [];
+            if (stA && stA.lat && stA.lon) {
+                markers.push(L.marker([stA.lat, stA.lon], {icon: customIcon}).addTo(map).bindPopup('A: ' + stA.name));
+                bounds.push([stA.lat, stA.lon]);
+            }
+            if (stB && stB.lat && stB.lon) {
+                markers.push(L.marker([stB.lat, stB.lon], {icon: customIcon}).addTo(map).bindPopup('B: ' + stB.name));
+                bounds.push([stB.lat, stB.lon]);
+            }
+
+            if (bounds.length === 2) {
+                polyline = L.polyline(bounds, {color: '#ff780a', weight: 4}).addTo(map);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            } else if (bounds.length === 1) {
+                map.setView(bounds[0], 11);
+            }
+        }
+
+        // Фикс размера
+        setTimeout(() => map.invalidateSize(), 100);
+    </script>
+</body>
+</html>
