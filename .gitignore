@@ -28,15 +28,21 @@ db.sqlite3
 *.swo
 .DS_Store
 
-# Backups
+# Backups — для истории есть git; старые .bak перенесены в ~/cerber-archive/
 *.bak
-*.bak2
-*.bak3
-*.bak4
-*.bak5
-*.bak6
+*.bak[0-9]*
+*.bak_*
+*.bak-*
+*.bak.*
 *.orig
 *.rej
+# дампы БД (scripts/backup.sh) — это данные, не код
+/backups/
+/backups_*/
+
+# Runtime
+# кэш PDF E-Docs (apps/edocs/utils.py)
+/tmp_pdf/
 
 # OSM raw data
 kgz_railways.json
