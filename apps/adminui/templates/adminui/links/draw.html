@@ -1,5 +1,5 @@
 {% extends "adminui/base_admin.html" %}
-{% load static %}
+{% load static cerber_json %}
 
 {% block admin_title %}Рисование маршрута: {{ link }}{% endblock %}
 
@@ -49,7 +49,7 @@
     const START_LAT = 42.8669;
     const START_LON = 74.5519;
     
-    const existingPath = {{ link.path_geojson|default:"[]"|safe }};
+    const existingPath = {{ link.path_geojson|js_json:"[]" }};
     const stations = JSON.parse(document.getElementById('stations-data').textContent);
 
     const map = L.map('map').setView([START_LAT, START_LON], 13);

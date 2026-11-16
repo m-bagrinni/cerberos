@@ -39,11 +39,22 @@ urlpatterns = [
 
     # ========== Vendors ==========
     # ========== Roles ==========
-    path("roles/", views.RoleListView.as_view(), name="roles"),
-    path("roles/new/", views.RoleCreateView.as_view(), name="role_create"),
-    path("roles/<int:pk>/edit/", views.RoleUpdateView.as_view(), name="role_update"),
-    path("roles/<int:pk>/delete/", views.RoleDeleteView.as_view(), name="role_delete"),
-    path("roles/<int:pk>/", views.RoleDetailView.as_view(), name="role_detail"),
+    # Роли заменены шаблонами доступа (права теперь задаются каждому пользователю)
+    path("roles/", views.RolesMovedView.as_view(), name="roles"),
+    path("roles/new/", views.RolesMovedView.as_view(), name="role_create"),
+    path("roles/<int:pk>/edit/", views.RolesMovedView.as_view(), name="role_update"),
+    path("roles/<int:pk>/delete/", views.RolesMovedView.as_view(), name="role_delete"),
+    path("roles/<int:pk>/", views.RolesMovedView.as_view(), name="role_detail"),
+    path("presets/", views.PresetListView.as_view(), name="presets"),
+    path("presets/new/", views.PresetEditView.as_view(), name="preset_create"),
+    path("presets/<int:pk>/edit/", views.PresetEditView.as_view(), name="preset_update"),
+    path("presets/<int:pk>/delete/", views.PresetDeleteView.as_view(), name="preset_delete"),
+
+    # ========== Объявления ==========
+    path("announcements/", views.AnnouncementListView.as_view(), name="announcements"),
+    path("announcements/new/", views.AnnouncementCreateView.as_view(), name="announcement_create"),
+    path("announcements/<int:pk>/edit/", views.AnnouncementUpdateView.as_view(), name="announcement_update"),
+    path("announcements/<int:pk>/delete/", views.AnnouncementDeleteView.as_view(), name="announcement_delete"),
 
     path("vendors/", views.VendorListView.as_view(), name="vendors"),
     path("vendors/new/", views.VendorCreateView.as_view(), name="vendor_create"),
@@ -92,10 +103,10 @@ urlpatterns = [
     path("users/", views.UserListView.as_view(), name="users"),
     path("users/new/", views.UserCreateView.as_view(), name="user_create"),
     path("users/<int:pk>/edit/", views.UserUpdateView.as_view(), name="user_update"),
-    path("users/<int:pk>/roles/", views.UserRolesView.as_view(), name="user_roles"),
+    path("users/<int:pk>/roles/", views.RolesMovedView.as_view(), name="user_roles"),
     path("users/<int:pk>/delete/", views.UserDeleteView.as_view(), name="user_delete"),
     path("users/pending/", accounts_views.PendingUsersListView.as_view(), name="users_pending"),
-    path("users/<int:pk>/approve/", accounts_views.ApproveUserView.as_view(), name="user_approve"),
+    path("users/<int:pk>/approve/", views.UserApproveView.as_view(), name="user_approve"),
     path("users/<int:pk>/reject/", accounts_views.RejectUserView.as_view(), name="user_reject"),
 
     # ========== AJAX API ==========

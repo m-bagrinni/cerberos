@@ -2,7 +2,7 @@
 import json
 import subprocess
 
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required  # права — AccessMiddleware (раздел по /admin-ui/<сегмент>/)
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
@@ -52,7 +52,7 @@ def _snmpget(host: str, community: str, version: str, oid: str,
         return False, f"{type(e).__name__}: {e}"
 
 
-@staff_member_required
+@login_required
 @require_POST
 def test_snmp(request):
     """Проверка SNMP: snmpget sysDescr + sysObjectID."""
@@ -80,7 +80,7 @@ def test_snmp(request):
     })
 
 
-@staff_member_required
+@login_required
 @require_POST
 def test_oid(request):
     """Проверка OID: snmpget одного OID на устройстве."""
@@ -103,7 +103,7 @@ def test_oid(request):
     return JsonResponse({"ok": False, "error": value or "unknown"})
 
 
-@staff_member_required
+@login_required
 @require_POST
 def poll_now(request, pk):
     """Запуск poll_device_task в Celery по кнопке."""
@@ -119,7 +119,7 @@ def poll_now(request, pk):
         return JsonResponse({"ok": False, "error": f"{type(e).__name__}: {e}"})
 
 
-@staff_member_required
+@login_required
 @require_POST
 def subnet_scan_now(request, pk):
     """Запуск scan_subnet_task для подсети."""
@@ -137,7 +137,7 @@ def subnet_scan_now(request, pk):
         return JsonResponse({"ok": False, "error": f"{type(e).__name__}: {e}"})
 
 
-@staff_member_required
+@login_required
 @require_POST
 def ne_rename(request, pk):
     """Inline-переименование NE."""
@@ -160,7 +160,7 @@ def ne_rename(request, pk):
     return JsonResponse({"ok": True, "name": ne.name})
 
 
-@staff_member_required
+@login_required
 @require_POST
 def alert_resolve(request, pk):
     """Ручное разрешение одного алерта."""
@@ -180,7 +180,7 @@ def alert_resolve(request, pk):
     return JsonResponse({"ok": True, "state": "ok", "alert_id": alert.pk})
 
 
-@staff_member_required
+@login_required
 @require_POST
 def alert_bulk_resolve(request):
     """Разрешение нескольких алертов (JSON {ids: [...]})"""

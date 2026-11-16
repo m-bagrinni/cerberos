@@ -1,0 +1,62 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Объявления{% endblock %}
+
+{% block admin_actions %}
+<a href="{% url 'adminui:announcement_create' %}" class="btn--secondary">
+  <i class="bi bi-plus-lg"></i> Новое объявление
+</a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Объявления на главной ({{ announcements|length }})</h2>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if announcements %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Заголовок</th>
+          <th>Уровень</th>
+          <th>Показ</th>
+          <th>Период</th>
+          <th>Автор</th>
+          <th style="width:100px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in announcements %}
+        <tr>
+          <td>
+            {% if a.is_pinned %}<i class="bi bi-pin-angle-fill text-muted" title="Закреплено"></i> {% endif %}
+            <strong>{{ a.title }}</strong>
+            {% if a.text %}<div class="text-muted" style="font-size:12px">{{ a.text|truncatechars:90 }}</div>{% endif %}
+          </td>
+          <td>{{ a.get_level_display }}</td>
+          <td>
+            {% if a.id in visible_ids %}<span style="color:var(--ok,#22c55e)">Показывается</span>
+            {% elif not a.is_active %}<span class="text-muted">Выключено</span>
+            {% else %}<span class="text-muted">Вне периода</span>{% endif %}
+          </td>
+          <td class="mono text-muted" style="font-size:12px">
+            {{ a.starts_at|date:"d.m.Y H:i" }} — {% if a.ends_at %}{{ a.ends_at|date:"d.m.Y H:i" }}{% else %}бессрочно{% endif %}
+          </td>
+          <td class="text-muted">{{ a.created_by.short_name|default:"—" }}</td>
+          <td>
+            <div class="aui-row-actions">
+              <a href="{% url 'adminui:announcement_update' a.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+              <a href="{% url 'adminui:announcement_delete' a.pk %}" class="aui-icon-btn" title="Удалить"><i class="bi bi-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted" style="padding:24px;text-align:center">Объявлений пока нет. Они появятся на главной у всех сотрудников.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

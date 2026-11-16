@@ -57,7 +57,7 @@
           <th>Username</th>
           <th>Email</th>
           <th>Telegram ID</th>
-          <th>Роли</th>
+          <th>Доступ</th>
           <th>Last login</th>
           <th style="width:100px"></th>
         </tr>
@@ -69,12 +69,11 @@
           <td class="text-muted">{{ u.email|default:"—" }}</td>
           <td class="mono text-muted">{{ u.telegram_id|default:"—" }}</td>
           <td>
-            {% for ur in u.user_roles.all %}
-              <span class="badge badge--info" title="{{ ur.role.name }}">{{ ur.role.slug }}</span>
-            {% empty %}
-              <span class="text-muted">—</span>
-            {% endfor %}
+            <div class="acc-sum">
+            {% for name in u.access_summary %}<span class="badge badge--info">{{ name }}</span>{% empty %}{% if not u.is_superuser %}<span class="text-muted">нет доступа</span>{% endif %}{% endfor %}
             {% if u.is_superuser %}<span class="badge badge--crit">superuser</span>{% endif %}
+            {% if u.registration_status == "pending" %}<span class="badge badge--warn">ждёт подтверждения</span>{% endif %}
+            </div>
           </td>
           <td class="text-muted">
             {% if u.last_login %}{{ u.last_login|timesince }} назад{% else %}—{% endif %}
@@ -83,9 +82,6 @@
             <div class="aui-row-actions">
               <a href="{% url 'adminui:user_update' u.pk %}" class="aui-icon-btn" title="Редактировать">
                 <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'adminui:user_roles' u.pk %}" class="aui-icon-btn" title="Роли">
-                <i class="bi bi-person-gear"></i>
               </a>
               <a href="{% url 'adminui:user_delete' u.pk %}" class="aui-icon-btn" title="Удалить">
                 <i class="bi bi-trash"></i>

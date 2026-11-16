@@ -62,25 +62,14 @@ def get_user_permissions(user) -> set:
 # ── has_perm ─────────────────────────────────────────────────
 def has_perm(user, perm: str) -> bool:
     """
-    Универсальная проверка:
-    1) суперюзер — всё;
-    2) access_level >= 80 — всё;
-    3) perm — модуль (local/servers/edocs) → Position.modules;
-    4) иначе — get_user_permissions.
+    Проверка права по новой модели доступа (apps/accounts/access.py).
+    Старые коды ("device.update", "subnet.view", "user.manage_roles", "admin.access", "local")
+    переводятся в раздел/уровень или возможность — см. access.legacy_allows.
     """
     if not user or not user.is_authenticated:
         return False
-    if user.is_superuser:
-        return True
-
-    level = get_user_access_level(user)
-    if level >= 80:
-        return True
-
-    if perm in ("local", "servers", "edocs"):
-        return bool(getattr(user, "has_module_access", lambda m: False)(perm))
-
-    return perm in get_user_permissions(user)
+    from .access import Access, legacy_allows
+    return legacy_allows(Access.for_user(user), perm)
 
 
 # ── Кастомный PermissionRequiredMixin ────────────────────────

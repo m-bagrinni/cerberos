@@ -51,6 +51,7 @@ PERMISSIONS = [
     ("services.view", "Просмотр служб", "system"),
     ("services.manage", "Управление контейнерами/задачами", "system"),
     ("admin.access", "Доступ в админку", "system"),
+    ("announcement.manage", "Объявления на главной", "system"),
 ]
 
 

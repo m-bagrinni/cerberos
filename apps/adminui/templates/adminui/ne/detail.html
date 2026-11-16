@@ -1,5 +1,5 @@
 {% extends "adminui/base_admin.html" %}
-{% load static %}
+{% load static cerber_json %}
 
 {% block admin_title %}{{ ne.name }} (NE {{ ne.ne_id }}){% endblock %}
 
@@ -126,8 +126,8 @@
 {% block extra_js %}
 <script src="{% static 'vendor/js/chart.umd.min.js' %}"></script>
 <script>
-  window.CERBER_CHARTS = {{ charts_json|safe }};
-  window.CERBER_METRICS_META = {{ metrics_meta_json|safe }};
+  window.CERBER_CHARTS = {{ charts_json|js_json }};
+  window.CERBER_METRICS_META = {{ metrics_meta_json|js_json }};
 </script>
 <script src="{% static 'js/adminui-device-detail.js' %}?v=7"></script>
 {% endblock %}

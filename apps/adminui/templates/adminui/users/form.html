@@ -3,7 +3,7 @@
 {% block admin_title %}{{ form_title }}{% endblock %}
 
 {% block admin_content %}
-<form method="post" class="aui-form" style="max-width:600px">
+<form method="post" class="aui-form" autocomplete="off">
   {% csrf_token %}
   {% if form.non_field_errors %}
   <div class="aui-form__errors">
@@ -11,16 +11,33 @@
   </div>
   {% endif %}
 
-  <div class="panel">
-    <div class="panel__header"><h2 class="panel__title">{{ form_title }}</h2></div>
-    <div class="panel__body">
-      {% for field in form %}
-      <div class="aui-form__field">
-        <label class="aui-form__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {{ field }}
-        {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
+  <div class="aui-form__grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: start;">
+    <div class="panel">
+      <div class="panel__header"><h2 class="panel__title">{{ form_title }}</h2></div>
+      <div class="panel__body">
+        {% for field in form %}
+        <div class="aui-form__field">
+          {% if field.field.widget.input_type == "checkbox" %}
+            <label class="acc__cap" style="padding:0">{{ field }}<span><b>{{ field.label }}</b></span></label>
+          {% else %}
+            <label class="aui-form__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          {% endif %}
+          {% if field.help_text %}<div class="acc__hint">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
+    </div>
+
+    <div class="panel">
+      <div class="panel__header"><h2 class="panel__title">Права доступа</h2></div>
+      <div class="panel__body">
+        {% if target_is_superuser %}
+          <p class="acc__hint" style="margin:0 0 12px">Суперпользователь имеет все права независимо от этой таблицы.</p>
+        {% endif %}
+        {% include "adminui/users/_access_matrix.html" %}
+      </div>
     </div>
   </div>
 
@@ -29,7 +46,7 @@
       <i class="bi bi-check-lg"></i> {{ form_submit }}
     </button>
     <a href="{% url 'adminui:users' %}" class="btn--secondary">Отмена</a>
-    {% if user_obj %}
+    {% if user_obj and user_obj.pk != request.user.pk %}
     <a href="{% url 'adminui:user_delete' user_obj.pk %}" class="btn--danger" style="margin-left:auto">
       <i class="bi bi-trash"></i> Удалить
     </a>

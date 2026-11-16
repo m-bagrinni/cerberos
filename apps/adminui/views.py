@@ -1169,9 +1169,9 @@ class OpticalLinkDeleteView(PermissionRequiredMixin, DeleteView):
 
 # ── Рисование маршрута в кастомной админке ──────────────────────
 from django.shortcuts import get_object_or_404, render
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
-@staff_member_required
+@login_required  # права — AccessMiddleware: /admin-ui/links/ → «Диспетчерская и станции» (изменение)
 def draw_path_adminui(request, link_id):
     link = get_object_or_404(OpticalLink, id=link_id)
     
@@ -1390,3 +1390,291 @@ def category_delete_api(request):
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
+
+
+# ========== Объявления на главной ==========
+from apps.core.models import Announcement
+from .forms import AnnouncementForm
+
+
+class AnnouncementListView(PermissionRequiredMixin, ListView):
+    permission_required = "announcement.manage"
+    model = Announcement
+    template_name = "adminui/announcements/list.html"
+    context_object_name = "announcements"
+    paginate_by = 50
+
+    def get_queryset(self):
+        return Announcement.objects.select_related("created_by").order_by("-is_pinned", "-starts_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["visible_ids"] = set(Announcement.visible().values_list("id", flat=True))
+        return ctx
+
+
+class _AnnouncementFormMixin(PermissionRequiredMixin):
+    permission_required = "announcement.manage"
+    model = Announcement
+    form_class = AnnouncementForm
+    template_name = "adminui/announcements/form.html"
+
+    def get_success_url(self):
+        return reverse("adminui:announcements")
+
+
+class AnnouncementCreateView(_AnnouncementFormMixin, CreateView):
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(form_title="Новое объявление", form_submit="Опубликовать", announcement=None)
+        return ctx
+
+
+class AnnouncementUpdateView(_AnnouncementFormMixin, UpdateView):
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(form_title=f"Редактирование: {self.object.title}", form_submit="Сохранить",
+                   announcement=self.object)
+        return ctx
+
+
+class AnnouncementDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "announcement.manage"
+    model = Announcement
+    template_name = "adminui/announcements/delete_confirm.html"
+
+    def get_success_url(self):
+        return reverse("adminui:announcements")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Права доступа пользователей: матрица «раздел × уровень» + возможности
+# (apps/accounts/access.py). Используется в карточке пользователя,
+# при подтверждении регистрации и в шаблонах доступа.
+# ═══════════════════════════════════════════════════════════════════════════
+import json as _json
+
+from django.contrib import messages as _messages
+from django.http import Http404
+from django.shortcuts import redirect as _redirect
+
+
+def access_form_context(sections=None, caps=None):
+    from apps.accounts.access import (CAPABILITIES, GROUP_LABELS, LEVEL_LABELS, SECTIONS,
+                                      clean_caps, clean_sections)
+    from apps.accounts.models import AccessPreset
+    sections = clean_sections(sections)
+    caps = set(clean_caps(caps))
+    groups = []
+    for g, label in GROUP_LABELS.items():
+        rows = [{"key": s.key, "name": s.name, "hint": s.hint, "level": sections[s.key]}
+                for s in SECTIONS if s.group == g]
+        if rows:
+            groups.append({"label": label, "rows": rows})
+    presets = list(AccessPreset.objects.all())
+    return {
+        "acc_groups": groups,
+        "acc_levels": list(LEVEL_LABELS.items()),
+        "acc_caps": [{"key": c.key, "name": c.name, "hint": c.hint, "needs": c.needs, "on": c.key in caps}
+                     for c in CAPABILITIES],
+        "acc_presets": presets,
+        "acc_presets_json": _json.dumps({p.pk: {"sections": clean_sections(p.sections), "caps": clean_caps(p.caps)}
+                                         for p in presets}),
+    }
+
+
+def access_from_post(post):
+    from apps.accounts.access import SECTIONS, clean_caps, clean_sections
+    sections = clean_sections({s.key: post.get(f"acc_{s.key}", 0) for s in SECTIONS})
+    caps = clean_caps(post.getlist("acc_caps"))
+    return sections, caps
+
+
+def apply_access(editor, target, post):
+    """Сохраняет права из формы. Возвращает текст ошибки или ''."""
+    sections, caps = access_from_post(post)
+    if target.pk == editor.pk and not editor.is_superuser and "users_manage" not in caps:
+        return "Нельзя снять с себя право «Пользователи и права» — иначе вы потеряете доступ к этой странице."
+    target.access_sections = sections
+    target.access_caps = caps
+    target.save(update_fields=["access_sections", "access_caps"])
+    return ""
+
+
+def _guard_superuser_target(request, target):
+    """Учётку суперпользователя меняет только суперпользователь (иначе — смена его пароля = захват)."""
+    if target.is_superuser and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("Учётную запись суперпользователя может менять только суперпользователь.")
+
+
+class UserAccessMixin:
+    """Подмешивает матрицу прав в формы создания/редактирования пользователя."""
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["request_user"] = self.request.user
+        return kw
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        obj = getattr(self, "object", None)
+        if self.request.method == "POST":
+            s, c = access_from_post(self.request.POST)
+        else:
+            s, c = (obj.access_sections, obj.access_caps) if obj and obj.pk else ({}, [])
+        ctx.update(access_form_context(s, c))
+        ctx["target_is_superuser"] = bool(obj and obj.pk and obj.is_superuser)
+        return ctx
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        err = apply_access(self.request.user, self.object, self.request.POST)
+        if err:
+            _messages.error(self.request, err)
+        else:
+            _messages.success(self.request, f"Пользователь {self.object.username} сохранён.")
+        return response
+
+
+class UserApproveView(PermissionRequiredMixin, TemplateView):
+    """Подтверждение регистрации: администратор сразу задаёт права."""
+    permission_required = "user.manage_roles"
+    template_name = "adminui/users/approve.html"
+
+    def get_target(self):
+        from apps.accounts.models import User as U
+        return get_object_or_404(U, pk=self.kwargs["pk"])
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        target = self.get_target()
+        ctx["target"] = target
+        ctx.update(access_form_context(target.access_sections, target.access_caps))
+        from apps.accounts.models import Position
+        ctx["positions"] = Position.objects.filter(is_active=True).order_by("name")
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        from django.utils import timezone as _tz
+        from apps.accounts.models import Position
+        target = self.get_target()
+        _guard_superuser_target(request, target)
+        sections, caps = access_from_post(request.POST)
+        target.access_sections = sections
+        target.access_caps = caps
+        pos_id = request.POST.get("position_ref", "")
+        if pos_id.isdigit():
+            target.position_ref = Position.objects.filter(pk=pos_id).first()
+        target.is_active = True
+        target.registration_status = "approved"
+        target.approved_at = _tz.now()
+        target.approved_by = request.user
+        target.save()
+        _messages.success(request, f"Пользователь {target.username} подтверждён, права заданы.")
+        return _redirect("adminui:users_pending")
+
+
+class RolesMovedView(PermissionRequiredMixin, View):
+    """Старые страницы ролей → шаблоны доступа / карточка пользователя."""
+    permission_required = "user.manage_roles"
+
+    def get(self, request, *args, **kwargs):
+        if "pk" in kwargs and "users/" in request.path:
+            return _redirect("adminui:user_update", pk=kwargs["pk"])
+        return _redirect("adminui:presets")
+
+    post = get
+
+
+# ── Шаблоны доступа ──
+class PresetListView(PermissionRequiredMixin, TemplateView):
+    permission_required = "user.manage_roles"
+    template_name = "adminui/presets/list.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.accounts.access import CAP_BY_KEY, SECTIONS, clean_caps, clean_sections
+        from apps.accounts.models import AccessPreset
+        ctx = super().get_context_data(**kwargs)
+        rows = []
+        for p in AccessPreset.objects.all():
+            sec = clean_sections(p.sections)
+            rows.append({
+                "obj": p,
+                "edit": [s.name for s in SECTIONS if sec[s.key] == 2],
+                "view": [s.name for s in SECTIONS if sec[s.key] == 1],
+                "caps": [CAP_BY_KEY[c].name for c in clean_caps(p.caps)],
+            })
+        ctx["rows"] = rows
+        return ctx
+
+
+class PresetEditView(PermissionRequiredMixin, TemplateView):
+    permission_required = "user.manage_roles"
+    template_name = "adminui/presets/form.html"
+
+    def get_object(self):
+        from apps.accounts.models import AccessPreset
+        pk = self.kwargs.get("pk")
+        return get_object_or_404(AccessPreset, pk=pk) if pk else AccessPreset()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        obj = kwargs.get("obj") or self.get_object()
+        ctx["obj"] = obj
+        ctx["error"] = kwargs.get("error", "")
+        s, c = kwargs.get("access") or (obj.sections, obj.caps)
+        ctx.update(access_form_context(s, c))
+        ctx["acc_presets"] = []  # в самом шаблоне выбор шаблона не нужен
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        from apps.accounts.models import AccessPreset
+        obj = self.get_object()
+        obj.name = request.POST.get("name", "").strip()[:100]
+        obj.description = request.POST.get("description", "").strip()[:255]
+        obj.sections, obj.caps = access_from_post(request.POST)
+        if not obj.name:
+            return self.render_to_response(self.get_context_data(obj=obj, error="Укажите название.",
+                                                                 access=(obj.sections, obj.caps)))
+        if AccessPreset.objects.filter(name=obj.name).exclude(pk=obj.pk).exists():
+            return self.render_to_response(self.get_context_data(obj=obj, error="Шаблон с таким названием уже есть.",
+                                                                 access=(obj.sections, obj.caps)))
+        obj.save()
+        _messages.success(request, f"Шаблон «{obj.name}» сохранён. Права уже назначенных пользователей не меняются.")
+        return _redirect("adminui:presets")
+
+
+class PresetDeleteView(PermissionRequiredMixin, View):
+    permission_required = "user.manage_roles"
+
+    def post(self, request, pk):
+        from apps.accounts.models import AccessPreset
+        obj = get_object_or_404(AccessPreset, pk=pk)
+        obj.delete()
+        _messages.success(request, f"Шаблон «{obj.name}» удалён.")
+        return _redirect("adminui:presets")
+
+
+# Переопределяем формы пользователя: + матрица прав, + защита учёток суперпользователей.
+# (Классы выше объявлены раньше миксина — переназначаем имена, urls берут уже эти.)
+class UserCreateView(UserAccessMixin, UserCreateView):  # noqa: F811
+    pass
+
+
+class UserUpdateView(UserAccessMixin, UserUpdateView):  # noqa: F811
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            _guard_superuser_target(request, self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+
+class UserDeleteView(UserDeleteView):  # noqa: F811
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            _guard_superuser_target(request, self.get_object())
+        return super().dispatch(request, *args, **kwargs)

@@ -81,7 +81,8 @@ class TelegramLinkCode(models.Model):
         on_delete=models.CASCADE,
         related_name="tg_link_codes",
     )
-    code = models.CharField(max_length=32, unique=True, db_index=True)
+    code = models.CharField(max_length=64, unique=True, db_index=True,
+                            help_text="SHA-256 токена привязки (сам токен не хранится)")
     created_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(null=True, blank=True)
 
@@ -152,37 +153,33 @@ class Position(models.Model):
         verbose_name_plural = "Должности"
 
     def __str__(self):
-        return f"{self.name} (ур. {self.access_level})"
+        return self.name  # уровень больше не влияет на права (см. access.py)
 
 
 class User(AbstractUser):
     """Кастомный пользователь — расширенный профиль."""
     telegram_id = models.BigIntegerField(
-        null=True, blank=True, unique=True,
-        help_text="Telegram chat_id для уведомлений",
+        null=True, blank=True, unique=True, editable=False,
+        help_text="Заполняется привязкой Telegram-бота (вручную не меняется)",
     )
     middle_name = models.CharField(max_length=100, blank=True, verbose_name="Отчество")
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True, verbose_name="Аватар")
     position = models.CharField(max_length=150, blank=True, verbose_name="Должность (старое)")
+    # ── Доступ: всё вычисляется из access_sections / access_caps (apps/accounts/access.py) ──
+    @property
+    def access(self):
+        from .access import Access
+        return Access.for_user(self)
+
     def has_module_access(self, module: str) -> bool:
-        """Проверяет, есть ли у пользователя доступ к модулю."""
-        if self.is_superuser:
-            return True
-        pos = getattr(self, "position_ref", None)
-        if not pos:
-            return False
-        if not pos.modules:
-            return True  # пусто = все модули
-        return module in [m.strip() for m in pos.modules.split(",")]
+        """Есть ли хоть один раздел модуля (local / servers / edocs) с доступом на просмотр."""
+        from .access import VIEW
+        return self.access.group_level(module) >= VIEW
 
     def is_readonly_for(self, module: str) -> bool:
-        """Только просмотр для модуля?"""
-        if self.is_superuser:
-            return False
-        pos = getattr(self, "position_ref", None)
-        if not pos:
-            return True
-        return bool(pos.is_readonly)
+        """В модуле нет ни одного раздела с правом изменения."""
+        from .access import EDIT
+        return self.access.group_level(module) < EDIT
 
     @property
     def can_local(self):
@@ -197,11 +194,19 @@ class User(AbstractUser):
         return self.has_module_access('edocs')
 
     @property
+    def access_summary(self):
+        """Коротко для списков: ['Устройства', 'Подсети (просмотр)', ...]."""
+        from .access import SECTIONS, CAP_BY_KEY, VIEW, EDIT, clean_caps, clean_sections
+        sec = clean_sections(self.access_sections)
+        out = [s.name if sec[s.key] == EDIT else f"{s.name} (просмотр)"
+               for s in SECTIONS if sec[s.key] >= VIEW]
+        out += [CAP_BY_KEY[c].name for c in clean_caps(self.access_caps)]
+        return out
+
+    @property
     def is_admin_access(self):
-        if self.is_superuser or self.is_staff:
-            return True
-        pos = getattr(self, "position_ref", None)
-        return bool(pos and pos.access_level >= 80)
+        """Есть что открыть в админ-панели."""
+        return self.access.admin_entry
 
     position_ref = models.ForeignKey(
         "Position",
@@ -232,6 +237,10 @@ class User(AbstractUser):
     )
     registration_note = models.TextField(blank=True)
 
+    # Права доступа (см. apps/accounts/access.py): {раздел: 0|1|2} и список возможностей
+    access_sections = models.JSONField(default=dict, blank=True, verbose_name="Доступ к разделам")
+    access_caps = models.JSONField(default=list, blank=True, verbose_name="Дополнительные возможности")
+
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
@@ -251,3 +260,121 @@ class User(AbstractUser):
         if middle:
             return f"{last} {first[0]}.{middle[0]}."
         return f"{last} {first[0]}."
+
+
+# ── Личный кабинет: настройки, журнал входов, сессии ─────────────────────────
+
+class UserPreferences(models.Model):
+    """Личные настройки пользователя (уведомления, интерфейс, избранное)."""
+    SEV_WARN = "warn"
+    SEV_CRIT = "crit"
+    SEVERITY_CHOICES = [(SEV_WARN, "Warning и Critical"), (SEV_CRIT, "Только Critical")]
+
+    START_CHOICES = [
+        ("", "По умолчанию (админам — админ-панель, остальным — главная)"),
+        ("/", "Главная"),
+        ("/local/", "Локальная сеть — обзор"),
+        ("/local/stations/", "Диспетчерская (карта станций)"),
+        ("/alerts/", "Алерты"),
+        ("/local/subnets/", "Подсети"),
+        ("/edocs/", "Документы (СЭД)"),
+    ]
+    THEME_CHOICES = [("glass", "Стекло (тёмная)"), ("classic", "Старый вид")]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="prefs",
+    )
+
+    # Уведомления в Telegram
+    notify_min_severity = models.CharField(max_length=8, choices=SEVERITY_CHOICES, default=SEV_WARN)
+    notify_resolved = models.BooleanField(default=True, help_text="Сообщать о восстановлении")
+    notify_broadcast = models.BooleanField(default=True, help_text="Broadcast storm в подсетях")
+    notify_stations = models.ManyToManyField(
+        "stations.Station", blank=True, related_name="+",
+        help_text="Только по этим станциям. Пусто — по всем.",
+    )
+    quiet_enabled = models.BooleanField(default=False)
+    quiet_from = models.TimeField(default="23:00")
+    quiet_to = models.TimeField(default="07:00")
+    quiet_allow_crit = models.BooleanField(default=True, help_text="Critical приходят и в тихие часы")
+
+    # Интерфейс
+    ui_theme = models.CharField(max_length=16, choices=THEME_CHOICES, blank=True, default="")
+    start_page = models.CharField(max_length=64, choices=START_CHOICES, blank=True, default="")
+
+    # Избранное
+    favorite_stations = models.ManyToManyField("stations.Station", blank=True, related_name="+")
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройки пользователя"
+        verbose_name_plural = "Настройки пользователей"
+
+    def __str__(self):
+        return f"prefs:{self.user_id}"
+
+    @classmethod
+    def for_user(cls, user):
+        obj, _ = cls.objects.get_or_create(user=user)
+        return obj
+
+    def in_quiet_hours(self, now=None) -> bool:
+        if not self.quiet_enabled:
+            return False
+        t = (now or timezone.localtime()).time()
+        a, b = self.quiet_from, self.quiet_to
+        return (a <= t < b) if a <= b else (t >= a or t < b)
+
+
+class LoginEvent(models.Model):
+    """Журнал входов (успешных и неудачных)."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.CASCADE, related_name="login_events",
+    )
+    username = models.CharField(max_length=150, blank=True)
+    ip = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    success = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=["user", "-created_at"])]
+        verbose_name = "Вход"
+        verbose_name_plural = "Журнал входов"
+
+
+class UserSession(models.Model):
+    """Сессия пользователя: кто, откуда, когда последний раз был активен."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ui_sessions",
+    )
+    session_key = models.CharField(max_length=64, unique=True)
+    ip = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-last_seen",)
+        verbose_name = "Сессия"
+        verbose_name_plural = "Сессии"
+
+
+class AccessPreset(models.Model):
+    """Шаблон доступа: быстро заполняет права пользователя. Пользователь с шаблоном не связан."""
+    name = models.CharField(max_length=100, unique=True, verbose_name="Название")
+    description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
+    sections = models.JSONField(default=dict, blank=True)
+    caps = models.JSONField(default=list, blank=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ("sort_order", "name")
+        verbose_name = "Шаблон доступа"
+        verbose_name_plural = "Шаблоны доступа"
+
+    def __str__(self):
+        return self.name

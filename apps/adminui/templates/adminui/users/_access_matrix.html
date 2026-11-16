@@ -1,0 +1,79 @@
+{# Матрица прав: раздел × уровень + возможности. Контекст: access_form_context() #}
+<div class="acc" data-acc data-presets='{{ acc_presets_json }}'>
+  {% if acc_presets %}
+  <div class="acc__presets">
+    <label class="aui-form__label" for="acc-preset">Заполнить по шаблону</label>
+    <div class="acc__presets-row">
+      <select id="acc-preset" class="aui-input">
+        <option value="">— выберите шаблон —</option>
+        {% for p in acc_presets %}<option value="{{ p.pk }}" title="{{ p.description }}">{{ p.name }}</option>{% endfor %}
+      </select>
+      <button type="button" class="btn--secondary" data-acc-apply>Применить</button>
+    </div>
+    <div class="acc__hint">Шаблон только заполняет галочки ниже — дальше их можно поправить.</div>
+  </div>
+  {% endif %}
+
+  <table class="acc__table">
+    <thead>
+      <tr>
+        <th>Раздел</th>
+        {% for lvl, label in acc_levels %}
+        <th class="acc__col"><button type="button" class="acc__all" data-acc-all="{{ lvl }}" title="Всем разделам: {{ label|lower }}">{{ label }}</button></th>
+        {% endfor %}
+      </tr>
+    </thead>
+    {% for g in acc_groups %}
+    <tbody>
+      <tr class="acc__group"><td colspan="4">{{ g.label }}</td></tr>
+      {% for r in g.rows %}
+      <tr>
+        <td><div class="acc__name">{{ r.name }}</div><div class="acc__hint">{{ r.hint }}</div></td>
+        {% for lvl, label in acc_levels %}
+        <td class="acc__col">
+          <label class="acc__radio acc__radio--{{ lvl }}" title="{{ label }}">
+            <input type="radio" name="acc_{{ r.key }}" value="{{ lvl }}"{% if r.level == lvl %} checked{% endif %}>
+            <span></span>
+          </label>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% endfor %}
+  </table>
+
+  <div class="acc__caps">
+    <div class="aui-form__label">Дополнительные возможности</div>
+    {% for c in acc_caps %}
+    <label class="acc__cap">
+      <input type="checkbox" name="acc_caps" value="{{ c.key }}" class="aui-checkbox"{% if c.on %} checked{% endif %}>
+      <span><b>{{ c.name }}</b><small>{{ c.hint }}{% if c.needs %} · работает при «изменении» в разделе {% if c.needs == "devices" %}«Устройства»{% elif c.needs == "subnets" %}«Подсети»{% endif %}{% endif %}</small></span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+<script>
+(function () {
+  document.querySelectorAll("[data-acc]").forEach(function (root) {
+    var presets = {};
+    try { presets = JSON.parse(root.dataset.presets || "{}"); } catch (e) {}
+    function setLevel(key, lvl) {
+      var r = root.querySelector('input[name="acc_' + key + '"][value="' + lvl + '"]');
+      if (r) r.checked = true;
+    }
+    root.querySelector("[data-acc-apply]")?.addEventListener("click", function () {
+      var p = presets[root.querySelector("#acc-preset").value];
+      if (!p) return;
+      Object.keys(p.sections).forEach(function (k) { setLevel(k, p.sections[k]); });
+      root.querySelectorAll('input[name="acc_caps"]').forEach(function (cb) { cb.checked = p.caps.indexOf(cb.value) !== -1; });
+    });
+    root.querySelectorAll("[data-acc-all]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var lvl = b.dataset.accAll;
+        root.querySelectorAll('input[type="radio"][value="' + lvl + '"]').forEach(function (r) { r.checked = true; });
+      });
+    });
+  });
+})();
+</script>

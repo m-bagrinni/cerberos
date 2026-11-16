@@ -1,0 +1,17 @@
+<div class="pf-picker" data-picker>
+    <div class="pf-picker__bar">
+        <input type="search" class="pf-input" placeholder="Поиск станции" data-picker-search autocomplete="off">
+        <span class="pf-picker__count"><b data-picker-count>{{ selected|length }}</b> выбрано</span>
+        <button type="button" class="btn pf-btn-ghost pf-btn-sm" data-picker-clear>Сбросить</button>
+    </div>
+    <div class="pf-picker__list">
+        {% for s in stations %}
+        <label class="pf-picker__item" data-name="{{ s.name|lower }}">
+            <input type="checkbox" name="{{ name }}" value="{{ s.pk }}"{% if s.pk in selected %} checked{% endif %}>
+            <span>{{ s.name }}</span>
+        </label>
+        {% empty %}
+        <p class="pf-muted pf-m0">Станций пока нет.</p>
+        {% endfor %}
+    </div>
+</div>

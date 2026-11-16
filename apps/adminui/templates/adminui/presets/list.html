@@ -1,0 +1,38 @@
+{% extends "adminui/base_admin.html" %}
+{% block admin_title %}Шаблоны доступа{% endblock %}
+{% block admin_content %}
+<div class="panel">
+  <div class="panel__header">
+    <h2 class="panel__title">Шаблоны доступа ({{ rows|length }})</h2>
+    <a href="{% url 'adminui:preset_create' %}" class="btn--primary btn--sm"><i class="bi bi-plus-lg"></i> Новый шаблон</a>
+  </div>
+  <div class="panel__body">
+    <p class="acc__hint" style="margin:0 0 12px">Шаблон заполняет права при подтверждении регистрации и в карточке пользователя. Права хранятся у каждого пользователя: изменение шаблона не меняет права уже назначенных людей.</p>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="data-table">
+      <thead><tr><th>Шаблон</th><th>Изменение</th><th>Просмотр</th><th>Возможности</th><th style="width:90px"></th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td><strong>{{ r.obj.name }}</strong><div class="acc__hint">{{ r.obj.description }}</div></td>
+          <td><div class="acc-sum">{% for n in r.edit %}<span class="badge badge--info">{{ n }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}</div></td>
+          <td><div class="acc-sum">{% for n in r.view %}<span class="badge">{{ n }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}</div></td>
+          <td><div class="acc-sum">{% for n in r.caps %}<span class="badge badge--warn">{{ n }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}</div></td>
+          <td>
+            <div class="aui-row-actions">
+              <a href="{% url 'adminui:preset_update' r.obj.pk %}" class="aui-icon-btn" title="Изменить"><i class="bi bi-pencil"></i></a>
+              <form method="post" action="{% url 'adminui:preset_delete' r.obj.pk %}" style="display:inline" onsubmit="return confirm('Удалить шаблон «{{ r.obj.name|escapejs }}»? Права пользователей не изменятся.')">
+                {% csrf_token %}<button type="submit" class="aui-icon-btn" title="Удалить"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-muted">Шаблонов нет.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -222,32 +222,128 @@ def _reply_markup(alert) -> dict | None:
 # Текст собирается сразу (в момент события), а сетевую отправку делает задача в очереди
 # "high": медленный api.telegram.org больше не тормозит опрос оптики и алерты.
 
-def _send_to_all(text: str, reply_markup: dict | None = None, tag: str = "") -> int:
-    from .models import TelegramAccount
-    sent = 0
-    for tg_id in TelegramAccount.objects.filter(
-        is_active=True, alerts_enabled=True
-    ).values_list("tg_id", flat=True):
+CRIT_LEVELS = ("crit", "power")
+
+
+def _alert_station_ids(alert) -> list[int]:
+    """Станции, к которым относится алерт (для личного фильтра «только мои станции»)."""
+    try:
+        if getattr(alert, "ip_address_id", None):
+            sid = getattr(getattr(alert, "ip_address", None), "station_id", None)
+            return [sid] if sid else []
+        if getattr(alert, "ne_device_id", None):
+            from apps.stations.models import StationNe
+            return list(StationNe.objects.filter(ne_id=alert.ne_device_id).values_list("station_id", flat=True))
+        if getattr(alert, "device_id", None):
+            from apps.stations.models import StationDevice
+            return list(StationDevice.objects.filter(device_id=alert.device_id).values_list("station_id", flat=True))
+    except Exception:
+        logger.exception("alert station lookup failed")
+    return []
+
+
+def _alert_section(alert) -> str:
+    """Раздел прав, к которому относится алерт (apps/accounts/access.py)."""
+    if getattr(alert, "ip_address_id", None):
+        return "subnets"
+    if getattr(alert, "ne_device_id", None):
+        return "mux"
+    return "devices"
+
+
+def _can_see(user_row, meta: dict | None) -> bool:
+    """Право на просмотр раздела события. user_row = (is_superuser, access_sections)."""
+    is_superuser, sections = user_row
+    if is_superuser:
+        return True
+    from .access import VIEW, SECTIONS, clean_sections
+    sec = clean_sections(sections)
+    key = (meta or {}).get("section")
+    if key in sec:
+        return sec[key] >= VIEW
+    # Старые задачи в очереди без раздела — хоть какой-то просмотр «Локальной сети»
+    return any(sec[s.key] >= VIEW for s in SECTIONS if s.group == "local")
+
+
+def _wants(prefs, meta: dict | None, now=None) -> bool:
+    """Нужно ли это сообщение пользователю с такими настройками."""
+    if prefs is None or not meta:
+        return True
+    kind = meta.get("kind", "")
+    sev = (meta.get("severity") or "").lower()
+    is_crit = sev in CRIT_LEVELS
+    if kind.endswith("resolved") and not prefs.notify_resolved:
+        return False
+    if kind.startswith("broadcast") and not prefs.notify_broadcast:
+        return False
+    if prefs.notify_min_severity == "crit" and not is_crit:
+        return False
+    wanted = {s.pk for s in prefs.notify_stations.all()}
+    event_st = set(meta.get("stations") or [])
+    # Фильтр по станциям — только если станция события известна: неизвестное не теряем
+    if wanted and event_st and not (wanted & event_st):
+        return False
+    if prefs.in_quiet_hours(now):
+        return bool(prefs.quiet_allow_crit and is_crit and not kind.endswith("resolved"))
+    return True
+
+
+def _send_to_all(text: str, reply_markup: dict | None = None, tag: str = "", meta: dict | None = None) -> int:
+    from .models import TelegramAccount, UserPreferences
+    # Получатели: привязка активна, рассылка включена, пользователь активен
+    # и имеет хотя бы «Просмотр» в разделе события (devices / mux / subnets)
+    rows = TelegramAccount.objects.filter(
+        is_active=True, alerts_enabled=True, user__is_active=True,
+    ).values_list("tg_id", "user_id", "user__is_superuser", "user__access_sections")
+    no_access = 0
+    accounts = []
+    for tg_id, user_id, is_su, sections in rows:
+        if _can_see((is_su, sections), meta):
+            accounts.append((tg_id, user_id))
+        else:
+            no_access += 1
+    prefs = {
+        p.user_id: p for p in UserPreferences.objects
+        .filter(user_id__in=[u for _, u in accounts])
+        .prefetch_related("notify_stations")
+    }
+    now = timezone.localtime()
+    sent = skipped = 0
+    for tg_id, user_id in accounts:
+        if not _wants(prefs.get(user_id), meta, now):
+            skipped += 1
+            continue
         if send_telegram_message(tg_id, text, reply_markup=reply_markup):
             sent += 1
     if tag:
-        logger.info("telegram %s sent=%s", tag, sent)
+        logger.info("telegram %s sent=%s skipped_by_prefs=%s no_access=%s", tag, sent, skipped, no_access)
     return sent
 
 
-def _dispatch(text: str, reply_markup: dict | None = None, tag: str = "") -> int:
+def _dispatch(text: str, reply_markup: dict | None = None, tag: str = "", meta: dict | None = None) -> int:
     """Ставит рассылку в очередь. Возвращает -1 (поставлено) или число отправленных (sync-фолбэк)."""
     if getattr(settings, "TELEGRAM_NOTIFY_SYNC", False):
-        return _send_to_all(text, reply_markup, tag)
+        return _send_to_all(text, reply_markup, tag, meta)
     try:
         from .tasks import send_telegram_broadcast
         send_telegram_broadcast.apply_async(
-            args=[text, reply_markup, tag], queue="high", expires=6 * 3600,
+            args=[text, reply_markup, tag], kwargs={"meta": meta}, queue="high", expires=6 * 3600,
         )
         return -1
     except Exception as e:
         logger.warning("telegram %s: не удалось поставить в очередь (%s) — шлём сразу", tag, e)
-        return _send_to_all(text, reply_markup, tag)
+        return _send_to_all(text, reply_markup, tag, meta)
+
+
+def _alert_meta(alert, kind: str) -> dict:
+    return {"kind": kind, "severity": alert.severity or "", "stations": _alert_station_ids(alert),
+            "section": _alert_section(alert)}
+
+
+def _event_meta(event, kind: str) -> dict:
+    sid = getattr(getattr(event, "subnet", None), "station_id", None)
+    return {"kind": kind, "severity": getattr(event, "severity", "") or "", "stations": [sid] if sid else [],
+            "section": "subnets"}
 
 
 def notify_alert_created(alert) -> int:
@@ -256,7 +352,7 @@ def notify_alert_created(alert) -> int:
         return 0
     text = _alert_text(alert)
     kb = _reply_markup(alert)
-    sent = _dispatch(text, kb, f"alert_created:{getattr(alert, 'id', '?')}")
+    sent = _dispatch(text, kb, f"alert_created:{getattr(alert, 'id', '?')}", _alert_meta(alert, "alert"))
     logger.info("notify_alert_created alert=%s sent=%s", getattr(alert, "id", "?"), sent)
     return sent
 
@@ -266,7 +362,7 @@ def notify_alert_resolved(alert) -> int:
         logger.warning("notify_alert_resolved: alert is None — пропускаем")
         return 0
     text = _resolved_text(alert)
-    sent = _dispatch(text, None, f"alert_resolved:{getattr(alert, 'id', '?')}")
+    sent = _dispatch(text, None, f"alert_resolved:{getattr(alert, 'id', '?')}", _alert_meta(alert, "resolved"))
     logger.info("notify_alert_resolved alert=%s sent=%s", getattr(alert, "id", "?"), sent)
     return sent
 
@@ -327,7 +423,7 @@ def notify_broadcast_storm(event, created: bool = False) -> int:
         logger.warning("notify_broadcast_storm: event is None — пропускаем")
         return 0
     text = _broadcast_text(event)
-    sent = _dispatch(text, None, f"broadcast:{getattr(event, 'id', '?')}")
+    sent = _dispatch(text, None, f"broadcast:{getattr(event, 'id', '?')}", _event_meta(event, "broadcast"))
     logger.info(
         "notify_broadcast_storm event=%s created=%s sent=%s",
         getattr(event, "id", "?"), created, sent,
@@ -340,7 +436,7 @@ def notify_broadcast_resolved(event) -> int:
         logger.warning("notify_broadcast_resolved: event is None — пропускаем")
         return 0
     text = _broadcast_resolved_text(event)
-    sent = _dispatch(text, None, f"broadcast_resolved:{getattr(event, 'id', '?')}")
+    sent = _dispatch(text, None, f"broadcast_resolved:{getattr(event, 'id', '?')}", _event_meta(event, "broadcast_resolved"))
     logger.info("notify_broadcast_resolved event=%s sent=%s", getattr(event, "id", "?"), sent)
     return sent
 

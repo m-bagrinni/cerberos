@@ -17,35 +17,74 @@ logger = logging.getLogger(__name__)
 router = Router(name="cerberus")
 
 # ── Клавиатуры ─────────────────────────────────────────────────
-def _main_kb(is_linked=False) -> InlineKeyboardMarkup:
-    """Главное меню. WebApp-кнопки: Диспетчерская /stations/, Алерты /alerts/."""
+def _main_kb(is_linked=False, acc=None) -> InlineKeyboardMarkup:
+    """Главное меню. Кнопки — только по правам пользователя (acc: apps.accounts.access.Access).
+    Без привязки — только «Привязать аккаунт»: данные сети боту без входа не показываем."""
     base = (settings.CERBER_WEBAPP_URL or "").rstrip("/")
     buttons = []
+    if not is_linked or acc is None:
+        buttons.append([InlineKeyboardButton(text="🔗 Привязать аккаунт", callback_data="link_help")])
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    can = lambda key: acc.can_view(key)  # noqa: E731
 
     if base.startswith("https://"):
-        buttons.append([InlineKeyboardButton(
-            text="🌐 Диспетчерская",
-            web_app=WebAppInfo(url=f"{base}/local/stations/"),
-        )])
-        buttons.append([InlineKeyboardButton(
-            text="🚨 Алерты",
-            web_app=WebAppInfo(url=f"{base}/alerts/"),
-        )])
+        if can("stations"):
+            buttons.append([InlineKeyboardButton(text="🌐 Диспетчерская", web_app=WebAppInfo(url=f"{base}/local/stations/"))])
+        if can("alerts"):
+            buttons.append([InlineKeyboardButton(text="🚨 Алерты", web_app=WebAppInfo(url=f"{base}/alerts/"))])
     elif base:
-        buttons.append([InlineKeyboardButton(text="🌐 Диспетчерская", url=f"{base}/local/stations/")])
-        buttons.append([InlineKeyboardButton(text="🚨 Алерты", url=f"{base}/alerts/")])
-    else:
-        buttons.append([InlineKeyboardButton(text="🌐 Диспетчерская", callback_data="main_menu")])
+        if can("stations"):
+            buttons.append([InlineKeyboardButton(text="🌐 Диспетчерская", url=f"{base}/local/stations/")])
+        if can("alerts"):
+            buttons.append([InlineKeyboardButton(text="🚨 Алерты", url=f"{base}/alerts/")])
 
-    buttons.append([
-        InlineKeyboardButton(text="📊 Устройства", callback_data="dev_list:0"),
-        InlineKeyboardButton(text="🔌 Оптика (NE)", callback_data="ne_gateways"),
-    ])
-
-    if not is_linked:
-        buttons.append([InlineKeyboardButton(text="🔗 Привязать аккаунт", callback_data="link_help")])
-
+    row = []
+    if can("devices"):
+        row.append(InlineKeyboardButton(text="📊 Устройства", callback_data="dev_list:0"))
+    if can("mux"):
+        row.append(InlineKeyboardButton(text="🔌 Оптика (NE)", callback_data="ne_gateways"))
+    if row:
+        buttons.append(row)
+    if not base and any(can(k) for k in ("devices", "mux", "subnets")):
+        buttons.append([InlineKeyboardButton(text="🚨 Активные алерты", callback_data="alerts_list")])
+    if not buttons:
+        buttons.append([InlineKeyboardButton(text="ℹ️ Нет доступа к разделам — обратитесь к администратору", callback_data="main_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+# ── Права: тот же доступ, что на сайте (apps/accounts/access.py) ───────────────
+def _access_for_tg_sync(tg_id: int):
+    """Access пользователя по Telegram ID или None (не привязан / отключён)."""
+    from .access import Access
+    from .models import TelegramAccount
+    acc_row = (TelegramAccount.objects.filter(tg_id=tg_id, is_active=True, user__is_active=True)
+               .select_related("user").first())
+    return Access.for_user(acc_row.user) if acc_row else None
+
+
+# callback_data → раздел, на который нужен «Просмотр»
+_CB_SECTIONS = (("dev_", "devices"), ("ne_", "mux"))
+_CB_OPEN = ("main_menu", "link_help")
+
+
+async def _cb_access_middleware(handler, event, data):
+    """Проверка прав для всех кнопок бота. Без привязки — только меню и подсказка."""
+    cb = event.data or ""
+    acc = await sync_to_async(_access_for_tg_sync, thread_sensitive=True)(event.from_user.id)
+    data["acc"] = acc
+    if cb in _CB_OPEN:
+        return await handler(event, data)
+    if acc is None:
+        await event.answer("Сначала привяжите аккаунт Cerberus.", show_alert=True)
+        return None
+    for prefix, section in _CB_SECTIONS:
+        if cb.startswith(prefix) and not acc.can_view(section):
+            await event.answer("Нет доступа к этому разделу.", show_alert=True)
+            return None
+    return await handler(event, data)
+
+
+router.callback_query.outer_middleware(_cb_access_middleware)
 
 
 # ── Хелперы для получения данных (sync) ─────────────────────────
@@ -200,56 +239,84 @@ def _get_ne_detail_sync(ne_id: int) -> dict:
         "ports": ports_data,
     }
 
-def _get_active_alerts_sync() -> list:
+def _get_active_alerts_sync(acc=None) -> list:
+    """Активные алерты только тех разделов, что пользователь может смотреть."""
+    from django.db.models import Q
     from apps.alerts.models import Alert
-    return list(Alert.objects.filter(state=Alert.STATE_FIRING).order_by("-started_at")[:10])
+    qs = Alert.objects.filter(state=Alert.STATE_FIRING).select_related("ip_address", "device", "ne_device")
+    if acc is not None and not acc.superuser:
+        q = Q(pk__in=[])
+        if acc.can_view("subnets"):
+            q |= Q(ip_address__isnull=False)
+        if acc.can_view("mux"):
+            q |= Q(ip_address__isnull=True, ne_device__isnull=False)
+        if acc.can_view("devices"):
+            q |= Q(ip_address__isnull=True, ne_device__isnull=True)
+        qs = qs.filter(q)
+    return list(qs.order_by("-started_at")[:10])
 
 
 # ── Хендлеры команд ───────────────────────────────────────────
+NOT_LINKED_TEXT = (
+    "🔒 <b>Cerberus</b> — бот только для сотрудников.\n\n"
+    "Чтобы начать работу, привяжите аккаунт:\n"
+    "1. Войдите на сайт Cerberus → <b>Профиль</b>.\n"
+    "2. В блоке «Telegram» нажмите <b>«Привязать Telegram»</b>.\n"
+    "3. Нажмите «Открыть бота» — привязка пройдёт автоматически."
+)
+
+
+async def _do_link(message: Message, token: str) -> None:
+    from .telegram_link import consume_token
+    u = message.from_user
+    user, err = await sync_to_async(consume_token, thread_sensitive=True)(
+        token, u.id, u.username or "", u.first_name or "")
+    if user is None:
+        await message.answer(f"❌ {err}", parse_mode="HTML")
+        return
+    try:
+        await sync_to_async(fetch_and_save_tg_avatar, thread_sensitive=True)(user, u.id)
+    except Exception as e:
+        logger.warning("TG_AVATAR: Failed to fetch avatar during link: %s", e)
+    acc = await sync_to_async(_access_for_tg_sync, thread_sensitive=True)(u.id)
+    await message.answer(
+        f"✅ Аккаунт <b>{user.get_full_name() or user.username}</b> привязан.\nТеперь бот работает для вас.",
+        reply_markup=_main_kb(acc is not None, acc), parse_mode="HTML")
+
+
+@router.message(CommandStart(deep_link=True))
+async def cmd_start_link(message: Message, command: CommandObject) -> None:
+    """t.me/<бот>?start=<токен> — привязка в одно касание из профиля."""
+    await _do_link(message, command.args or "")
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
-    is_linked = await sync_to_async(_is_linked_sync, thread_sensitive=True)(message.from_user.id)
-    text = "👋 <b>Cerberus</b> — мониторинг сети.\n\nВыберите действие:"
-    await message.answer(text, reply_markup=_main_kb(is_linked), parse_mode="HTML")
+    acc = await sync_to_async(_access_for_tg_sync, thread_sensitive=True)(message.from_user.id)
+    if acc is None:
+        await message.answer(NOT_LINKED_TEXT, parse_mode="HTML")
+        return
+    await message.answer("👋 <b>Cerberus</b> — мониторинг сети.\n\nВыберите действие:",
+                         reply_markup=_main_kb(True, acc), parse_mode="HTML")
+
 
 @router.message(Command("link"))
 async def cmd_link(message: Message, command: CommandObject) -> None:
-    from .models import TelegramAccount, TelegramLinkCode
-    code = (command.args or "").strip()
-    if not code:
-        await message.answer("Использование: <code>/link КОД</code>", parse_mode="HTML")
+    token = (command.args or "").strip()
+    if not token:
+        await message.answer("Использование: <code>/link КОД</code>\nКод — в профиле на сайте, блок «Telegram».",
+                             parse_mode="HTML")
         return
-    def _link():
-        obj = TelegramLinkCode.objects.filter(code=code, used_at__isnull=True).select_related("user").first()
-        if not obj or not obj.is_valid(): return {"ok": False}
-        user = obj.user
-        TelegramAccount.objects.filter(user=user).delete()
-        TelegramAccount.objects.filter(tg_id=message.from_user.id).delete()
-        TelegramAccount.objects.create(user=user, tg_id=message.from_user.id, username=message.from_user.username or "")
-        user.telegram_id = message.from_user.id
-        user.save(update_fields=["telegram_id"])
-        obj.used_at = timezone.now(); obj.save(update_fields=["used_at"])
-        
-        # === Скачиваем аватарку ===
-        try:
-            fetch_and_save_tg_avatar(user, message.from_user.id)
-        except Exception as e:
-            logger.warning(f"TG_AVATAR: Failed to fetch avatar during /link: {e}")
-        
-        return {"ok": True, "username": user.username}
-    res = await sync_to_async(_link, thread_sensitive=True)()
-    if res.get("ok"):
-        await message.answer(f"✅ Привязан к аккаунту <b>{res['username']}</b>.", reply_markup=_main_kb(True), parse_mode="HTML")
-    else:
-        await message.answer("❌ Код неверный или истёк.")
+    await _do_link(message, token)
+
 
 # ── Устройства ────────────────────────────────────────────────
 @router.callback_query(F.data.startswith("dev_list:"))
-async def cb_devices_list(call: CallbackQuery) -> None:
+async def cb_devices_list(call: CallbackQuery, acc=None) -> None:
     offset = int(call.data.split(":")[1])
     data = await sync_to_async(_get_devices_sync, thread_sensitive=True)(offset, 5)
     if not data["devices"]:
-        await call.message.edit_text("Устройства не найдены.", reply_markup=_main_kb(True))
+        await call.message.edit_text("Устройства не найдены.", reply_markup=_main_kb(True, acc))
         return await call.answer()
 
     kb = []
@@ -491,10 +558,10 @@ async def cb_ne_info(call: CallbackQuery) -> None:
     await call.answer()
 
 @router.callback_query(F.data == "alerts_list")
-async def cb_alerts_list(call: CallbackQuery) -> None:
-    alerts = await sync_to_async(_get_active_alerts_sync, thread_sensitive=True)()
+async def cb_alerts_list(call: CallbackQuery, acc=None) -> None:
+    alerts = await sync_to_async(_get_active_alerts_sync, thread_sensitive=True)(acc)
     if not alerts:
-        await call.message.edit_text("✅ <b>Активных алертов нет.</b>", reply_markup=_main_kb(True), parse_mode="HTML")
+        await call.message.edit_text("✅ <b>Активных алертов нет.</b>", reply_markup=_main_kb(True, acc), parse_mode="HTML")
         return await call.answer()
 
     lines = ["🚨 <b>Активные алерты</b>\n"]
@@ -598,23 +665,34 @@ async def cb_device_alerts(call: CallbackQuery) -> None:
 
 # ── Навигация ─────────────────────────────────────────────────
 @router.callback_query(F.data == "main_menu")
-async def cb_main_menu(call: CallbackQuery) -> None:
-    is_linked = await sync_to_async(_is_linked_sync, thread_sensitive=True)(call.from_user.id)
-    await call.message.edit_text("👋 <b>Главное меню</b>", reply_markup=_main_kb(is_linked), parse_mode="HTML")
+async def cb_main_menu(call: CallbackQuery, acc=None) -> None:
+    try:
+        await call.message.edit_text("👋 <b>Главное меню</b>", reply_markup=_main_kb(acc is not None, acc), parse_mode="HTML")
+    except Exception as e:  # «message is not modified» при повторном нажатии
+        if "message is not modified" not in str(e):
+            raise
     await call.answer()
 
 @router.callback_query(F.data == "link_help")
 async def cb_link_help(call: CallbackQuery) -> None:
-    text = "1. Зайдите в /accounts/profile/\n2. Нажмите «Сгенерировать код».\n3. Отправьте боту: <code>/link ВАШ_КОД</code>"
-    kb = [[InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]]
     try:
-        await call.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb), parse_mode="HTML")
+        await call.message.edit_text(NOT_LINKED_TEXT, parse_mode="HTML")
     except Exception as e:
-        if "message is not modified" in str(e):
-            await call.answer("Сообщение не изменилось", show_alert=False)
-        else:
+        if "message is not modified" not in str(e):
             raise
     await call.answer()
+
+
+# Любые другие сообщения: непривязанным — инструкция, привязанным — меню.
+# Регистрируется последним, чтобы не перехватывать команды выше.
+@router.message()
+async def any_message(message: Message) -> None:
+    acc = await sync_to_async(_access_for_tg_sync, thread_sensitive=True)(message.from_user.id)
+    if acc is None:
+        await message.answer(NOT_LINKED_TEXT, parse_mode="HTML")
+        return
+    await message.answer("Выберите действие:", reply_markup=_main_kb(True, acc))
+
 
 # ── Запуск ────────────────────────────────────────────────────
 async def main() -> None:

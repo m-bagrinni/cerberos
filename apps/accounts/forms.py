@@ -98,9 +98,18 @@ class CerberusLoginForm(AuthenticationForm):
             from django.contrib.auth import get_user_model
             User = get_user_model()
 
-            # 1. Найдём пользователя вручную (даже если is_active=False)
+            from .backends import WINDOW, is_locked
+            if is_locked(self.request, username):
+                raise forms.ValidationError(
+                    f"Слишком много неудачных попыток входа. Попробуйте через {WINDOW // 60} мин.",
+                    code="throttled",
+                )
+
+            # 1. Найдём пользователя вручную (даже если is_active=False).
+            # Причину показываем только при верном пароле — иначе по сообщениям
+            # можно перебирать, какие логины существуют.
             user_obj = User.objects.filter(username=username).first()
-            if user_obj:
+            if user_obj and not user_obj.is_active and user_obj.check_password(password):
                 if user_obj.registration_status == "pending":
                     raise forms.ValidationError(
                         "Ваша регистрация ещё не подтверждена администратором.",

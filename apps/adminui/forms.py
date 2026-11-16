@@ -5,6 +5,7 @@ from django import forms
 
 from apps.devices.models import Device, DeviceProfile, MetricDefinition, Vendor
 from apps.subnets.models import Subnet
+from apps.core.models import Announcement
 
 
 class DeviceFilterForm(forms.Form):
@@ -289,13 +290,18 @@ class SubnetForm(forms.ModelForm):
 # ============================================================
 
 class UserForm(forms.ModelForm):
-    """Форма редактирования пользователя."""
+    """Форма пользователя. Права задаются отдельно — матрицей доступа (см. views + access.py).
+
+    «Суперпользователь» и «Staff» видит и меняет только суперпользователь: иначе любой,
+    кто управляет пользователями, мог бы сделать себя суперпользователем.
+    """
     new_password = forms.CharField(
         required=False,
         label="Новый пароль",
         widget=forms.PasswordInput(attrs={
             "class": "aui-input",
             "placeholder": "оставь пустым — не менять",
+            "autocomplete": "new-password",
         }),
     )
 
@@ -304,8 +310,8 @@ class UserForm(forms.ModelForm):
         model = User
         fields = [
             "username", "email", "last_name", "first_name", "middle_name",
-            "position", "position_ref", "department", "work_phone", "mobile_phone",
-            "telegram_id", "is_staff", "is_active", "is_superuser",
+            "position_ref", "department", "work_phone", "mobile_phone",
+            "is_active", "is_staff", "is_superuser",
         ]
         widgets = {
             "username": forms.TextInput(attrs={"class": "aui-input"}),
@@ -313,27 +319,35 @@ class UserForm(forms.ModelForm):
             "first_name": forms.TextInput(attrs={"class": "aui-input"}),
             "last_name": forms.TextInput(attrs={"class": "aui-input"}),
             "middle_name": forms.TextInput(attrs={"class": "aui-input"}),
-            "position": forms.TextInput(attrs={"class": "aui-input"}),
             "position_ref": forms.Select(attrs={"class": "aui-input"}),
             "department": forms.TextInput(attrs={"class": "aui-input"}),
             "work_phone": forms.TextInput(attrs={"class": "aui-input"}),
             "mobile_phone": forms.TextInput(attrs={"class": "aui-input"}),
-            "telegram_id": forms.NumberInput(attrs={"class": "aui-input", "placeholder": "123456789"}),
-            "is_staff": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
             "is_active": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
+            "is_staff": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
             "is_superuser": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
         }
         labels = {
-            "username": "Username",
+            "username": "Логин",
             "email": "Email",
             "first_name": "Имя",
             "last_name": "Фамилия",
-            "telegram_id": "Telegram ID",
-            "position_ref": "Должность (роль в системе)",
-            "is_staff": "Staff (доступ в админку)",
-            "is_active": "Активен",
-            "is_superuser": "Superuser",
+            "position_ref": "Должность",
+            "is_active": "Активен (может входить)",
+            "is_staff": "Staff (вход в /admin/ Django)",
+            "is_superuser": "Суперпользователь (все права без ограничений)",
         }
+
+    def __init__(self, *args, request_user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["position_ref"].help_text = "Название должности — для справочника сотрудников. На права не влияет."
+        if not (request_user and request_user.is_superuser):
+            self.fields.pop("is_staff")
+            self.fields.pop("is_superuser")
+        if request_user and self.instance.pk == getattr(request_user, "pk", None):
+            # Себя не деактивировать и не снять с себя суперпользователя случайно
+            self.fields.pop("is_active", None)
+            self.fields.pop("is_superuser", None)
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -345,45 +359,13 @@ class UserForm(forms.ModelForm):
         return user
 
 
-    roles = forms.ModelMultipleChoiceField(
-        queryset=Role.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        required=False,
-        label="Роли (RBAC)"
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk:
-            self.fields['roles'].initial = Role.objects.filter(userrole__user=self.instance)
-
-    def save(self, commit=True):
-        user = super().save(commit=commit)
-        if commit:
-            UserRole.objects.filter(user=user).delete()
-            for role in self.cleaned_data.get('roles', []):
-                UserRole.objects.create(user=user, role=role)
-        return user
-
 class UserCreateForm(UserForm):
     """Форма создания пользователя (пароль обязателен)."""
     new_password = forms.CharField(
         required=True,
         label="Пароль",
-        widget=forms.PasswordInput(attrs={"class": "aui-input"}),
+        widget=forms.PasswordInput(attrs={"class": "aui-input", "autocomplete": "new-password"}),
     )
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        # Хэшируем пароль
-        password = self.cleaned_data.get("new_password")
-        if password:
-            user.set_password(password)
-        if commit:
-            user.save()
-            # M2M (роли) — сохраняем после основного save
-            self.save_m2m()
-        return user
 
 
 class AlertFilterForm(forms.Form):
@@ -491,3 +473,29 @@ class DeviceCategoryForm(forms.ModelForm):
             "is_active": "Активна",
         }
 
+
+
+class AnnouncementForm(forms.ModelForm):
+    """Объявление на главной."""
+
+    class Meta:
+        model = Announcement
+        fields = ["title", "text", "level", "is_pinned", "is_active", "starts_at", "ends_at"]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "aui-input", "placeholder": "Плановые работы на ст. …"}),
+            "text": forms.Textarea(attrs={"class": "aui-input", "rows": 5}),
+            "level": forms.Select(attrs={"class": "aui-input"}),
+            "is_pinned": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
+            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "aui-input"},
+                                             format="%Y-%m-%dT%H:%M"),
+            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "aui-input"},
+                                           format="%Y-%m-%dT%H:%M"),
+        }
+
+    def clean(self):
+        data = super().clean()
+        s, e = data.get("starts_at"), data.get("ends_at")
+        if s and e and e <= s:
+            self.add_error("ends_at", "Окончание должно быть позже начала")
+        return data

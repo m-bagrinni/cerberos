@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
   <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
   <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
-  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
   {% block extra_head %}{% endblock %}
     <script src="{% static 'js/core.js' %}?v=1"></script>
 </head>
@@ -31,52 +31,56 @@
       </a>
 
       <div class="adminui-nav__group">Мониторинг</div>
-      <a href="{% url 'adminui:devices' %}"
+      {% if acc.e.devices %}<a href="{% url 'adminui:devices' %}"
          class="adminui-nav__item {% if 'devices' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-hdd-network"></i> Устройства
-      </a>
-      <a href="{% url 'adminui:profiles' %}"
+      </a>{% endif %}
+      {% if acc.e.devices %}<a href="{% url 'adminui:profiles' %}"
          class="adminui-nav__item {% if 'profiles' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-diagram-3"></i> Профили
-      </a>
-      <a href="{% url 'adminui:vendors' %}"
+      </a>{% endif %}
+      {% if acc.e.devices %}<a href="{% url 'adminui:vendors' %}"
          class="adminui-nav__item {% if 'vendors' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-building"></i> Вендоры
-      </a>
-      <a href="{% url 'adminui:closures' %}"
+      </a>{% endif %}
+      {% if acc.e.stations %}<a href="{% url 'adminui:closures' %}"
          class="adminui-nav__item {% if 'closures' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-node-plus"></i> Муфты
-      </a>
-      <a href="{% url 'adminui:stations' %}" class="adminui-nav__item {% if 'station' in request.resolver_match.url_name %}is-active{% endif %}">
+      </a>{% endif %}
+      {% if acc.e.stations %}<a href="{% url 'adminui:stations' %}" class="adminui-nav__item {% if 'station' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-geo-alt"></i> Станции
-      </a>
-      <a href="{% url 'adminui:links' %}" class="adminui-nav__item {% if 'link' in request.resolver_match.url_name %}is-active{% endif %}">
+      </a>{% endif %}
+      {% if acc.e.stations %}<a href="{% url 'adminui:links' %}" class="adminui-nav__item {% if 'link' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-link-45deg"></i> Линии
-      </a>
-      <a href="{% url 'adminui:ne' %}"
+      </a>{% endif %}
+      {% if acc.e.mux %}<a href="{% url 'adminui:ne' %}"
          class="adminui-nav__item {% if request.resolver_match.url_name == 'ne' %}is-active{% endif %}">
         <i class="bi bi-router"></i> NE
-      </a>
+      </a>{% endif %}
 
       <div class="adminui-nav__group">Инфраструктура</div>
-      <a href="{% url 'adminui:subnets' %}"
+      {% if acc.e.subnets %}<a href="{% url 'adminui:subnets' %}"
          class="adminui-nav__item {% if 'subnets' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-diagram-2"></i> Подсети
-      </a>
-      <a href="{% url 'adminui:alerts' %}"
+      </a>{% endif %}
+      {% if acc.e.alerts %}<a href="{% url 'adminui:alerts' %}"
          class="adminui-nav__item {% if 'alerts' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-bell"></i> Алерты
-      </a>
+      </a>{% endif %}
 
       <div class="adminui-nav__group">Система</div>
-      <a href="{% url 'adminui:users' %}"
+      {% if acc.c.users_manage %}<a href="{% url 'adminui:users' %}"
          class="adminui-nav__item {% if 'users' in request.resolver_match.url_name %}is-active{% endif %}">
         <i class="bi bi-people"></i> Пользователи
-      </a>
-      <a href="{% url 'adminui:roles' %}"
-         class="adminui-nav__item {% if 'roles' in request.resolver_match.url_name or 'role' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-shield-lock"></i> Роли
-      </a>
+      </a>{% endif %}
+      {% if acc.c.users_manage %}<a href="{% url 'adminui:presets' %}"
+         class="adminui-nav__item {% if 'preset' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-ui-checks-grid"></i> Шаблоны доступа
+      </a>{% endif %}
+      {% if acc.c.announcements %}<a href="{% url 'adminui:announcements' %}"
+         class="adminui-nav__item {% if 'announcement' in request.resolver_match.url_name %}is-active{% endif %}">
+        <i class="bi bi-megaphone"></i> Объявления
+      </a>{% endif %}
     </nav>
 
     <div class="adminui-nav__group" style="margin-top:auto">Переходы</div>

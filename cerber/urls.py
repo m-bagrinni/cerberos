@@ -104,7 +104,7 @@ urlpatterns = [
     # ============================================================
     path(
         "tiles/orm/<str:style>/<int:z>/<int:x>/<int:y>.png",
-        proxy_views.orm_tile, name="orm_tile",
+        login_required(proxy_views.orm_tile), name="orm_tile",
     ),
 
     # ============================================================
@@ -149,6 +149,24 @@ urlpatterns = [
 from django.urls import re_path  # noqa: E402
 from django.views.static import serve as _media_serve  # noqa: E402
 
+# Вложения E-Docs напрямую НЕ отдаются: только через edocs:download_file /
+# view_document с проверкой участника документа. Здесь — аватарки и прочее.
+_MEDIA_PRIVATE_PREFIXES = ("edocs/", "edocs_pdf/", "edocs_reply/")
+
+
+@login_required
+def _media(request, path):
+    from django.http import Http404
+    import posixpath
+    norm = posixpath.normpath(path).lstrip("/")
+    if norm.startswith(_MEDIA_PRIVATE_PREFIXES):
+        raise Http404
+    resp = _media_serve(request, path, document_root=settings.MEDIA_ROOT)
+    resp["X-Content-Type-Options"] = "nosniff"
+    resp["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox"
+    return resp
+
+
 urlpatterns += [
-    re_path(r"^media/(?P<path>.*)$", login_required(_media_serve), {"document_root": settings.MEDIA_ROOT}),
+    re_path(r"^media/(?P<path>.*)$", _media),
 ]

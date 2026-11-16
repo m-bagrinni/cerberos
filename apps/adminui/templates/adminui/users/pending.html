@@ -67,12 +67,9 @@
           <td class="text-muted">{{ u.date_joined|date:"d.m.Y H:i" }}</td>
           <td>
             <div class="aui-row-actions">
-              <form method="post" action="{% url 'adminui:user_approve' u.pk %}" style="display:inline">
-                {% csrf_token %}
-                <button type="submit" class="btn--primary btn--sm">
-                  <i class="bi bi-check-lg"></i> Подтвердить
-                </button>
-              </form>
+              <a href="{% url 'adminui:user_approve' u.pk %}" class="btn--primary btn--sm">
+                <i class="bi bi-check-lg"></i> Рассмотреть и подтвердить
+              </a>
               <form method="post" action="{% url 'adminui:user_reject' u.pk %}" style="display:inline">
                 {% csrf_token %}
                 <button type="submit" class="btn--danger btn--sm"

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Нет доступа — Cerberus{% endblock %}
+{% block content %}
+<div style="max-width:520px;margin:12vh auto;text-align:center;">
+    <i class="bi bi-shield-lock" style="font-size:44px;color:var(--text-muted);"></i>
+    <h1 style="margin:16px 0 8px;font-size:22px;font-weight:600;">Нет доступа</h1>
+    <p style="margin:0 0 20px;color:var(--text-muted);font-size:14px;">{{ reason|default:"У вас нет прав на эту страницу." }}<br>Права выдаёт администратор.</p>
+    <a href="/" class="btn btn--primary" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;text-decoration:none;">На главную</a>
+    <a href="/accounts/profile/?tab=access" class="btn" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;text-decoration:none;margin-left:8px;">Мои права</a>
+</div>
+{% endblock %}

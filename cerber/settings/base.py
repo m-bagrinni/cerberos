@@ -66,7 +66,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.core.middleware.TelegramWebAppFrameMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "apps.accounts.middleware.ReadOnlyMiddleware",
+    "apps.accounts.middleware.AccessMiddleware",
+    "apps.accounts.middleware.SessionActivityMiddleware",
 ]
 
 ROOT_URLCONF = "cerber.urls"
@@ -80,6 +81,7 @@ TEMPLATES = [
             "context_processors": [
                 "apps.core.context_processors.alert_counts",
                 "apps.core.context_processors.ui_theme",
+                "apps.core.context_processors.access",
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
@@ -94,6 +96,12 @@ ASGI_APPLICATION = "cerber.asgi.application"
 
 
 # ===== Пароли =====
+# Вход по паролю — через бэкенд с лимитом неудачных попыток (apps/accounts/backends.py)
+AUTHENTICATION_BACKENDS = ["apps.accounts.backends.ThrottledModelBackend"]
+LOGIN_FAIL_WINDOW = 15 * 60
+LOGIN_MAX_FAILS_USER = 10
+LOGIN_MAX_FAILS_IP = 30
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -260,6 +268,7 @@ AD_USER = os.environ.get("AD_USER", "")
 AD_PASSWORD = os.environ.get("AD_PASSWORD", "")
 AD_BASE_DN = os.environ.get("AD_BASE_DN", "")
 AD_USE_SSL = os.environ.get("AD_USE_SSL", "False").lower() in ("true", "1", "yes")
+AD_CA_CERT_FILE = os.environ.get("AD_CA_CERT_FILE", "")  # PEM корневого CA домена → проверка LDAPS
 
 # --- SSH для DC ---
 DC_SSH_USER = os.environ.get("DC_SSH_USER", "")
