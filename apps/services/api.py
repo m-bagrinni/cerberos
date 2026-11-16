@@ -13,7 +13,7 @@ from .models import ServiceEvent
 
 
 def _admin_required(view):
-    """Только администраторы (is_admin_access): действия меняют инфраструктуру (docker, beat)."""
+    """Раздел «Службы» на изменение: действия меняют инфраструктуру (docker, beat)."""
     import functools
 
     @functools.wraps(view)
@@ -21,7 +21,7 @@ def _admin_required(view):
         user = request.user
         if not user.is_authenticated:
             return JsonResponse({"ok": False, "error": "authentication required"}, status=401)
-        if not getattr(user, "is_admin_access", False):
+        if not user.access.can_edit("services"):
             return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
         return view(request, *args, **kwargs)
     return wrapper
@@ -33,20 +33,12 @@ def _admin_required(view):
 
 def _docker_ps():
     """Возвращает список контейнеров с их статусом."""
+    # docker — через cerber-ops (у web нет docker.sock), см. apps/core/ops_client.py
+    from apps.core import ops_client
     try:
-        result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{.Names}}|{{.Status}}|{{.State}}"],
-            capture_output=True, text=True, timeout=10,
-        )
         containers = []
-        for line in result.stdout.strip().split("\n"):
-            if not line:
-                continue
-            parts = line.split("|")
-            if len(parts) < 3:
-                continue
-            name, status, state = parts[0], parts[1], parts[2]
-            # Только наши
+        for c in ops_client.containers():
+            name, status, state = c["name"], c["status"], c["state"]
             if not name.startswith("cerber-"):
                 continue
             containers.append({
@@ -81,13 +73,11 @@ def container_action(request, name, action):
     if name not in {c["name"] for c in _docker_ps()}:
         return JsonResponse({"ok": False, "error": "unknown container"}, status=404)
     
+    from apps.core import ops_client
     try:
-        result = subprocess.run(
-            ["docker", action, name],
-            capture_output=True, text=True, timeout=30,
-        )
-        success = result.returncode == 0
-        error = result.stderr.strip() if not success else ""
+        result = ops_client.container_action(name, action)
+        success = bool(result.get("ok"))
+        error = (result.get("stderr") or result.get("error") or "") if not success else ""
         
         # Логируем
         ServiceEvent.objects.create(
@@ -102,7 +92,7 @@ def container_action(request, name, action):
             "ok": success,
             "action": action,
             "name": name,
-            "output": result.stdout.strip(),
+            "output": result.get("stdout", ""),
             "error": error,
         })
     except Exception as e:

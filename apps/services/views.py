@@ -1,9 +1,9 @@
 """UI для управления службами."""
 from django.shortcuts import render
-from django.contrib.admin.views.decorators import staff_member_required
+from apps.accounts.access import section_required
 
 
-@staff_member_required
+@section_required("services")
 def services_page(request):
     """Главная страница панели управления службами."""
     return render(request, "core/services_page.html")
