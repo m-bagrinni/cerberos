@@ -64,7 +64,7 @@ def _access_for_tg_sync(tg_id: int):
 
 
 # callback_data → раздел, на который нужен «Просмотр»
-_CB_SECTIONS = (("dev_", "devices"), ("ne_", "mux"), ("ack:", "alerts"))
+_CB_SECTIONS = (("dev_", "devices"), ("ne_", "mux"), ("ack:", "alerts"), ("res:", "alerts"), ("rel:", "alerts"))
 _CB_OPEN = ("main_menu", "link_help")
 
 
@@ -558,34 +558,44 @@ async def cb_ne_info(call: CallbackQuery) -> None:
             raise
     await call.answer()
 
-def _ack_sync(tg_id: int, alert_id: int):
+def _alert_action_sync(tg_id: int, action: str, alert_id: int):
     from .models import User
-    from apps.alerts.ack import acknowledge
+    from apps.alerts import ack
     user = User.objects.filter(telegram_id=tg_id, is_active=True).first()
     if user is None:
         return "Сначала привяжите аккаунт Cerberus."
-    alert, err = acknowledge(alert_id, user)
+    fn = {"ack": ack.acknowledge, "res": ack.resolve, "rel": ack.release}[action]
+    _, err = fn(alert_id, user)
     return err
 
 
-@router.callback_query(F.data.startswith("ack:"))
-async def cb_alert_ack(call: CallbackQuery) -> None:
-    try:
-        alert_id = int(call.data.split(":", 1)[1])
-    except ValueError:
-        return await call.answer()
-    err = await sync_to_async(_ack_sync, thread_sensitive=True)(call.from_user.id, alert_id)
+def _strip_alert_rows(kb):
+    """Убрать кнопки действий с алертом, оставить ссылку на сайт."""
+    if not kb:
+        return []
+    return [r for r in kb.inline_keyboard
+            if not any((b.callback_data or "").startswith(("ack:", "res:", "rel:")) for b in r)]
+
+
+@router.callback_query(F.data.regexp(r"^(ack|res|rel):\d+$"))
+async def cb_alert_action(call: CallbackQuery) -> None:
+    action, raw_id = call.data.split(":", 1)
+    alert_id = int(raw_id)
+    err = await sync_to_async(_alert_action_sync, thread_sensitive=True)(call.from_user.id, action, alert_id)
     if err:
         return await call.answer(err, show_alert=True)
-    # Убираем кнопку «Взять в работу» у себя, ссылку на сайт оставляем
-    kb = call.message.reply_markup
-    if kb:
-        rows = [r for r in kb.inline_keyboard if not any((b.callback_data or "").startswith("ack:") for b in r)]
-        try:
-            await call.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=rows) if rows else None)
-        except Exception:  # noqa: BLE001
-            pass
-    await call.answer("✋ Взято в работу. Остальные получат уведомление.")
+    rows = _strip_alert_rows(call.message.reply_markup)
+    if action == "ack":
+        # Взял — теперь у себя кнопки «Решено» / «Отказаться»
+        rows.insert(0, [InlineKeyboardButton(text="✅ Решено", callback_data=f"res:{alert_id}"),
+                        InlineKeyboardButton(text="↩ Отказаться", callback_data=f"rel:{alert_id}")])
+    try:
+        await call.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=rows) if rows else None)
+    except Exception:  # noqa: BLE001
+        pass
+    await call.answer({"ack": "✋ Взято в работу. Остальные получат уведомление.",
+                       "res": "✅ Алерт закрыт. Если проблема осталась — он откроется снова.",
+                       "rel": "↩ Вы отказались — алерт снова без ответственного."}[action])
 
 
 @router.callback_query(F.data == "alerts_list")

@@ -201,12 +201,17 @@ def _resolved_text(alert) -> str:
     metric = escape(alert.metric_key or "")
     started = timezone.localtime(alert.started_at).strftime("%d.%m %H:%M") if alert.started_at else "—"
     resolved = timezone.localtime(alert.resolved_at).strftime("%d.%m %H:%M") if alert.resolved_at else "—"
+    who = ""
+    acked = getattr(alert, "acked_by", None) if getattr(alert, "acked_by_id", None) else None
+    if acked is not None:
+        who = f"\n🛠 Занимался: {escape(acked.get_full_name() or acked.username)}"
     return (
         "✅ <b>Cerberus · Восстановлено</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
         f"🎯 <b>{target}</b>\n"
         f"📊 <code>{metric}</code>\n"
         f"🕒 {started} → {resolved}"
+        + who
     )
 
 

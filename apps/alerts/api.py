@@ -124,3 +124,25 @@ def alert_ack(request, pk):
     return Response({"ok": not err, "error": err, "acked_by": user_label(alert.acked_by),
                      "acked_at": alert.acked_at.isoformat() if alert.acked_at else None},
                     status=200 if not err else 409)
+
+
+def _close_response(alert, err):
+    if alert is None:
+        return Response({"ok": False, "error": err}, status=403 if "права" in err else 404)
+    return Response({"ok": not err, "error": err}, status=200 if not err else 409)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def alert_resolve_manual(request, pk):
+    """POST /api/v1/alerts/<pk>/resolve/ {note} — «Решено»."""
+    from .ack import resolve
+    return _close_response(*resolve(pk, request.user, request.data.get("note", "")))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def alert_release(request, pk):
+    """POST /api/v1/alerts/<pk>/release/ — «Отказаться»."""
+    from .ack import release
+    return _close_response(*release(pk, request.user))

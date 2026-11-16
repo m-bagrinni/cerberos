@@ -17,7 +17,7 @@
     <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
 
     <!-- Тема: ui_theme из cookie (apps/core/context_processors.py) — «стекло» = theme.css, «классика» = glass.css -->
-    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116l">
+    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116m">
     <link rel="stylesheet" href="{% static 'css/mobile.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2">{# раскладка /local/ — для обеих тем #}
     {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/stations.css' %}"><link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}

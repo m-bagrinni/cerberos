@@ -20,7 +20,7 @@ def alerts_list(request):
     resolved = list(
         Alert.objects
         .filter(state=Alert.STATE_OK)
-        .select_related("device", "ne_device", "ne_device__gateway", "metric")
+        .select_related("device", "ne_device", "ne_device__gateway", "metric", "resolved_by", "acked_by")
         .order_by("-resolved_at")[:200]
     )
 

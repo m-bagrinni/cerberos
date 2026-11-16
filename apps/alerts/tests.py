@@ -69,3 +69,62 @@ class AckTests(TestCase):
         Alert.objects.filter(pk=self.alert.pk).update(started_at=timezone.now() - timedelta(minutes=20))
         acknowledge(self.alert.pk, self.duty)
         self.assertEqual(escalate_unacked(), 0)
+
+
+@override_settings(CACHES=LOCMEM)
+@mock.patch("apps.accounts.telegram_notify._dispatch", return_value=0)
+class CloseTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.duty = mk_user("duty", EDIT)
+        self.other = mk_user("other", EDIT)
+        self.alert = Alert.objects.create(metric_key="if_oper_status", severity=Alert.SEVERITY_CRIT)
+
+    def test_resolve_with_note_via_api(self, dispatch):
+        from apps.alerts.ack import acknowledge
+        acknowledge(self.alert.pk, self.duty)
+        self.client.force_login(self.duty)
+        r = self.client.post(f"/api/v1/alerts/{self.alert.pk}/resolve/", {"note": "Заменил SFP"},
+                             content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.alert.refresh_from_db()
+        self.assertEqual((self.alert.state, self.alert.resolved_by, self.alert.resolution),
+                         (Alert.STATE_OK, self.duty, "Заменил SFP"))
+        self.assertEqual(dispatch.call_args[0][3]["kind"], "alert_closed")
+
+    def test_cannot_close_someone_elses(self, dispatch):
+        from apps.alerts.ack import acknowledge, resolve
+        acknowledge(self.alert.pk, self.duty)
+        _, err = resolve(self.alert.pk, self.other)
+        self.assertIn("в работе у", err)
+        self.alert.refresh_from_db()
+        self.assertEqual(self.alert.state, Alert.STATE_FIRING)
+
+    def test_resolve_unacked_marks_resolver(self, dispatch):
+        from apps.alerts.ack import resolve
+        resolve(self.alert.pk, self.other)
+        self.alert.refresh_from_db()
+        self.assertEqual((self.alert.acked_by, self.alert.resolved_by), (self.other, self.other))
+
+    def test_release_resets_escalation(self, dispatch):
+        from apps.alerts.ack import acknowledge, release
+        acknowledge(self.alert.pk, self.duty)
+        Alert.objects.filter(pk=self.alert.pk).update(escalated_at=timezone.now())
+        self.client.force_login(self.duty)
+        self.assertEqual(self.client.post(f"/api/v1/alerts/{self.alert.pk}/release/").status_code, 200)
+        self.alert.refresh_from_db()
+        self.assertIsNone(self.alert.acked_by)
+        self.assertIsNone(self.alert.escalated_at)
+        _, err = release(self.alert.pk, self.duty)
+        self.assertIn("без ответственного", err)
+
+    def test_alerts_page_renders_buttons(self, dispatch):
+        from apps.alerts.ack import acknowledge, resolve
+        acknowledge(self.alert.pk, self.duty)
+        self.client.force_login(self.duty)
+        html = self.client.get("/alerts/").content.decode()
+        self.assertIn('data-alert-act="resolve"', html)
+        self.client.force_login(self.other)
+        self.assertNotIn('data-alert-act="resolve"', self.client.get("/alerts/").content.decode())
+        resolve(self.alert.pk, self.duty, "ok")
+        self.assertIn("ok", self.client.get("/alerts/").content.decode())

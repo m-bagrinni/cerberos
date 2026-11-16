@@ -79,6 +79,10 @@ class Alert(models.Model):
                                  related_name="+", verbose_name="Взял в работу")
     acked_at = models.DateTimeField(null=True, blank=True)
     escalated_at = models.DateTimeField(null=True, blank=True)
+    # Ручное закрытие: кто и с каким комментарием (автоматическое — resolved_by пустой)
+    resolved_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="+", verbose_name="Закрыл")
+    resolution = models.TextField(blank=True, verbose_name="Что сделано")
 
     class Meta:
         ordering = ["-started_at"]

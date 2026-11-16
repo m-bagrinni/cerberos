@@ -4972,3 +4972,5 @@ body:not([data-acc-c~="users_manage"]) [data-need-cap="users_manage"] { display:
 .alert-card__ack-late { color: var(--warn, #d29922); display: inline-flex; align-items: center; gap: 4px; }
 .alert-card__ack-btn { height: 28px; padding: 0 12px; font-size: 12px; }
 
+.alert-card__ack-actions { display: inline-flex; gap: 6px; margin-left: auto; }
+.alert-card__ack-btn--ok { color: var(--ok, #3fb950); border-color: currentColor; }
