@@ -64,6 +64,22 @@ def access_summary(user):
     }
 
 
+def access_brief(user) -> list:
+    """Короткие метки для шапки профиля: «Администратор» или разделы с правом изменения."""
+    from .access import SECTIONS, Access
+    if user.is_superuser:
+        return ["Суперпользователь"]
+    acc = Access.for_user(user)
+    edit = [s.name for s in SECTIONS if acc.can_edit(s.key)]
+    view = [s.name for s in SECTIONS if acc.can_view(s.key) and not acc.can_edit(s.key)]
+    if len(edit) >= len(SECTIONS) - 1:
+        return ["Полный доступ"]
+    out = edit[:4] + (["+ ещё " + str(len(edit) - 4)] if len(edit) > 4 else [])
+    if not out and view:
+        out = ["Только просмотр"]
+    return out
+
+
 # ── Сессии ────────────────────────────────────────────────────────────────────
 _UA_RULES = [
     (r"Edg/", "Edge"), (r"OPR/|Opera", "Opera"), (r"YaBrowser", "Яндекс"), (r"Firefox/", "Firefox"),

@@ -192,7 +192,7 @@
 {% block content %}
 
 <div class="app-main__header" style="position:relative; margin-bottom: 16px;">
-    <button class="btn btn--primary"
+    <button class="btn btn--primary" data-need-edit="mux"
             style="position:absolute; top:0; right:0;"
             onclick="pollAllGateways();">
         <i class="bi bi-arrow-clockwise"></i> Опросить все
@@ -362,10 +362,10 @@ async function loadNeDetail(neId, nePk, neName) {
 
 <!-- Контекстное меню для NE -->
 <div id="ne-ctx-menu" class="ne-ctx-menu">
-    <div class="ne-ctx-item" data-action="poll-ne">
+    <div class="ne-ctx-item" data-action="poll-ne" data-need-edit="mux">
         <i class="bi bi-arrow-repeat"></i> Опросить NE
     </div>
-    <div class="ne-ctx-item" data-action="poll-sfp">
+    <div class="ne-ctx-item" data-action="poll-sfp" data-need-edit="mux">
         <i class="bi bi-usb-plug"></i> Опросить SFP
     </div>
     <div class="ne-ctx-item" data-action="open-on-map">
@@ -542,5 +542,5 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="{% static 'js/mux-metrics.js' %}?v=1793429171"></script>
 <link rel="stylesheet" href="{% static 'css/mux-metrics.css' %}?v=1793429171">
 <script src="{% static 'vendor/js/sortable.min.js' %}"></script>
-<script src="{% static 'js/mux-sortable.js' %}?v=1793429171"></script>
+<script src="{% static 'js/mux-sortable.js' %}?v=20261116k"></script>
 {% endblock %}

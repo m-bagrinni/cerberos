@@ -7,13 +7,13 @@
   <title>{% block title %}Админ-панель · Cerberus{% endblock %}</title>
 
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
-  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
+  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116l">
   <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
-  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
   {% block extra_head %}{% endblock %}
-    <script src="{% static 'js/core.js' %}?v=1"></script>
+    <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body{% if ui_theme_glass %} class="theme-glass"{% endif %}>
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
 
 <div class="adminui-layout">
 
@@ -131,6 +131,6 @@
 
 <script src="{% static 'js/adminui-devices.js' %}?v=5"></script>
 {% block extra_js %}{% endblock %}
-    <script src="{% static 'js/glass.js' %}"></script>
+    <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
 </body>
 </html>

@@ -378,3 +378,20 @@ class AccessPreset(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class AccessChangeLog(models.Model):
+    """Журнал изменений прав: кто, кому, когда и что поменял."""
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+                              related_name="+", verbose_name="Кто")
+    target = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                               related_name="access_log", verbose_name="Кому")
+    action = models.CharField(max_length=32)  # approve / update / create
+    changes = models.JSONField(default=list)  # ["Подсети: Нет → Просмотр", ...]
+    ip = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Изменение прав"
+        verbose_name_plural = "Журнал изменений прав"

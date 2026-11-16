@@ -1,4 +1,3 @@
-from apps.accounts.models import Role, UserRole
 from apps.stations.models import OpticalClosure
 """Формы админ-панели."""
 from django import forms

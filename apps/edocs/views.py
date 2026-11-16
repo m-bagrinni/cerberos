@@ -68,10 +68,13 @@ def sent(request):
 @login_required
 def create_document(request):
     if request.method == 'POST':
-        title = request.POST.get('title')
-        message = request.POST.get('message')
+        title = (request.POST.get('title') or '').strip()[:255]
+        # Поле необязательное, а в БД NOT NULL: без текста раньше падало с 500 (IntegrityError)
+        message = (request.POST.get('message') or '').strip()
         recipient_id = request.POST.get('recipient')
         document_type = request.POST.get('document_type', 'execution')
+        if document_type not in dict(Document._meta.get_field('document_type').choices or []):
+            document_type = 'execution'
         file = request.FILES.get('file')
         err = _bad_upload(file)
         if err:

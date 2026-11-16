@@ -476,7 +476,7 @@
 
   <!-- Форма комментария -->
   <div style="padding: 12px 16px; border-top: 1px solid var(--border); background: var(--bg-elevated);">
-    <form id="commentForm" method="post" style="display: flex; gap: 8px;">
+    <form id="commentForm" data-need-edit="edocs" method="post" style="display: flex; gap: 8px;">
       {% csrf_token %}
       <input type="text" id="commentInput" name="comment_text" placeholder="Написать комментарий..." required style="flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-size: 13px;">
       <button type="submit" class="doc-send-btn">
@@ -488,18 +488,18 @@
   <!-- Кнопки внизу -->
   <div style="padding: 12px 16px; border-top: 1px solid var(--border); background: var(--bg-elevated); display: flex; gap: 8px; flex-wrap: wrap;">
     {% if request.user == doc.author and doc.status in 'approved,rejected' %}
-      <button onclick="openRevisionModal()" class="doc-btn" style="background: rgba(242,73,92,0.1); color: var(--crit); border: 1px solid rgba(242,73,92,0.3); flex: 1;">
+      <button onclick="openRevisionModal()" data-need-edit="edocs" class="doc-btn" style="background: rgba(242,73,92,0.1); color: var(--crit); border: 1px solid rgba(242,73,92,0.3); flex: 1;">
         <i class="bi bi-arrow-counterclockwise"></i> Вернуть на доработку
       </button>
     {% endif %}
     {% if request.user == doc.recipient and doc.status in 'review,revision' %}
-      <button onclick="openApproveModal()" class="doc-btn doc-btn--ok" style="flex: 1;">
+      <button onclick="openApproveModal()" data-need-edit="edocs" class="doc-btn doc-btn--ok" style="flex: 1;">
         <i class="bi bi-check-circle"></i> Исполнено
       </button>
     {% endif %}
     
     <!-- Кнопка "Отправить в Telegram" -->
-    <button onclick="sendDocToTg({{ doc.id }})" class="doc-btn" style="background: rgba(0, 136, 204, 0.1); color: #0088cc; border: 1px solid rgba(0, 136, 204, 0.3); flex: 1;">
+    <button onclick="sendDocToTg({{ doc.id }})" data-need-edit="edocs" class="doc-btn" style="background: rgba(0, 136, 204, 0.1); color: #0088cc; border: 1px solid rgba(0, 136, 204, 0.3); flex: 1;">
       <i class="bi bi-telegram"></i> В Telegram
     </button>
   </div>

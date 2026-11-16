@@ -58,7 +58,7 @@
                         <i class="bi bi-link-45deg"></i> {{ c.links_count }}
                     </span>
                     <div class="station-node__actions">
-                        <button class="station-node__btn" type="button"
+                        <button class="station-node__btn" data-need-edit="stations" type="button"
                                 title="Добавить линию"
                                 onclick="event.stopPropagation(); window.openLinkAddForStation('{{ st.slug }}');">
                             <i class="bi bi-plus-lg"></i>

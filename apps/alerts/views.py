@@ -14,7 +14,7 @@ def alerts_list(request):
     firing = list(
         Alert.objects
         .filter(state=Alert.STATE_FIRING)
-        .select_related("device", "ne_device", "ne_device__gateway", "metric")
+        .select_related("device", "ne_device", "ne_device__gateway", "metric", "acked_by")
         .order_by("-severity", "-started_at")
     )
     resolved = list(

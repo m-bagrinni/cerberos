@@ -282,8 +282,8 @@ window.loadAdUsers = async function() {
                 const statusColor = u.is_active ? 'var(--green)' : 'var(--red)';
                 const statusText = u.is_active ? 'Активен' : 'Заблокирован';
                 const actionBtn = u.is_active 
-                    ? `<button class="g-btn" style="color: var(--red); border-color: var(--red);" data-login="${__dcEsc(u.login)}" onclick="event.stopPropagation(); window.toggleUser(this.dataset.login, true)">Блок</button>`
-                    : `<button class="g-btn" style="color: var(--green); border-color: var(--green);" data-login="${__dcEsc(u.login)}" onclick="event.stopPropagation(); window.toggleUser(this.dataset.login, false)">Разблок</button>`;
+                    ? `<button class="g-btn" data-need-edit="servers" style="color: var(--red); border-color: var(--red);" data-login="${__dcEsc(u.login)}" onclick="event.stopPropagation(); window.toggleUser(this.dataset.login, true)">Блок</button>`
+                    : `<button class="g-btn" data-need-edit="servers" style="color: var(--green); border-color: var(--green);" data-login="${__dcEsc(u.login)}" onclick="event.stopPropagation(); window.toggleUser(this.dataset.login, false)">Разблок</button>`;
                 return `<tr style="cursor: pointer;" data-login="${__dcEsc(u.login)}" data-name="${__dcEsc(u.name || '')}" data-email="${__dcEsc(u.email || '')}"
                     onclick="window.openUserModal(this.dataset.login, this.dataset.name, this.dataset.email)">
                     <td style="font-family: monospace;">${__dcEsc(u.login)}</td>
@@ -318,7 +318,7 @@ window.loadDcServices = async function() {
                 return `<tr>
                     <td style="font-family: monospace;">${__dcEsc(s.name)}</td>
                     <td><span style="color: ${stateColor}; font-weight: 500;">${stateText}</span></td>
-                    <td style="text-align: right;"><button class="g-btn" style="padding: 2px 8px; font-size: 11px;">Управление</button></td>
+                    <td style="text-align: right;"><button class="g-btn" data-need-edit="servers" style="padding: 2px 8px; font-size: 11px;">Управление</button></td>
                 </tr>`;
             }).join('');
         } else {
@@ -346,7 +346,7 @@ window.loadAdGroups = async function() {
                     <td style="font-family: monospace;">${__dcEsc(g.name)}</td>
                     <td>${__dcEsc(g.description || '—')}</td>
                     <td>${__dcEsc(g.members_count)}</td>
-                    <td style="text-align: right;"><button class="g-btn" data-name="${__dcEsc(g.name)}" onclick="window.openGroupModal(this.dataset.name)">Управление</button></td>
+                    <td style="text-align: right;"><button class="g-btn" data-need-edit="servers" data-name="${__dcEsc(g.name)}" onclick="window.openGroupModal(this.dataset.name)">Управление</button></td>
                 </tr>
             `).join('');
         } else {

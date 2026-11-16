@@ -10,6 +10,8 @@
     function initSortable() {
         var grid = document.querySelector('.device-grid');
         if (!grid || typeof Sortable === 'undefined') return;
+        // Порядок NE сохраняется на сервере — перетаскивание только с правом «Мультиплексоры: изменение»
+        if (!(window.Cerber && Cerber.can('mux'))) return;
 
         // Только карточки с data-ne-id
         Sortable.create(grid, {
@@ -131,7 +133,7 @@ window.reloadNeCards = function() {
             if (newGrid) {
                 grid.innerHTML = newGrid.innerHTML;
                 grid.style.opacity = '1';
-                if (window.Sortable) {
+                if (window.Sortable && window.Cerber && Cerber.can('mux')) {
                     if (grid._sortable) { try { grid._sortable.destroy(); } catch(e) {} }
                     grid._sortable = Sortable.create(grid, {
                         animation: 150,

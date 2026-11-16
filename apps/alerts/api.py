@@ -18,7 +18,7 @@ def alerts_list(request):
     state = request.query_params.get("state")
     severity = request.query_params.get("severity")
     
-    qs = Alert.objects.all().order_by("-started_at")
+    qs = Alert.objects.select_related("device", "ip_address", "ne_device", "acked_by").order_by("-started_at")
     
     if state:
         qs = qs.filter(state=state)
@@ -49,6 +49,8 @@ def alerts_list(request):
             "started_at": a.started_at.isoformat() if a.started_at else None,
             "resolved_at": a.resolved_at.isoformat() if a.resolved_at else None,
             "is_firing": a.state == Alert.STATE_FIRING,
+            "acked_by": (a.acked_by.get_full_name() or a.acked_by.username) if a.acked_by else None,
+            "acked_at": a.acked_at.isoformat() if a.acked_at else None,
         })
     
     return Response({
@@ -109,3 +111,16 @@ def storm_events_view(request):
             "total_active": active.count(),
         },
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def alert_ack(request, pk):
+    """POST /api/v1/alerts/<pk>/ack/ — взять в работу (раздел «Алерты»: изменение)."""
+    from .ack import acknowledge, user_label
+    alert, err = acknowledge(pk, request.user)
+    if alert is None:
+        return Response({"ok": False, "error": err}, status=403 if "права" in err else 404)
+    return Response({"ok": not err, "error": err, "acked_by": user_label(alert.acked_by),
+                     "acked_at": alert.acked_at.isoformat() if alert.acked_at else None},
+                    status=200 if not err else 409)

@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.views.generic import CreateView, ListView, View
 
 from .forms import CerberusLoginForm, RegistrationForm
-from .models import Role, UserRole
 from .permissions import has_perm
 
 User = get_user_model()
@@ -29,13 +28,7 @@ class RegisterView(CreateView):
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
-        user = form.save()
-        # Автоматически назначаем viewer (но неактивен)
-        try:
-            viewer = Role.objects.get(slug="viewer")
-            UserRole.objects.create(user=user, role=viewer)
-        except Role.DoesNotExist:
-            pass
+        form.save()  # права задаёт администратор при подтверждении (adminui: UserApproveView)
         messages.success(
             self.request,
             "Регистрация отправлена. Дождитесь подтверждения администратора.",
@@ -107,33 +100,6 @@ class PendingUsersListView(LoginRequiredMixin, ListView):
         ).order_by("-date_joined")
 
 
-class ApproveUserView(LoginRequiredMixin, View):
-    """Подтвердить пользователя."""
-    login_url = "/accounts/login/"
-
-    def post(self, request, pk):
-        if not has_perm(request.user, "user.manage_roles"):
-            raise PermissionDenied("Нет разрешения: user.manage_roles")
-
-        user = get_object_or_404(User, pk=pk)
-        user.is_active = True
-        user.registration_status = "approved"
-        user.approved_at = timezone.now()
-        user.approved_by = request.user
-        user.save(update_fields=[
-            "is_active", "registration_status", "approved_at", "approved_by",
-        ])
-
-        try:
-            viewer = Role.objects.get(slug="viewer")
-            UserRole.objects.get_or_create(user=user, role=viewer)
-        except Role.DoesNotExist:
-            pass
-
-        messages.success(request, f"Пользователь {user.username} подтверждён")
-        return redirect("adminui:users_pending")
-
-
 class RejectUserView(LoginRequiredMixin, View):
     """Отклонить регистрацию."""
     login_url = "/accounts/login/"
@@ -162,8 +128,8 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
-from .models import UserRole, Position
 from datetime import timedelta
+from .models import Position
 
 PROFILE_TABS = [
     ("profile", "Профиль", "bi-person"),
@@ -199,7 +165,6 @@ def _parse_time(value, default):
 @login_required
 def profile_view(request):
     from .models import TelegramAccount, TelegramLinkCode, UserPreferences, LoginEvent
-    from .permissions import get_user_access_level
     from . import profile_data
     from apps.stations.models import Station
 
@@ -341,13 +306,12 @@ def profile_view(request):
         "tab": tab,
         "tabs": PROFILE_TABS,
         "prefs": prefs,
-        "roles": UserRole.objects.filter(user=user).select_related("role"),
+        "access_brief": profile_data.access_brief(user),
         "form": form,
         "tg_code": tg_code,
         "tg_deeplink": _tg_deeplink(tg_code),
         "tg_account": TelegramAccount.objects.filter(user=user, is_active=True).first(),
-        "positions": Position.objects.filter(is_active=True).order_by("-access_level"),
-        "user_access_level": get_user_access_level(user),
+        "positions": Position.objects.filter(is_active=True).order_by("name"),
     }
     if tab in ("notify", "ui"):
         ctx["stations"] = Station.objects.all().order_by("sort_order", "name")

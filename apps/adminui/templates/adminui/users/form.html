@@ -41,6 +41,29 @@
     </div>
   </div>
 
+  {% if access_log %}
+  <div class="panel" style="margin-top:16px">
+    <div class="panel__header"><h2 class="panel__title">История изменений прав</h2></div>
+    <div class="panel__body panel__body--flush">
+      <table class="data-table">
+        <thead><tr><th style="width:150px">Когда</th><th style="width:180px">Кто</th><th>Что изменилось</th></tr></thead>
+        <tbody>
+        {% for e in access_log %}
+          <tr>
+            <td class="text-muted mono">{{ e.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}—{% endif %}{% if e.ip %}<div class="acc__hint mono">{{ e.ip }}</div>{% endif %}</td>
+            <td>
+              {% if e.action == "approve" %}<span class="badge badge--info">подтверждение регистрации</span>{% elif e.action == "create" %}<span class="badge badge--info">создан</span>{% endif %}
+              {% for c in e.changes %}<div>{{ c }}</div>{% empty %}{% if e.action != "update" %}<span class="text-muted">без прав</span>{% endif %}{% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="aui-form__actions">
     <button type="submit" class="btn--primary">
       <i class="bi bi-check-lg"></i> {{ form_submit }}

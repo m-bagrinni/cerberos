@@ -1,40 +1,29 @@
 #!/usr/bin/env bash
-# Восстановление PostgreSQL из дампа.
-# Использование: ./scripts/restore.sh backups/cerber_YYYYMMDD_HHMMSS.dump
-set -e
+# Восстановление PostgreSQL из дампа (scripts/backup.sh).
+# Использование: scripts/restore.sh backups/cerber_YYYYMMDD_HHMMSS.dump
+#   COMPOSE_FILES — по умолчанию dev-стек, на котором работает сайт
+set -euo pipefail
+cd "$(dirname "$0")/.."
 
-DUMP_FILE="$1"
+DUMP_FILE="${1:-}"
 if [ -z "$DUMP_FILE" ] || [ ! -f "$DUMP_FILE" ]; then
-    echo "Использование: $0 <путь_к_dump>"
-    exit 1
+    echo "Использование: $0 <путь_к_dump>"; exit 1
 fi
+COMPOSE_FILES="${COMPOSE_FILES:--f docker-compose.yml -f docker-compose.dev.yml}"
+DC="docker compose $COMPOSE_FILES"
 
-echo "⚠️  Это удалит текущие данные БД и заменит их из $DUMP_FILE"
-read -p "Продолжить? (yes/no): " ans
-if [ "$ans" != "yes" ]; then
-    echo "Отменено"
-    exit 0
-fi
+# Все сервисы, кроме БД и Redis (web, бот, воркеры, beat, ops…)
+APP_SERVICES=$($DC config --services | grep -vxE 'postgres|redis' | tr '\n' ' ')
 
-echo "🛑 Останавливаем web/worker/beat"
-docker compose -f docker-compose.yml -f docker-compose.prod.yml stop web worker beat
+echo "⚠️  Текущие данные БД будут удалены и заменены из $DUMP_FILE"
+echo "    Будут остановлены: $APP_SERVICES"
+read -r -p "Продолжить? (yes/no): " ans
+[ "$ans" = "yes" ] || { echo "Отменено"; exit 0; }
 
-echo "🗑  Дропаем и создаём БД"
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-    exec -T postgres psql -U "${POSTGRES_USER:-cerber}" -d postgres \
-    -c "DROP DATABASE IF EXISTS ${POSTGRES_DB:-cerber};" \
-    -c "CREATE DATABASE ${POSTGRES_DB:-cerber};"
-
-echo "📥 Восстанавливаем из дампа"
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-    exec -T postgres pg_restore -U "${POSTGRES_USER:-cerber}" \
-    -d "${POSTGRES_DB:-cerber}" --clean --if-exists < "$DUMP_FILE"
-
-echo "🛠  Применяем миграции"
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-    run --rm web python manage.py migrate --noinput
-
-echo "🚀 Запускаем сервисы"
-docker compose -f docker-compose.yml -f docker-compose.prod.yml start web worker beat
-
+$DC stop $APP_SERVICES
+$DC exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "DROP DATABASE IF EXISTS \"$POSTGRES_DB\";" -c "CREATE DATABASE \"$POSTGRES_DB\";"'
+$DC exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < "$DUMP_FILE"
+$DC start $APP_SERVICES
+$DC exec -T web python manage.py migrate --noinput
 echo "✅ Восстановление завершено"

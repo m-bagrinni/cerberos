@@ -281,3 +281,17 @@ AGENT_TOKEN = os.environ.get("AGENT_TOKEN", "")
 
 # Разрешаем встраивание в iframe (Telegram WebApp)
 X_FRAME_OPTIONS = "SAMEORIGIN"
+
+
+# Тесты: таблицы создаются прямо по моделям. История миграций пользователя (переезд
+# devices.User → accounts.User) не собирается на пустой БД, а тестам она и не нужна.
+import sys as _sys  # noqa: E402
+if len(_sys.argv) > 1 and _sys.argv[1] == "test":
+    class _NoMigrations(dict):
+        def __contains__(self, item):
+            return True
+
+        def __getitem__(self, item):
+            return None
+
+    MIGRATION_MODULES = _NoMigrations()

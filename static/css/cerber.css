@@ -4945,3 +4945,30 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     max-height: 300px;
     overflow-y: auto;
 }
+
+/* ── Права: элементы изменения скрываются, если права нет ──────────────────
+   Разметка: data-need-edit="<раздел>" или data-need-cap="<возможность>".
+   Списки прав — в <body data-acc-e="…" data-acc-c="…"> (apps/accounts/access.py).
+   Это только интерфейс: сервер всё равно проверяет права (AccessMiddleware). */
+body:not([data-acc-e~="devices"]) [data-need-edit="devices"],
+body:not([data-acc-e~="alerts"]) [data-need-edit="alerts"],
+body:not([data-acc-e~="stations"]) [data-need-edit="stations"],
+body:not([data-acc-e~="metrics"]) [data-need-edit="metrics"],
+body:not([data-acc-e~="mux"]) [data-need-edit="mux"],
+body:not([data-acc-e~="subnets"]) [data-need-edit="subnets"],
+body:not([data-acc-e~="analytics"]) [data-need-edit="analytics"],
+body:not([data-acc-e~="servers"]) [data-need-edit="servers"],
+body:not([data-acc-e~="edocs"]) [data-need-edit="edocs"],
+body:not([data-acc-e~="services"]) [data-need-edit="services"],
+body:not([data-acc-c~="port_control"]) [data-need-cap="port_control"],
+body:not([data-acc-c~="traffic_capture"]) [data-need-cap="traffic_capture"],
+body:not([data-acc-c~="snmp_secrets"]) [data-need-cap="snmp_secrets"],
+body:not([data-acc-c~="announcements"]) [data-need-cap="announcements"],
+body:not([data-acc-c~="users_manage"]) [data-need-cap="users_manage"] { display: none !important; }
+
+/* Алерты: «Взять в работу» */
+.alert-card__ack { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
+.alert-card__ack-who { color: var(--ok, #3fb950); display: inline-flex; align-items: center; gap: 6px; }
+.alert-card__ack-late { color: var(--warn, #d29922); display: inline-flex; align-items: center; gap: 4px; }
+.alert-card__ack-btn { height: 28px; padding: 0 12px; font-size: 12px; }
+

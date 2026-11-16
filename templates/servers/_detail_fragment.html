@@ -60,7 +60,7 @@
                 <h3 style="margin: 0; font-size: 16px; color: var(--text-main);">Пользователи AD</h3>
                 <div style="display: flex; gap: 8px;">
                     <button id="btn-refresh-users" class="g-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
-                    <button id="btn-add-user" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Добавить</button>
+                    <button id="btn-add-user" data-need-edit="servers" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Добавить</button>
                 </div>
             </div>
             <div class="g-card">
@@ -90,7 +90,7 @@
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button id="btn-refresh-groups" class="g-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
-                    <button id="btn-create-group" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Создать</button>
+                    <button id="btn-create-group" data-need-edit="servers" class="g-btn g-btn-primary"><i class="bi bi-plus-lg"></i> Создать</button>
                 </div>
             </div>
             <div class="g-card">
@@ -100,7 +100,7 @@
                     <label style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; cursor: pointer;">
                         <input type="checkbox" id="filter-custom-groups" checked> Только свои (гр_)
                     </label>
-                    <button id="btn-add-group" class="g-btn g-btn-primary">+ Создать группу</button>
+                    <button id="btn-add-group" data-need-edit="servers" class="g-btn g-btn-primary">+ Создать группу</button>
                 </div>
             </div>
 

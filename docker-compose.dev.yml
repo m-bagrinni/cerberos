@@ -161,6 +161,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     user: "${CUID:-1000}:${CGID:-1000}"
+    group_add:
+      - "138"   # группа docker: читать .env (права 640)
     volumes:
       - .:/app
     env_file: .env

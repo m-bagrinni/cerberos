@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cerberus — главная</title>
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
-  <link rel="stylesheet" href="{% static 'css/cerber.css' %}">
-  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116l">
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
   <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2">
-  <script src="{% static 'js/core.js' %}?v=1"></script>
+  <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body class="home-page{% if ui_theme_glass %} theme-glass{% endif %}">
+<body class="home-page{% if ui_theme_glass %} theme-glass{% endif %}" data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
 
 <div class="home-container">
 

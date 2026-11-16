@@ -4,7 +4,7 @@
 <div class="edocs-card">
   <div class="edocs-card__head">
     <i class="bi bi-send"></i> Исходящие ({{ documents|length }})
-    <a href="{% url 'edocs:create' %}" class="edocs-btn" style="margin-left:auto; padding: 4px 10px; font-size: 12px;">+ Написать</a>
+    <a href="{% url 'edocs:create' %}" data-need-edit="edocs" class="edocs-btn" style="margin-left:auto; padding: 4px 10px; font-size: 12px;">+ Написать</a>
   </div>
   <div style="overflow-x:auto;">
     <table class="edocs-table">

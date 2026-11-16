@@ -68,9 +68,9 @@
                 <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #e6e9ef;"><i class="bi bi-hdd-network"></i> Подсети</h2>
                 <div style="font-size: 12px; color: #8a94a6; margin-top: 4px;">Всего: {{ summary.total }} · Активных: {{ summary.active }}</div>
             </div>
-            <button id="subnets-add-btn" class="btn btn--primary btn--sm" style="padding: 6px 12px; font-size: 12px;"><i class="bi bi-plus-lg"></i></button>
+            <button id="subnets-add-btn" data-need-edit="subnets" class="btn btn--primary btn--sm" style="padding: 6px 12px; font-size: 12px;"><i class="bi bi-plus-lg"></i></button>
         </div>
-        <div style="padding: 12px; border-bottom: 1px solid #2d3546;">
+        <div data-need-edit="subnets" style="padding: 12px; border-bottom: 1px solid #2d3546;">
             <button id="subnets-scan-all" class="btn" style="width: 100%; background: #2a303c; color: #e6e9ef; border: 1px solid #3b4252; padding: 8px; font-size: 13px;"><i class="bi bi-arrow-clockwise"></i> Сканировать все</button>
         </div>
         

@@ -647,6 +647,8 @@
   function bindModalButtons(d) {
     const cont = document.getElementById("ip-modal-actions");
     if (!cont) return;
+    // Действия с IP меняют данные — только с правом «Подсети: изменение»
+    if (!(window.Cerber && Cerber.can("subnets"))) { cont.remove(); return; }
 
     const toggle = document.createElement("button");
     toggle.className = "btn " + (d.is_monitored ? "btn--crit" : "btn--ok");

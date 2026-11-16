@@ -20,6 +20,7 @@ app.conf.task_routes = {
     "monitoring.check_alerts_all":           {"queue": "critical"},
     "monitoring.check_alerts_task":          {"queue": "critical"},
     "subnets.check_ip_alerts":               {"queue": "critical"},
+    "alerts.escalate_unacked":               {"queue": "critical"},
 
     # HIGH — traffic_light + ping
     "monitoring.poll_traffic_light":         {"queue": "high"},
@@ -52,6 +53,22 @@ app.conf.task_routes = {
 }
 
 app.conf.task_default_queue = "default"
+
+# Пульс для сторожевого сигнала (apps/core/watchdog.py): по задаче в каждую очередь раз в минуту.
+# DatabaseScheduler django_celery_beat переносит эти записи в БД при старте beat.
+app.conf.beat_schedule = {
+    f"heartbeat-{q}": {
+        "task": "core.heartbeat",
+        "schedule": 60.0,
+        "args": (q,),
+        "options": {"queue": q, "expires": 55},
+    }
+    for q in ("critical", "high", "default", "low", "traffic")
+}
+# Напоминание о Critical, которые никто не взял в работу (apps/alerts/ack.py)
+app.conf.beat_schedule["alerts-escalate-unacked"] = {
+    "task": "alerts.escalate_unacked", "schedule": 300.0, "options": {"expires": 280},
+}
 
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()

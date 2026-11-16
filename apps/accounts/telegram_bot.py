@@ -9,6 +9,7 @@ from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import (
     InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, WebAppInfo,
 )
+import asyncio
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.utils import timezone
@@ -63,7 +64,7 @@ def _access_for_tg_sync(tg_id: int):
 
 
 # callback_data → раздел, на который нужен «Просмотр»
-_CB_SECTIONS = (("dev_", "devices"), ("ne_", "mux"))
+_CB_SECTIONS = (("dev_", "devices"), ("ne_", "mux"), ("ack:", "alerts"))
 _CB_OPEN = ("main_menu", "link_help")
 
 
@@ -557,6 +558,36 @@ async def cb_ne_info(call: CallbackQuery) -> None:
             raise
     await call.answer()
 
+def _ack_sync(tg_id: int, alert_id: int):
+    from .models import User
+    from apps.alerts.ack import acknowledge
+    user = User.objects.filter(telegram_id=tg_id, is_active=True).first()
+    if user is None:
+        return "Сначала привяжите аккаунт Cerberus."
+    alert, err = acknowledge(alert_id, user)
+    return err
+
+
+@router.callback_query(F.data.startswith("ack:"))
+async def cb_alert_ack(call: CallbackQuery) -> None:
+    try:
+        alert_id = int(call.data.split(":", 1)[1])
+    except ValueError:
+        return await call.answer()
+    err = await sync_to_async(_ack_sync, thread_sensitive=True)(call.from_user.id, alert_id)
+    if err:
+        return await call.answer(err, show_alert=True)
+    # Убираем кнопку «Взять в работу» у себя, ссылку на сайт оставляем
+    kb = call.message.reply_markup
+    if kb:
+        rows = [r for r in kb.inline_keyboard if not any((b.callback_data or "").startswith("ack:") for b in r)]
+        try:
+            await call.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=rows) if rows else None)
+        except Exception:  # noqa: BLE001
+            pass
+    await call.answer("✋ Взято в работу. Остальные получат уведомление.")
+
+
 @router.callback_query(F.data == "alerts_list")
 async def cb_alerts_list(call: CallbackQuery, acc=None) -> None:
     alerts = await sync_to_async(_get_active_alerts_sync, thread_sensitive=True)(acc)
@@ -700,7 +731,22 @@ async def main() -> None:
     dp = Dispatcher()
     dp.include_router(router)
     logger.info("Cerberus Telegram bot: start polling")
-    await dp.start_polling(bot)
+    watch = asyncio.create_task(_watchdog_loop())
+    try:
+        await dp.start_polling(bot)
+    finally:
+        watch.cancel()
+
+
+async def _watchdog_loop() -> None:
+    """Сторожевой сигнал Celery (apps/core/watchdog.py): бот живёт отдельно от воркеров и beat."""
+    from apps.core.watchdog import check_and_notify
+    while True:
+        await asyncio.sleep(120)
+        try:
+            await sync_to_async(check_and_notify, thread_sensitive=True)()
+        except Exception:
+            logger.exception("watchdog: ошибка проверки")
 
 # ── Аватарка из Telegram ──────────────────────────────────────
 import requests

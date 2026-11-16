@@ -91,9 +91,9 @@
                     '</div>' +
                     '<div class="services-container-card__status" style="font-size:11px;">' + c.status + '</div>' +
                     '<div class="services-container-card__actions">' +
-                        '<button data-action="restart" ' + (c.is_up ? '' : 'disabled') + '>↻ Restart</button>' +
-                        '<button data-action="start" ' + (c.is_up ? 'disabled' : '') + '>▶ Start</button>' +
-                        '<button data-action="stop" ' + (c.is_up ? '' : 'disabled') + '>⏹ Stop</button>' +
+                        '<button data-need-edit="services" data-action="restart" ' + (c.is_up ? '' : 'disabled') + '>↻ Restart</button>' +
+                        '<button data-need-edit="services" data-action="start" ' + (c.is_up ? 'disabled' : '') + '>▶ Start</button>' +
+                        '<button data-need-edit="services" data-action="stop" ' + (c.is_up ? '' : 'disabled') + '>⏹ Stop</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -157,8 +157,8 @@
                     '<td>' + t.total_run + '</td>' +
                     '<td>' +
                         '<span class="task-state ' + stateCls + '">' + stateText + '</span> ' +
-                        '<button class="btn-action" data-action="toggle" data-id="' + t.id + '" data-enabled="' + t.enabled + '">' + (t.enabled ? '⏸' : '▶') + '</button> ' +
-                        '<button class="btn-action" data-action="run" data-id="' + t.id + '">⟳</button>' +
+                        '<button class="btn-action" data-need-edit="services" data-action="toggle" data-id="' + t.id + '" data-enabled="' + t.enabled + '">' + (t.enabled ? '⏸' : '▶') + '</button> ' +
+                        '<button class="btn-action" data-need-edit="services" data-action="run" data-id="' + t.id + '">⟳</button>' +
                     '</td>' +
                 '</tr>';
             }).join('');

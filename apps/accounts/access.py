@@ -34,7 +34,7 @@ SECTIONS = [
             prefixes=("/local/devices/", "/local/subcategories/", "/local/tree-status/", "/local/classic/",
                       "/devices/", "/panel/", "/modal/", "/discoveries/", "/classic/",
                       "/api/v1/devices", "/api/v1/vendors", "/api/v1/profiles", "/api/v1/metrics",
-                      "/api/v1/metric-values", "/api/v1/interfaces", "/api/v1/vlans", "/api/v1/gateway/"),
+                      "/api/v1/metric-values", "/api/v1/interfaces", "/api/v1/vlans"),
             admin=("devices", "profiles", "vendors", "categories", "subcategories", "api"), url="/local/"),
     Section("alerts", "Алерты", "local", "Список алертов, закрытие",
             prefixes=("/alerts/", "/api/v1/alerts/"), admin=("alerts",), url="/alerts/"),
@@ -45,7 +45,7 @@ SECTIONS = [
     Section("metrics", "Метрики и SFP/DDM", "local", "Графики метрик, оптические модули",
             prefixes=("/local/metrics/", "/local/sfp/", "/metrics/", "/sfp/"), url="/local/metrics/"),
     Section("mux", "Мультиплексоры (NE)", "local", "Olencom NE, их порты и DDM",
-            prefixes=("/local/multiplexers/", "/multiplexers/", "/modal/ne/", "/api/v1/ne/"),
+            prefixes=("/local/multiplexers/", "/multiplexers/", "/modal/ne/", "/api/v1/ne/", "/api/v1/gateway/"),
             admin=("ne",), url="/local/multiplexers/"),
     Section("subnets", "Подсети", "local", "Карта IP, сканирование, привязка IP к станциям",
             prefixes=("/local/subnets/", "/subnets/", "/api/v1/subnets", "/api/v1/ip-addresses",
@@ -246,6 +246,15 @@ class Access:
             return False
         return True
 
+    # для <body data-acc-e="…" data-acc-c="…"> — скрытие кнопок CSS-правилами (cerber.css)
+    @property
+    def edit_keys(self) -> str:
+        return " ".join(s.key for s in SECTIONS if self.can_edit(s.key))
+
+    @property
+    def cap_keys(self) -> str:
+        return " ".join(c.key for c in CAPABILITIES if self.has_cap(c.key))
+
     # для шаблонов: {{ acc.v.subnets }} / {{ acc.e.devices }} / {{ acc.c.port_control }}
     @property
     def v(self):
@@ -355,3 +364,44 @@ def cap_required(key: str):
             return view(request, *args, **kwargs)
         return wrapper
     return deco
+
+
+# ── Журнал изменений прав ─────────────────────────────────────────────────────
+def snapshot(user) -> dict:
+    return {
+        "sections": clean_sections(getattr(user, "access_sections", None)),
+        "caps": clean_caps(getattr(user, "access_caps", None)),
+        "is_superuser": bool(getattr(user, "is_superuser", False)),
+        "is_active": bool(getattr(user, "is_active", False)),
+    }
+
+
+def diff(before: dict, after: dict) -> list:
+    out = []
+    for s in SECTIONS:
+        a, b = before["sections"][s.key], after["sections"][s.key]
+        if a != b:
+            out.append(f"{s.name}: {LEVEL_LABELS[a]} → {LEVEL_LABELS[b]}")
+    for c in CAPABILITIES:
+        a, b = c.key in before["caps"], c.key in after["caps"]
+        if a != b:
+            out.append(f"{c.name}: {'выдано' if b else 'снято'}")
+    if before["is_superuser"] != after["is_superuser"]:
+        out.append("Суперпользователь: " + ("выдан" if after["is_superuser"] else "снят"))
+    if before["is_active"] != after["is_active"]:
+        out.append("Учётная запись: " + ("включена" if after["is_active"] else "отключена"))
+    return out
+
+
+def log_change(actor, target, action, before, request=None) -> None:
+    """Пишет запись, если что-то поменялось (или это подтверждение/создание)."""
+    from .models import AccessChangeLog
+    changes = diff(before, snapshot(target))
+    if not changes and action == "update":
+        return
+    ip = ""
+    if request is not None:
+        from .backends import client_ip
+        ip = client_ip(request)[:64]
+    AccessChangeLog.objects.create(actor=actor if getattr(actor, "pk", None) else None,
+                                   target=target, action=action, changes=changes, ip=ip)

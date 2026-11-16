@@ -1,3 +1,9 @@
+/* «Опросить» меняет состояние — показываем только с правом изменения раздела (Cerber.can). */
+function setPollVisible(menu, section) {
+    const item = menu && menu.querySelector('[data-action="poll"]');
+    if (item) item.style.display = (window.Cerber && Cerber.can(section)) ? '' : 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const menu = document.getElementById('map-context-menu');
     
@@ -74,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
             top = window.innerHeight - menuHeight - 10;
         }
         
+        setPollVisible(menu, 'stations');   // карта: опрос всех линий
         menu.style.display = 'block';
         menu.style.left = left + 'px';
         menu.style.top = top + 'px';
@@ -91,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         e.preventDefault();
         currentTarget = card;
+        setPollVisible(menu, 'devices');    // карточка: опрос устройства
         
         // Позиционируем меню
         menu.style.display = 'block';

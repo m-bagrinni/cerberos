@@ -211,10 +211,14 @@ def _resolved_text(alert) -> str:
 
 
 def _reply_markup(alert) -> dict | None:
+    rows = []
+    if getattr(alert, "pk", None) and getattr(alert, "state", "firing") == "firing" \
+            and not getattr(alert, "acked_by_id", None):
+        rows.append([{"text": "✋ Взять в работу", "callback_data": f"ack:{alert.pk}"}])
     url = _webapp_url_for(alert)
-    if not url:
-        return None
-    return {"inline_keyboard": [[{"text": "🔗 Открыть в Cerberus", "url": url}]]}
+    if url:
+        rows.append([{"text": "🔗 Открыть в Cerberus", "url": url}])
+    return {"inline_keyboard": rows} if rows else None
 
 
 

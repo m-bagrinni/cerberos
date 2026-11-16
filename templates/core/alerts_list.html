@@ -112,6 +112,14 @@
             <div class="alert-card__message c-muted" style="font-size: 12px; background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px;">
                 {{ a.message }}
             </div>
+            <footer class="alert-card__ack">
+                {% if a.acked_by %}
+                    <span class="alert-card__ack-who"><i class="bi bi-person-check"></i> В работе: {% firstof a.acked_by.get_full_name a.acked_by.username %} · {{ a.acked_at|date:"H:i" }}</span>
+                {% else %}
+                    <button type="button" class="btn btn--sm alert-card__ack-btn" data-need-edit="alerts" data-alert-ack="{{ a.pk }}"><i class="bi bi-hand-index"></i> Взять в работу</button>
+                    {% if a.escalated_at %}<span class="alert-card__ack-late" title="Напоминание отправлено в {{ a.escalated_at|date:'H:i' }}"><i class="bi bi-alarm"></i> без ответственного</span>{% endif %}
+                {% endif %}
+            </footer>
         </article>
         {% endfor %}
     </div>
@@ -205,6 +213,25 @@
 {% block extra_js %}
 <script src="{% static 'js/alerts_storm.js' %}?v={% now 'U' %}"></script>
 <script>
+// «Взять в работу»
+document.addEventListener('click', async function(e) {
+    const b = e.target.closest('[data-alert-ack]');
+    if (!b) return;
+    b.disabled = true;
+    try {
+        const r = await fetch('/api/v1/alerts/' + b.dataset.alertAck + '/ack/', {
+            method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': Cerber.csrfToken() },
+        });
+        const j = await r.json().catch(() => ({}));
+        const who = document.createElement('span');
+        who.className = 'alert-card__ack-who';
+        who.innerHTML = '<i class="bi bi-person-check"></i> ';
+        who.append(j.acked_by ? 'В работе: ' + j.acked_by : (j.error || 'Ошибка'));
+        if (j.acked_by) { b.closest('.alert-card__ack').replaceChildren(who); }
+        else { Cerber.toast(j.error || ('Ошибка HTTP ' + r.status), 'error'); b.disabled = false; }
+    } catch (err) { Cerber.toast('Сеть: ' + err, 'error'); b.disabled = false; }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('clear-alerts-btn');
     if (!btn) return;

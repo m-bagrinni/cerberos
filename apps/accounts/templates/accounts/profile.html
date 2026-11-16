@@ -24,7 +24,7 @@
             </div>
         </div>
         <div class="pf-head__roles">
-            {% for ur in roles %}<span class="pf-chip">{{ ur.role.name }}</span>{% empty %}<span class="pf-muted pf-m0">Ролей нет</span>{% endfor %}
+            {% for t in access_brief %}<a class="pf-chip" href="?tab=access" title="Мои права">{{ t }}</a>{% empty %}<a class="pf-muted pf-m0" href="?tab=access">Нет доступа к разделам</a>{% endfor %}
         </div>
     </section>
 

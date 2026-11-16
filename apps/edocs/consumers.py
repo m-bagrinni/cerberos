@@ -14,6 +14,10 @@ class DocumentConsumer(AsyncWebsocketConsumer):
         if not user or not user.is_authenticated:
             await self.close()
             return
+        # WebSocket не проходит через AccessMiddleware — проверяем право на раздел явно
+        if not user.access.can_view("edocs"):
+            await self.close()
+            return
             
         doc = await self.get_document(self.doc_id)
         if not doc:

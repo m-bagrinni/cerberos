@@ -30,13 +30,13 @@
       {% endif %}
     </div>
     <div class="subnet-detail__actions">
-      <button id="subnet-tcpdump-btn" class="btn subnet-btn-legacy subnet-btn-legacy--orange">
+      <button id="subnet-tcpdump-btn" data-need-cap="traffic_capture" class="btn subnet-btn-legacy subnet-btn-legacy--orange">
         <i class="bi bi-camera-video"></i> Захват трафика
       </button>
-      <button id="bulk-attach-station-btn" class="btn subnet-btn-legacy subnet-btn-legacy--blue">
+      <button id="bulk-attach-station-btn" data-need-edit="subnets" class="btn subnet-btn-legacy subnet-btn-legacy--blue">
         <i class="bi bi-geo-alt"></i> Прикрепить активные IP
       </button>
-      <button id="subnet-scan-now" class="btn btn--primary"
+      <button id="subnet-scan-now" data-need-edit="subnets" class="btn btn--primary"
               data-subnet-id="{{ subnet.id }}">
         <i class="bi bi-arrow-clockwise"></i> Сканировать
       </button>
@@ -98,7 +98,7 @@
 
   
 <!-- ===== Панель tcpdump ===== -->
-<div class="tcpdump-panel" id="tcpdump-panel">
+<div class="tcpdump-panel" id="tcpdump-panel" data-need-cap="traffic_capture">
   <div class="tcpdump-panel__header">
     <h4 class="tcpdump-panel__title">🕵️ Захват трафика (tcpdump)</h4>
     <button class="tcpdump-panel__close" id="tcpdump-close">&times;</button>
@@ -155,5 +155,5 @@
 </div>
 
 <link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=242">
-<script src="{% static 'js/subnets.js' %}?v=242"></script>
+<script src="{% static 'js/subnets.js' %}?v=243"></script>
 {% endblock %}

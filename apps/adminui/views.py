@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from .forms import ClosureForm
 """Кастомная админ-панель Cerberus."""
 from apps.accounts.permissions import (
-    PermissionRequiredMixin, get_user_permissions, has_perm,
+    PermissionRequiredMixin, has_perm,
 )
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
@@ -826,90 +826,6 @@ class UserDeleteView(PermissionRequiredMixin, DeleteView):
         return reverse("adminui:users")
 
 
-class RoleListView(PermissionRequiredMixin, ListView):
-    """Список ролей."""
-    permission_required = "admin.access"
-    from apps.accounts.models import Role as RoleModel
-    model = RoleModel
-    template_name = "adminui/roles/list.html"
-    context_object_name = "roles"
-    paginate_by = 50
-
-    def get_queryset(self):
-        from django.db.models import Count
-        return (
-            self.model.objects
-            .prefetch_related("permissions")
-            .annotate(users_count=Count("userrole", distinct=True))
-            .order_by("name")
-        )
-
-
-class RoleDetailView(PermissionRequiredMixin, TemplateView):
-    """Карточка роли — список разрешений."""
-    permission_required = "admin.access"
-    template_name = "adminui/roles/detail.html"
-
-    def get_context_data(self, **kwargs):
-        from apps.accounts.models import Role
-        ctx = super().get_context_data(**kwargs)
-        ctx["role"] = get_object_or_404(Role, pk=kwargs["pk"])
-        # Группируем permissions по group
-        from django.db.models import Count
-        perms = ctx["role"].permissions.all().order_by("group", "code")
-        groups = {}
-        for p in perms:
-            groups.setdefault(p.group, []).append(p)
-        ctx["perm_groups"] = groups
-        ctx["users"] = (
-            User.objects
-            .filter(user_roles__role=ctx["role"])
-            .order_by("username")
-        )
-        return ctx
-
-
-class UserRolesView(PermissionRequiredMixin, UpdateView):
-    """Назначение ролей пользователю."""
-    permission_required = "user.manage_roles"
-    model = User
-    template_name = "adminui/users/roles.html"
-    fields = []
-
-    def get_context_data(self, **kwargs):
-        from apps.accounts.models import Role, UserRole
-        ctx = super().get_context_data(**kwargs)
-        user = self.object
-        ctx["user_obj"] = user
-        ctx["roles"] = Role.objects.all().order_by("name")
-        ctx["user_role_ids"] = set(
-            user.user_roles.values_list("role_id", flat=True)
-        )
-        return ctx
-
-    def post(self, request, *args, **kwargs):
-        from apps.accounts.models import Role, UserRole
-        user = self.get_object()
-        selected_ids = request.POST.getlist("roles")
-        # Удаляем старые
-        UserRole.objects.filter(user=user).delete()
-        # Добавляем новые
-        for rid in selected_ids:
-            try:
-                role = Role.objects.get(pk=rid)
-                UserRole.objects.create(
-                    user=user, role=role, assigned_by=request.user,
-                )
-            except Role.DoesNotExist:
-                pass
-        from django.contrib import messages
-        messages.success(
-            request,
-            f"Роли обновлены: {user.user_roles.count()} назначено",
-        )
-        return redirect("adminui:users")
-
-
 class AlertDetailView(PermissionRequiredMixin, TemplateView):
     """Карточка алерта."""
     permission_required = "alert.view"
@@ -1195,50 +1111,6 @@ def draw_path_adminui(request, link_id):
         'link': link,
         'stations': points
     })
-
-# ── Управление ролями (RBAC) ────────────────────────────────────
-from apps.accounts.models import Role, Permission
-from django import forms
-
-class RoleForm(forms.ModelForm):
-    class Meta:
-        model = Role
-        fields = ("name", "slug", "permissions")
-        widgets = {
-            "name": forms.TextInput(attrs={"class": "form-input", "placeholder": "Название роли"}),
-            "slug": forms.TextInput(attrs={"class": "form-input", "placeholder": "slug (латиницей)"}),
-            "permissions": forms.CheckboxSelectMultiple(),
-        }
-
-class RoleListView(PermissionRequiredMixin, ListView):
-    model = Role
-    template_name = "adminui/roles/list.html"
-    context_object_name = "roles"
-    permission_required = "system.admin.access"
-
-    def get_queryset(self):
-        return super().get_queryset().prefetch_related("permissions", "userrole_set")
-
-class RoleCreateView(PermissionRequiredMixin, CreateView):
-    model = Role
-    form_class = RoleForm
-    template_name = "adminui/roles/form.html"
-    success_url = reverse_lazy("adminui:roles")
-    permission_required = "system.admin.access"
-
-class RoleUpdateView(PermissionRequiredMixin, UpdateView):
-    model = Role
-    form_class = RoleForm
-    template_name = "adminui/roles/form.html"
-    success_url = reverse_lazy("adminui:roles")
-    permission_required = "system.admin.access"
-
-class RoleDeleteView(PermissionRequiredMixin, DeleteView):
-    model = Role
-    template_name = "adminui/roles/confirm_delete.html"
-    success_url = reverse_lazy("adminui:roles")
-    permission_required = "system.admin.access"
-
 
 # ─── Категории устройств ──────────────────────────────────
 
@@ -1529,11 +1401,18 @@ class UserAccessMixin:
             s, c = (obj.access_sections, obj.access_caps) if obj and obj.pk else ({}, [])
         ctx.update(access_form_context(s, c))
         ctx["target_is_superuser"] = bool(obj and obj.pk and obj.is_superuser)
+        if obj and obj.pk:
+            ctx["access_log"] = obj.access_log.select_related("actor")[:15]
         return ctx
 
     def form_valid(self, form):
+        from apps.accounts.access import log_change, snapshot
+        is_new = not form.instance.pk
+        before = snapshot(type(form.instance).objects.get(pk=form.instance.pk)) if not is_new else snapshot(type(form.instance)())
         response = super().form_valid(form)
         err = apply_access(self.request.user, self.object, self.request.POST)
+        self.object.refresh_from_db()
+        log_change(self.request.user, self.object, "create" if is_new else "update", before, self.request)
         if err:
             _messages.error(self.request, err)
         else:
@@ -1562,8 +1441,10 @@ class UserApproveView(PermissionRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         from django.utils import timezone as _tz
         from apps.accounts.models import Position
+        from apps.accounts.access import log_change, snapshot
         target = self.get_target()
         _guard_superuser_target(request, target)
+        before = snapshot(target)
         sections, caps = access_from_post(request.POST)
         target.access_sections = sections
         target.access_caps = caps
@@ -1575,6 +1456,7 @@ class UserApproveView(PermissionRequiredMixin, TemplateView):
         target.approved_at = _tz.now()
         target.approved_by = request.user
         target.save()
+        log_change(request.user, target, "approve", before, request)
         _messages.success(request, f"Пользователь {target.username} подтверждён, права заданы.")
         return _redirect("adminui:users_pending")
 

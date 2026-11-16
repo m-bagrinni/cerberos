@@ -16,7 +16,7 @@
     <script src="{% static 'vendor/js/chartjs-adapter-luxon.min.js' %}"></script>
     <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
 
-    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=1793429171">
+    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116l">
     <link rel="stylesheet" href="{% static 'css/stations.css' %}?v=1793429171">
 
     {% block extra_head %}{% endblock %}
@@ -64,11 +64,11 @@
   }
 </style>
     <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=1793429171">
-    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
     {% block extra_css %}{% endblock %}
-    <script src="{% static 'js/core.js' %}?v=1"></script>
+    <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body{% if ui_theme_glass %} class="theme-glass"{% endif %}>
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
 
 <div class="app-layout">
 
@@ -198,7 +198,7 @@
 
 {% block extra_js %}{% endblock %}
     {# Мультиплексорные скрипты — только для страницы мультиплексоров #}
-<script src="{% static 'js/interface-edit.js' %}?v=1793429171"></script>
+<script src="{% static 'js/interface-edit.js' %}?v=20261116k"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 {% load static %}
 <script src="{% static 'js/telegram-webapp-auth.js' %}?v=1793429171"></script>
@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- Кастомное контекстное меню -->
 <div id="custom-context-menu" style="display: none; position: fixed; z-index: 10000; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.5); padding: 4px 0; min-width: 200px;">
-  <div class="ctx-item" data-action="poll" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+  <div class="ctx-item" data-action="poll" data-need-edit="devices" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
     <i class="bi bi-arrow-repeat" style="color: var(--primary);"></i> Опросить устройство
   </div>
   <div class="ctx-item" data-action="web" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
@@ -258,7 +258,7 @@ document.addEventListener("DOMContentLoaded", function() {
   .ctx-item:hover { background: var(--bg-hover); }
 </style>
 
-<script src="{% static 'js/context-menu.js' %}?v=1793429171"></script>
+<script src="{% static 'js/context-menu.js' %}?v=20261116k"></script>
 
 <!-- Toast-уведомления -->
 <div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 100000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 })();
 </script>
-    <script src="{% static 'js/glass.js' %}"></script>
+    <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
 
 <script>
 // УМНАЯ ПОКРАСКА DDM (Запускается на всех страницах)

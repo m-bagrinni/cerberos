@@ -312,7 +312,7 @@ const STATUS_COLOR = {
                         <div class="sm-section">
                             <div class="sm-section-title"><i class="bi bi-pc-display"></i> IP-адреса <span class="c-muted" id="station-ips-count">0</span></div>
                             <div class="sm-card-list">${ips}</div>
-                            <button class="sm-btn-add-ip" onclick="showAddIpForm('${st.slug}', ${st.id})">
+                            <button class="sm-btn-add-ip" data-need-edit="subnets" onclick="showAddIpForm('${st.slug}', ${st.id})">
                                 <i class="bi bi-plus-circle"></i> Добавить IP
                             </button>
                         </div>
@@ -2031,6 +2031,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     mapEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();
+        // «Опросить линии» меняет состояние — только с правом «Диспетчерская: изменение»
+        const pollItem = ctx.querySelector('[data-action="poll"]');
+        if (pollItem) pollItem.style.display = (window.Cerber && Cerber.can('stations')) ? '' : 'none';
         ctx.style.display = 'block';
         const rect = ctx.getBoundingClientRect();
         const x = Math.min(e.clientX, window.innerWidth - rect.width - 10);

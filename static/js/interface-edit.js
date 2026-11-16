@@ -85,6 +85,7 @@
     function handleDoubleClick(e) {
         const cell = e.target.closest('.iface-alias');
         if (!cell) return;
+        if (!(window.Cerber && Cerber.can('port_control', 'cap'))) return;
 
         const pk = cell.dataset.ifaceAliasPk;
         const currentValue = cell.dataset.ifaceAliasValue || '';

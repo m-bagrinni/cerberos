@@ -135,8 +135,17 @@
         };
     }
 
+    // Права текущего пользователя (из <body data-acc-e / data-acc-c>): Cerber.can("subnets"),
+    // Cerber.can("port_control", "cap"). Только для интерфейса — сервер проверяет сам.
+    function can(key, kind) {
+        const b = document.body;
+        if (!b) return false;
+        const list = (b.getAttribute(kind === "cap" ? "data-acc-c" : "data-acc-e") || "").split(/\s+/);
+        return list.indexOf(key) !== -1;
+    }
+
     window.Cerber = {
-        escapeHtml, csrfToken, fetch: cerberFetch, fetchJSON, HttpError, poll, toast, debounce,
+        escapeHtml, csrfToken, fetch: cerberFetch, fetchJSON, HttpError, poll, toast, debounce, can,
     };
     window.showToast = toast;
 })();

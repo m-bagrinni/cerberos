@@ -233,7 +233,7 @@ document.addEventListener('click', async function(e) {
 
             // Если hostname пустой — поле для ручного ввода
             if (!data.hostname) {
-                html += `<div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+                html += `<div data-need-edit="subnets" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
                     <label style="color:#9ca3af; font-size:12px; display:block; margin-bottom:4px;">Указать имя вручную:</label>
                     <div style="display:flex; gap:8px;">
                         <input type="text" id="manual-hostname" placeholder="Например, SW-Core" style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:6px 10px; font-size:13px; outline:none;">
@@ -243,7 +243,7 @@ document.addEventListener('click', async function(e) {
             }
 
             // Станция (выпадающий список)
-            html += `<div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+            html += `<div data-need-edit="subnets" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
                 <label style="color:#9ca3af; font-size:12px; display:block; margin-bottom:4px;">Прикрепить к станции:</label>
                 <div style="display:flex; gap:8px;">
                     <select id="station-select" style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; padding:6px 10px; font-size:13px; outline:none;">
@@ -253,7 +253,7 @@ document.addEventListener('click', async function(e) {
                 </div>
             </div>`;
 
-            html += `<div class="ip-modal__actions" style="display:flex; gap:8px; margin-top:16px;">`;
+            html += `<div class="ip-modal__actions" data-need-edit="subnets" style="display:flex; gap:8px; margin-top:16px;">`;
             html += `<button class="btn btn-ping" data-id="${Cerber.escapeHtml(data.id)}" style="background:#3b82f6;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">Пинговать</button>`;
             const monitorText = data.is_monitored ? 'Снять с мониторинга' : 'На мониторинг';
             const monitorColor = data.is_monitored ? '#ef4444' : '#10b981';

@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Cerberus{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
-  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=19">
+  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116l">
   <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=2">
-  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
   <style>
     body {
       margin: 0;
@@ -74,7 +74,7 @@
     .auth-footer a { color: #ff780a; text-decoration: none; }
     .auth-footer a:hover { text-decoration: underline; }
   </style>
-    <script src="{% static 'js/core.js' %}?v=1"></script>
+    <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
 <body class="auth-page{% if ui_theme_glass %} theme-glass{% endif %}">
   <div class="auth-card">
@@ -96,6 +96,6 @@
   </div>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="{% static 'js/telegram-webapp-auth.js' %}?v=12"></script>
-    <script src="{% static 'js/glass.js' %}"></script>
+    <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
 </body>
 </html>

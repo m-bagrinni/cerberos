@@ -123,7 +123,7 @@
 
 {% block extra_js %}
 <script src="{% static "vendor/leaflet/leaflet.js" %}"></script>
-<script src="{% static 'js/stations.js' %}?v=1793515000"></script>
+<script src="{% static 'js/stations.js' %}?v=20261116k"></script>
 
 
 <!-- Контекстное меню для карты -->
@@ -135,10 +135,10 @@
     <i class="bi bi-lightning-charge" style="color: var(--primary);"></i> Опросить линии
   </div>
   <hr style="border-color: var(--border); margin: 4px 0;">
-  <div class="map-ctx-item" data-action="add-station" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+  <div class="map-ctx-item" data-action="add-station" data-need-edit="stations" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
     <i class="bi bi-plus-lg" style="color: var(--ok);"></i> Добавить станцию
   </div>
-  <div class="map-ctx-item" data-action="add-link" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
+  <div class="map-ctx-item" data-action="add-link" data-need-edit="stations" style="padding: 8px 16px; cursor: pointer; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 8px;">
     <i class="bi bi-link-45deg" style="color: var(--tiffany);"></i> Добавить линию
   </div>
 </div>

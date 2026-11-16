@@ -72,7 +72,7 @@
                     {% endfor %}
                 </td>
                 <td>
-                    <button class="mux-row__edit" type="button" title="Переименовать"
+                    <button class="mux-row__edit" data-need-edit="mux" type="button" title="Переименовать"
                             onclick="event.stopPropagation(); if (window.openNeRename) window.openNeRename({{ ne.id }}, '{{ ne.display_name|escapejs }}');">
                         <i class="bi bi-pencil"></i>
                     </button>
