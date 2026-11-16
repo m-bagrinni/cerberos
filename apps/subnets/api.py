@@ -14,6 +14,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core import ops_client  # docker exec в sniffer — через cerber-ops
 from .models import IpAddress, PingSample, Subnet, SubnetScan
 from .scanner import ping_one
 from .serializers import (
@@ -309,10 +310,32 @@ def ping_ip(request):
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
+
+def _capture_admin_only(view):
+    """
+    Захват трафика (tcpdump/pcap) — только с возможностью «Захват трафика» (traffic_capture):
+    sniffer слушает все интерфейсы хоста, в пакетах — чужие данные и пароли.
+    Ставится ВНЕШНИМ декоратором (поверх @api_view и для обычных view).
+    """
+    import functools
+    from django.http import JsonResponse
+
+    @functools.wraps(view)
+    def wrapper(request, *args, **kwargs):
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return JsonResponse({"ok": False, "error": "authentication required"}, status=401)
+        if not user.access.has_cap("traffic_capture"):
+            return JsonResponse({"ok": False, "error": "Нет права «Захват трафика»"}, status=403)
+        return view(request, *args, **kwargs)
+    return wrapper
+
+
 # ============================================================
 # tcpdump — запуск захвата трафика из интерфейса подсети
 # ============================================================
 
+@_capture_admin_only
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def tcpdump_view(request):
@@ -363,10 +386,7 @@ def tcpdump_ifaces_view(request):
     import subprocess as _sp
     import re as _re
     try:
-        out = _sp.run(
-            ["docker", "exec", "cerber-sniffer", "ip", "-o", "-4", "a"],
-            capture_output=True, text=True, timeout=5, check=False,
-        )
+        out = ops_client.sniffer_run(["ip", "-o", "-4", "a"], timeout=5)
         result = []
         for line in out.stdout.splitlines():
             m = _re.search(r"^\d+:\s+([^:@]+).*?inet\s+(\d+\.\d+\.\d+\.\d+)/(\d+)", line)
@@ -401,10 +421,7 @@ def tcpdump_subnet_iface_view(request):
         return Response({"ok": False, "error": "invalid cidr"}, status=400)
 
     try:
-        out = _sp.run(
-            ["docker", "exec", "cerber-sniffer", "ip", "-o", "-4", "a"],
-            capture_output=True, text=True, timeout=5, check=False,
-        )
+        out = ops_client.sniffer_run(["ip", "-o", "-4", "a"], timeout=5)
     except Exception as e:
         return Response({"ok": False, "error": str(e)}, status=500)
 
@@ -428,6 +445,7 @@ def tcpdump_subnet_iface_view(request):
 # tcpdump → pcap + скачивание
 # ============================================================
 
+@_capture_admin_only
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def tcpdump_pcap_view(request):
@@ -458,6 +476,7 @@ def tcpdump_pcap_view(request):
     return Response(result)
 
 
+@_capture_admin_only
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tcpdump_download_view(request, file_id: str):
@@ -486,6 +505,7 @@ def tcpdump_download_view(request, file_id: str):
 # tcpdump — SSE-стрим в реальном времени (обычный Django-view)
 # ============================================================
 
+@_capture_admin_only
 def tcpdump_stream_view(request):
     """
     SSE-стрим пакетов. Без @api_view (иначе DRF вернёт 406 на text/event-stream).
@@ -514,6 +534,7 @@ def tcpdump_stream_view(request):
 # tcpdump — polling (обходной путь для daphne + SSE)
 # ============================================================
 
+@_capture_admin_only
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def tcpdump_poll_view(request):
@@ -667,10 +688,7 @@ def resolve_mac_view(request):
     # 2. Ищем в ARP-таблице (через контейнер sniffer)
     try:
         import subprocess
-        out = subprocess.run(
-            ["docker", "exec", "cerber-sniffer", "ip", "neigh", "show"],
-            capture_output=True, text=True, timeout=5
-        )
+        out = ops_client.sniffer_run(["ip", "neigh", "show"], timeout=5)
         for line in out.stdout.splitlines():
             if mac in line.lower():
                 parts = line.split()
@@ -692,12 +710,16 @@ def resolve_mac_view(request):
     try:
         import subprocess
         # Берём интерфейс из запроса (фронтенд передаёт выбранный в панели)
-        iface = (request.query_params.get("iface") or "enp4s0.50").strip()
+        import re as _re
+        from .tcpdump import TcpdumpError, _validate_iface
+        if not _re.fullmatch(r"[0-9a-f]{2}([:-][0-9a-f]{2}){5}", mac):
+            raise ValueError("bad mac")
+        try:
+            iface = _validate_iface((request.query_params.get("iface") or "enp4s0.50").strip())
+        except TcpdumpError as e:
+            raise ValueError(str(e))
         # Запускаем tcpdump на 3 секунды, ищем пакеты от этого MAC
-        out = subprocess.run(
-            ["docker", "exec", "cerber-sniffer", "timeout", "3", "tcpdump", "-i", iface, "-c", "5", "-nn", "-v", f"ether host {mac}"],
-            capture_output=True, text=True, timeout=6
-        )
+        out = ops_client.sniffer_run(["timeout", "3s", "tcpdump", "-i", iface, "-c", "5", "-nn", "-v", f"ether host {mac}"], timeout=6)
         hostname = None
         for line in out.stdout.splitlines():
             if "Hostname" in line and '"' in line:
@@ -768,10 +790,7 @@ def resolve_ip_info_view(request):
     try:
         import subprocess
         # 2.1. SMB (Windows)
-        out = subprocess.run(
-            ["docker", "exec", "cerber-sniffer", "nmap", "-p", "445", "--script", "smb-os-discovery", ip],
-            capture_output=True, text=True, timeout=15
-        )
+        out = ops_client.sniffer_run(["nmap", "-p", "445", "--script", "smb-os-discovery", ip], timeout=15)
         for line in out.stdout.splitlines():
             if "Computer name:" in line:
                 hostname = line.split("Computer name:")[1].strip()
@@ -787,10 +806,7 @@ def resolve_ip_info_view(request):
 
         # 2.2. NetBIOS (если SMB не дал имени)
         if not hostname:
-            out2 = subprocess.run(
-                ["docker", "exec", "cerber-sniffer", "nmap", "-p", "137", "--script", "nbstat.nse", ip],
-                capture_output=True, text=True, timeout=15
-            )
+            out2 = ops_client.sniffer_run(["nmap", "-p", "137", "--script", "nbstat.nse", ip], timeout=15)
             for line in out2.stdout.splitlines():
                 if "NetBIOS name:" in line:
                     hostname = line.split("NetBIOS name:")[1].strip()
@@ -807,10 +823,7 @@ def resolve_ip_info_view(request):
         # 2.3. SNMP (если SMB/NetBIOS не дали имени)
         if not hostname:
             try:
-                out3 = subprocess.run(
-                    ["docker", "exec", "cerber-sniffer", "snmpget", "-v2c", "-c", "public", "-Oqv", ip, "1.3.6.1.2.1.1.5.0"],
-                    capture_output=True, text=True, timeout=5
-                )
+                out3 = ops_client.sniffer_run(["snmpget", "-v2c", "-c", "public", "-Oqv", ip, "1.3.6.1.2.1.1.5.0"], timeout=5)
                 if out3.stdout.strip():
                     hostname = out3.stdout.strip().strip('"')
                     source = "snmp"

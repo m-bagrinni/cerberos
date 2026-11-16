@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.core.files import File
 from django.template.loader import render_to_string
@@ -17,10 +18,47 @@ from .utils import convert_to_pdf
 
 User = get_user_model()
 
+
+# ── Доступ к документу ─────────────────────────────────────────────────────
+def can_access(user, doc):
+    """Автор, получатель, участник маршрута или суперпользователь."""
+    if user.is_superuser or user.pk in (doc.author_id, doc.recipient_id):
+        return True
+    return doc.routes.filter(Q(sender=user) | Q(recipient=user)).exists()
+
+
+def _deny():
+    return HttpResponse("У вас нет доступа к этому документу", status=403)
+
+
+# Белый список загружаемых файлов. HTML/SVG/JS и прочее, что браузер может
+# исполнить, не принимаем: файлы отдаются с того же домена, что и сайт.
+ALLOWED_UPLOAD_EXT = {
+    ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".rtf",
+    ".txt", ".csv", ".zip", ".rar", ".7z",
+}
+
+
+def _bad_upload(f):
+    """Текст ошибки, если файл нельзя принять, иначе None."""
+    if not f:
+        return None
+    ext = os.path.splitext(f.name)[1].lower()
+    if ext not in ALLOWED_UPLOAD_EXT:
+        return f"Тип файла «{ext or 'без расширения'}» не разрешён"
+    return None
+
 @login_required
 def index(request):
-    inbox = Document.objects.filter(recipient=request.user).exclude(status='draft')
-    return render(request, 'edocs/inbox.html', {'documents': inbox})
+    from .queries import INBOX_FILTERS, inbox_qs
+    inbox = inbox_qs(request.user).select_related('author').order_by('-created_at')
+    f = request.GET.get('f', '')
+    filter_label = ''
+    if f in INBOX_FILTERS:
+        filter_label, q = INBOX_FILTERS[f]
+        inbox = inbox.filter(q)
+    return render(request, 'edocs/inbox.html', {'documents': inbox, 'filter_label': filter_label})
 
 @login_required
 def sent(request):
@@ -35,7 +73,12 @@ def create_document(request):
         recipient_id = request.POST.get('recipient')
         document_type = request.POST.get('document_type', 'execution')
         file = request.FILES.get('file')
-        
+        err = _bad_upload(file)
+        if err:
+            from django.contrib import messages
+            messages.error(request, err)
+            return redirect('edocs:create')
+
         if title and recipient_id:
             recipient = get_object_or_404(User, pk=recipient_id)
             
@@ -118,6 +161,8 @@ def update_status(request, pk):
 def view_document(request, pk):
     """Отдает готовый PDF (или оригинал, если PDF не создан)"""
     doc = get_object_or_404(Document, pk=pk)
+    if not can_access(request.user, doc):
+        return _deny()
     
     # Если есть PDF - отдаем его
     if doc.pdf_file:
@@ -142,15 +187,13 @@ def view_document(request, pk):
 def document_detail(request, pk):
     """Детальная страница документа"""
     doc = get_object_or_404(Document, pk=pk)
-    
+    if not can_access(request.user, doc):
+        return _deny()
+
     # Отмечаем как прочитанный (если текущий пользователь — получатель)
     if request.user == doc.recipient and not doc.is_read:
         doc.is_read = True
         doc.save(update_fields=['is_read'])
-    
-    is_route_participant = doc.routes.filter(sender=request.user).exists() or doc.routes.filter(recipient=request.user).exists()
-    if request.user not in [doc.author, doc.recipient] and not is_route_participant and not request.user.is_superuser:
-        return HttpResponse("У вас нет доступа к этому документу", status=403)
         
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     action = None
@@ -278,7 +321,15 @@ def document_detail(request, pk):
             
             if resolution is not None: doc.resolution = resolution
             if reply_comment is not None: doc.reply_comment = reply_comment
-            if reply_file: doc.reply_file = reply_file
+            if reply_file:
+                err = _bad_upload(reply_file)
+                if err:
+                    if is_ajax:
+                        return JsonResponse({'ok': False, 'error': err}, status=400)
+                    from django.contrib import messages
+                    messages.error(request, err)
+                    return redirect('edocs:document_detail', pk=doc.pk)
+                doc.reply_file = reply_file
             
             if comment_text:
                 Comment.objects.create(document=doc, author=request.user, text=comment_text)
@@ -330,6 +381,8 @@ def document_detail(request, pk):
 def view_reply(request, pk):
     """Просмотр ответного файла (конвертация в PDF)"""
     doc = get_object_or_404(Document, pk=pk)
+    if not can_access(request.user, doc):
+        return _deny()
     if not doc.reply_file:
         return HttpResponse("Ответный файл не прикреплен", status=404)
         
@@ -366,9 +419,8 @@ def view_reply(request, pk):
 def get_history(request, pk):
     """Возвращает только HTML истории (для AJAX-обновления)"""
     doc = get_object_or_404(Document, pk=pk)
-    
-    if request.user not in [doc.author, doc.recipient] and not request.user.is_superuser:
-        return HttpResponse("Нет доступа", status=403)
+    if not can_access(request.user, doc):
+        return _deny()
         
     routes = doc.routes.all().select_related('sender', 'recipient')
     comments = doc.comments.all().select_related('author')
@@ -393,7 +445,9 @@ from django.views.decorators.http import require_POST
 def send_document_to_tg(request, pk):
     """Отправляет файл документа в Telegram текущему пользователю."""
     doc = get_object_or_404(Document, pk=pk)
-    
+    if not can_access(request.user, doc):
+        return JsonResponse({'ok': False, 'error': 'Нет доступа к документу'}, status=403)
+
     if not request.user.telegram_id:
         return JsonResponse({'ok': False, 'error': 'У вас не привязан Telegram'})
     
@@ -429,3 +483,23 @@ def send_document_to_tg(request, pk):
             return JsonResponse({'ok': False, 'error': 'Не удалось отправить файл'})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+def download_file(request, pk, kind):
+    """
+    Скачивание файла документа (оригинал / PDF / ответ) с проверкой доступа.
+    Всегда attachment: браузер не исполняет файл на домене сайта.
+    Прямой /media/edocs*/ закрыт (cerber/urls.py).
+    """
+    doc = get_object_or_404(Document, pk=pk)
+    if not can_access(request.user, doc):
+        return _deny()
+    f = {"file": doc.file, "pdf": doc.pdf_file, "reply": doc.reply_file}.get(kind)
+    if not f:
+        return HttpResponse("Файл не найден", status=404)
+    resp = FileResponse(f.open("rb"), as_attachment=True,
+                        filename=os.path.basename(f.name),
+                        content_type="application/octet-stream")
+    resp["X-Content-Type-Options"] = "nosniff"
+    return resp

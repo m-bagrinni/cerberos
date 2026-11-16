@@ -2,7 +2,10 @@ from django.urls import path
 from django.contrib.auth.decorators import login_required, user_passes_test
 from . import views, api
 
-staff_required = user_passes_test(lambda u: u.is_staff, login_url="/accounts/login/")
+from apps.accounts.access import section_required
+
+# AD: чтение — «Серверы и AD» на просмотр, изменения — на изменение (по методу запроса)
+staff_required = section_required("servers")
 
 
 urlpatterns = [
@@ -15,11 +18,11 @@ urlpatterns = [
     path("<int:server_id>/detail/", login_required(views.server_detail_fragment), name="server_detail_fragment"),
 
     # ===== API AD — чтение =====
-    path("api/ad-users/", login_required(api.ad_users_api), name="ad_users_api"),
-    path("api/ad-groups/", login_required(api.ad_groups_api), name="ad_groups_api"),
-    path("api/ad-groups/<str:group_name>/members/", login_required(api.ad_group_members_api), name="ad_group_members"),
+    path("api/ad-users/", login_required(staff_required(api.ad_users_api)), name="ad_users_api"),
+    path("api/ad-groups/", login_required(staff_required(api.ad_groups_api)), name="ad_groups_api"),
+    path("api/ad-groups/<str:group_name>/members/", login_required(staff_required(api.ad_group_members_api)), name="ad_group_members"),
 
-    # ===== API AD — изменение (только is_staff) =====
+    # ===== API AD — изменение (раздел «Серверы и AD» на изменение) =====
     path("api/ad-users/create/", login_required(staff_required(api.ad_user_create_api)), name="ad_user_create"),
     path("api/ad-users/<str:login>/toggle/", login_required(staff_required(api.ad_user_toggle_api)), name="ad_user_toggle"),
     path("api/ad-users/<str:login>/update/", login_required(staff_required(api.ad_user_update_api)), name="ad_user_update"),

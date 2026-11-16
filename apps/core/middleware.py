@@ -9,6 +9,7 @@ from django.utils.deprecation import MiddlewareMixin
 
 # Пути, которые должны открываться внутри Telegram WebApp
 WEBAPP_PREFIXES = ("/local/", "/api/", "/accounts/", "/static/")
+TELEGRAM_FRAME_ANCESTORS = "'self' https://web.telegram.org https://*.telegram.org"
 
 
 class TelegramWebAppFrameMiddleware(MiddlewareMixin):
@@ -17,12 +18,13 @@ class TelegramWebAppFrameMiddleware(MiddlewareMixin):
         if any(path.startswith(p) for p in WEBAPP_PREFIXES):
             response.headers.pop("X-Frame-Options", None)
             response.headers.pop("x-frame-options", None)
-            # если CSP где-то задан и запрещает frame — тоже снимаем
-            csp = response.headers.get("Content-Security-Policy")
-            if csp and "frame-ancestors" in csp:
-                import re
-                csp = re.sub(r"frame-ancestors[^;]*;?", "", csp)
-                response.headers["Content-Security-Policy"] = csp
+            # Встраивание — только сам сайт и Telegram Web (иначе любой сайт может
+            # положить нашу форму входа в невидимый iframe — кликджекинг).
+            import re
+            csp = response.headers.get("Content-Security-Policy", "")
+            csp = re.sub(r"frame-ancestors[^;]*;?\s*", "", csp).strip()
+            fa = "frame-ancestors " + TELEGRAM_FRAME_ANCESTORS
+            response.headers["Content-Security-Policy"] = f"{csp}; {fa}" if csp else fa
         return response
 
 

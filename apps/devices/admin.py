@@ -26,6 +26,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         ("Telegram", {"fields": ("telegram_id",)}),
     )
+    readonly_fields = ("telegram_id",)  # заполняется только привязкой бота
     list_display = ("username", "email", "telegram_id", "is_staff", "is_active")
     search_fields = ("username", "email", "telegram_id")
 

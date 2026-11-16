@@ -204,7 +204,7 @@
               </td>
               <td>{{ doc.created_at|date:"d.m.Y H:i" }}</td>
               <td>
-                <a href="{{ doc.file.url }}" class="edocs-download" target="_blank">
+                <a href="{% url 'edocs:download_file' doc.pk 'file' %}" class="edocs-download" target="_blank">
                   <i class="bi bi-download"></i> Скачать
                 </a>
               </td>

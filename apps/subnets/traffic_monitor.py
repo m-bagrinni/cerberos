@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 SNIFFER_CONTAINER = "cerber-sniffer"
 
+
+def _ops():
+    """docker exec в sniffer — через cerber-ops (у воркеров нет docker.sock)."""
+    from apps.core import ops_client
+    return ops_client
+
 # MAC-адреса, исключаемые из анализа (наш сервер мониторинга и т.п.)
 # Из .env: STORM_EXCLUDED_MACS=b4:2e:99:15:13:bc,aa:bb:cc:dd:ee:ff
 import os as _os
@@ -58,10 +64,7 @@ def find_iface_for_subnet(cidr: str) -> str | None:
     except ValueError:
         return None
     try:
-        out = subprocess.run(
-            ["docker", "exec", SNIFFER_CONTAINER, "ip", "-o", "-4", "a"],
-            capture_output=True, text=True, timeout=5, check=False,
-        )
+        out = _ops().sniffer_run(["ip", "-o", "-4", "a"], timeout=5)
     except Exception as e:
         logger.error("iface lookup failed: %s", e)
         return None
@@ -84,11 +87,8 @@ def find_iface_for_subnet(cidr: str) -> str | None:
 def _cleanup_old_pcaps() -> bool:
     """Удаляет pcap старше 30 мин."""
     try:
-        subprocess.run(
-            ["docker", "exec", SNIFFER_CONTAINER, "find", "/tmp/cerber_pcap",
-             "-name", "count_*.pcap", "-mmin", "+30", "-delete"],
-            capture_output=True, timeout=10, check=False,
-        )
+        _ops().sniffer_run(["find", "/tmp/cerber_pcap",
+             "-name", "count_*.pcap", "-mmin", "+30", "-delete"], timeout=10)
         return True
     except Exception:
         return False
@@ -107,7 +107,6 @@ def count_traffic(iface: str, duration: int = 5, cidr: str | None = None) -> dic
 
     # 1) CAPTURE
     cmd_capture = [
-        "docker", "exec", SNIFFER_CONTAINER,
         "timeout", f"{duration + 2}s",
         "tcpdump", "-nn", "-e", "-U",
         "-w", pcap_remote, "-i", iface,
@@ -118,10 +117,7 @@ def count_traffic(iface: str, duration: int = 5, cidr: str | None = None) -> dic
         # (ARP потом отфильтруем по src/dst в Python).
         cmd_capture.append(f"(ip and net {cidr}) or arp")
     try:
-        subprocess.run(
-            cmd_capture, capture_output=True, text=True,
-            timeout=duration + 5, check=False,
-        )
+        _ops().sniffer_run(cmd_capture, timeout=duration + 5)
     except subprocess.TimeoutExpired:
         pass
     except Exception as e:
@@ -130,13 +126,10 @@ def count_traffic(iface: str, duration: int = 5, cidr: str | None = None) -> dic
 
     # 2) READ — через sniffer-контейнер: pcap лежит в его /tmp, web его не видит
     cmd_read = [
-        "docker", "exec", SNIFFER_CONTAINER,
         "tcpdump", "-nn", "-e", "-tttt", "-r", pcap_remote,
     ]
     try:
-        proc = subprocess.run(
-            cmd_read, capture_output=True, text=True, timeout=15, check=False,
-        )
+        proc = _ops().sniffer_run(cmd_read, timeout=15)
         stdout = proc.stdout or ""
         if not stdout and proc.stderr:
             logger.warning("tcpdump read stderr: %s", proc.stderr[:300])
@@ -148,10 +141,7 @@ def count_traffic(iface: str, duration: int = 5, cidr: str | None = None) -> dic
     import os as _os_dbg
     if _os_dbg.getenv("STORM_DEBUG", "").strip() not in ("1", "true", "yes"):
         try:
-            subprocess.run(
-                ["docker", "exec", SNIFFER_CONTAINER, "rm", "-f", pcap_remote],
-                capture_output=True, timeout=3, check=False,
-            )
+            _ops().sniffer_run(["rm", "-f", pcap_remote], timeout=3)
         except Exception:
             pass
     else:

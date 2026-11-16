@@ -50,7 +50,6 @@ def stream_tcpdump(
         duration = 0
 
     cmd = [
-        "docker", "exec", SNIFFER_CONTAINER,
         "tcpdump",
         "-nn", "-tttt", "-U", "-l", "-q",
         "-i", iface,
@@ -68,17 +67,11 @@ def stream_tcpdump(
     yield ": " + "x" * 2048 + "\n\n"
     yield f"event: start\ndata: {json.dumps({'bpf': bpf, 'iface': iface, 'duration': duration or None})}\n\n"
 
+    # Выполняет cerber-ops (у web нет docker.sock). Без duration — максимум час
+    # на стороне ops; закрытие генератора рвёт соединение → ops убивает tcpdump.
+    from apps.core import ops_client
     try:
-        proc = subprocess.Popen(
-            wrapped,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,  # line-buffered
-        )
-    except FileNotFoundError as e:
-        yield f"event: error\ndata: {json.dumps({'error': f'docker не найден: {e}'})}\n\n"
-        return
+        lines = ops_client.sniffer_stream(wrapped, timeout=(duration + 5) if duration > 0 else 3600)
     except Exception as e:
         yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
         return
@@ -86,7 +79,7 @@ def stream_tcpdump(
     buffer = []
     buffer_size = 5  # батчим по 5 пакетов — меньше SSE-событий, проще
     try:
-        for line in proc.stdout:
+        for line in lines:
             line = line.rstrip("\n")
             if not line:
                 continue
@@ -104,16 +97,10 @@ def stream_tcpdump(
     except GeneratorExit:
         # Клиент закрыл соединение — прибиваем tcpdump
         pass
+    except Exception as e:
+        yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
     finally:
-        # Прибиваем процесс, если ещё жив
-        try:
-            proc.terminate()
-            proc.wait(timeout=2)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
+        lines.close()   # рвёт HTTP к ops → tcpdump убит
 
     # Остаток — только если клиент ещё подключён
     import json as _json  # локальный импорт — защита от closed-module при GeneratorExit

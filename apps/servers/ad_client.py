@@ -1,5 +1,6 @@
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 import ssl
+from ldap3.utils.conv import escape_filter_chars
 from django.conf import settings
 import logging
 
@@ -11,7 +12,13 @@ def get_ad_connection():
     use_ssl = settings.AD_USE_SSL
     
     if use_ssl:
-        tls_config = Tls(validate=ssl.CERT_NONE)
+        # С AD_CA_CERT_FILE сертификат DC проверяется (защита пароля сервисной
+        # учётки и сбрасываемых паролей от подмены DC в сети). Без него — как раньше.
+        ca_file = getattr(settings, "AD_CA_CERT_FILE", "")
+        if ca_file:
+            tls_config = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=ca_file)
+        else:
+            tls_config = Tls(validate=ssl.CERT_NONE)
         server = Server(server_uri, use_ssl=True, tls=tls_config, get_info=ALL)
     else:
         server = Server(server_uri, get_info=ALL)
@@ -67,7 +74,7 @@ def toggle_user_block(login, block=True):
         # Ищем пользователя по логину
         conn.search(
             search_base=settings.AD_BASE_DN,
-            search_filter=f"(sAMAccountName={login})",
+            search_filter=f"(sAMAccountName={escape_filter_chars(login)})",
             search_scope=SUBTREE,
             attributes=['userAccountControl']
         )
@@ -95,7 +102,7 @@ def update_user_attributes(login, name=None, email=None):
     """Обновляет имя и email пользователя."""
     try:
         conn = get_ad_connection()
-        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={login})", SUBTREE, attributes=['*'])
+        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={escape_filter_chars(login)})", SUBTREE, attributes=['*'])
         if not conn.entries:
             return {'ok': False, 'error': 'Пользователь не найден'}
         
@@ -119,7 +126,7 @@ def reset_user_password(login, new_password):
     """Сбрасывает пароль пользователя (требует LDAPS)."""
     try:
         conn = get_ad_connection()
-        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={login})", SUBTREE, attributes=['distinguishedName'])
+        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={escape_filter_chars(login)})", SUBTREE, attributes=['distinguishedName'])
         if not conn.entries:
             return {'ok': False, 'error': 'Пользователь не найден'}
         
@@ -216,13 +223,13 @@ def add_user_to_group(login, group_name):
     try:
         conn = get_ad_connection()
         # Ищем группу
-        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={group_name})", SUBTREE)
+        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={escape_filter_chars(group_name)})", SUBTREE)
         if not conn.entries:
             return {'ok': False, 'error': 'Группа не найдена'}
         group_dn = conn.entries[0].entry_dn
 
         # Ищем пользователя
-        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={login})", SUBTREE)
+        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={escape_filter_chars(login)})", SUBTREE)
         if not conn.entries:
             return {'ok': False, 'error': 'Пользователь не найден'}
         user_dn = conn.entries[0].entry_dn
@@ -240,13 +247,13 @@ def remove_user_from_group(login, group_name):
     try:
         conn = get_ad_connection()
         # Ищем группу
-        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={group_name})", SUBTREE)
+        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={escape_filter_chars(group_name)})", SUBTREE)
         if not conn.entries:
             return {'ok': False, 'error': 'Группа не найдена'}
         group_dn = conn.entries[0].entry_dn
 
         # Ищем пользователя
-        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={login})", SUBTREE)
+        conn.search(settings.AD_BASE_DN, f"(sAMAccountName={escape_filter_chars(login)})", SUBTREE)
         if not conn.entries:
             return {'ok': False, 'error': 'Пользователь не найден'}
         user_dn = conn.entries[0].entry_dn
@@ -265,7 +272,7 @@ def get_group_members(group_name):
         conn = get_ad_connection()
         conn.search(
             search_base=settings.AD_BASE_DN,
-            search_filter=f"(sAMAccountName={group_name})",
+            search_filter=f"(sAMAccountName={escape_filter_chars(group_name)})",
             search_scope=SUBTREE,
             attributes=['member']
         )
@@ -279,7 +286,7 @@ def get_group_members(group_name):
         for dn in members_dns:
             conn.search(
                 search_base=settings.AD_BASE_DN,
-                search_filter=f"(distinguishedName={dn})",
+                search_filter=f"(distinguishedName={escape_filter_chars(dn)})",
                 search_scope=SUBTREE,
                 attributes=['sAMAccountName']
             )

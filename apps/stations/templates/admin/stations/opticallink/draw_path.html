@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load static %}
+{% load static cerber_json %}
 
 {% block content %}
 <div style="max-width: 1200px; margin: 0 auto;">
@@ -64,7 +64,7 @@
     const START_LON = 74.5519;
     
     // Существующий path_geojson (если есть)
-    const existingPath = {{ link.path_geojson|default:"[]"|safe }};
+    const existingPath = {{ link.path_geojson|js_json:"[]" }};
 
     // Инициализация карты
     const map = L.map('map').setView([START_LAT, START_LON], 13);

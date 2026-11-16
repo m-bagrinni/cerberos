@@ -2,7 +2,7 @@
 
 {% block edocs_content %}
 <div class="edocs-card">
-  <div class="edocs-card__head"><i class="bi bi-inbox"></i> Входящие ({{ documents|length }})</div>
+  <div class="edocs-card__head"><i class="bi bi-inbox"></i> Входящие{% if filter_label %} · {{ filter_label }}{% endif %} ({{ documents|length }}){% if filter_label %} <a href="{% url 'edocs:index' %}" style="margin-left:auto;font-size:12px;font-weight:500;color:var(--primary);text-decoration:none;">Показать все ×</a>{% endif %}</div>
   <div style="overflow-x:auto;">
     <table class="edocs-table">
       <thead>
@@ -30,7 +30,7 @@
                 <a href="{% url 'edocs:document_detail' doc.pk %}" class="edocs-action-btn" title="Открыть">
                   <i class="bi bi-eye"></i>
                 </a>
-                <a href="{{ doc.file.url }}" class="edocs-action-btn" target="_blank" title="Скачать">
+                <a href="{% url 'edocs:download_file' doc.pk 'file' %}" class="edocs-action-btn" target="_blank" title="Скачать">
                   <i class="bi bi-download"></i>
                 </a>
               {% endif %}

@@ -77,10 +77,8 @@ def _validate_bpf(bpf: str) -> str:
 def _get_ifaces() -> list[str]:
     """Возвращает интерфейсы хоста (через sniffer-контейнер)."""
     try:
-        out = subprocess.run(
-            ["docker", "exec", "cerber-sniffer", "ip", "-o", "link"],
-            capture_output=True, text=True, timeout=5, check=False,
-        )
+        from apps.core import ops_client
+        out = ops_client.sniffer_run(["ip", "-o", "link"], timeout=5)
     except Exception:
         return []
     names = re.findall(r"^\d+:\s+([^:@]+)", out.stdout, flags=re.M)
@@ -118,9 +116,6 @@ def run_tcpdump(
     - ok=True, если tcpdump стартовал (даже при 0 пакетов).
     - Убраны `-c N` и `--immediate-mode` (лимит по времени строже, а -c мешает реагировать на сигнал).
     """
-    if not shutil.which("tcpdump"):
-        raise TcpdumpError("tcpdump не установлен в контейнере")
-
     bpf = _validate_bpf(bpf)
     iface = _validate_iface(iface)
 
@@ -128,25 +123,20 @@ def run_tcpdump(
     packets = max(1, min(int(packets), MAX_PACKETS))
 
     cmd = [
-        "docker", "exec", "cerber-sniffer",
         "tcpdump",
         "-nn", "-tttt", "-U", "-l",  "-A", "-e",
         "-i", iface,
         bpf,
     ]
 
-    # Гарантированное завершение через `duration` секунд (SIGTERM от timeout(1)).
+    # Гарантированное завершение через `duration` секунд (SIGTERM от timeout(1)
+    # внутри sniffer). Выполняет cerber-ops — у web нет docker.sock.
     wrapped = ["timeout", f"{duration}s"] + cmd
 
+    from apps.core import ops_client
     started = time.monotonic()
     try:
-        proc = subprocess.run(
-            wrapped,
-            capture_output=True,
-            text=True,
-            timeout=duration + 3,  # аварийный запас
-            check=False,
-        )
+        proc = ops_client.sniffer_run(wrapped, timeout=duration + 3)
         stdout = proc.stdout or ""
         stderr = proc.stderr or ""
         timed_out = (proc.returncode == 124)

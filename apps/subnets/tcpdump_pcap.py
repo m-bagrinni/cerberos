@@ -35,14 +35,18 @@ SNIFFER_CONTAINER = "cerber-sniffer"
 
 
 def _cleanup_old_files() -> None:
-    """Удаляет pcap-файлы старше TTL_SECONDS."""
-    now = time.time()
-    for f in PCAP_DIR.glob("*.pcap"):
-        try:
-            if now - f.stat().st_mtime > TTL_SECONDS:
-                f.unlink()
-        except OSError:
-            pass
+    """
+    Удаляет pcap-файлы старше часа. Файлы создаёт root внутри sniffer —
+    web (uid 1000) удалить их не может, поэтому удаление тоже через cerber-ops.
+    Команда фиксированная (TTL = 60 мин) — так её пропускает белый список ops.
+    """
+    from apps.core import ops_client
+    try:
+        ops_client.sniffer_run(
+            ["find", "/tmp/cerber_pcap", "-name", "*.pcap", "-mmin", "+60", "-delete"], timeout=15,
+        )
+    except Exception as e:  # очистка не должна ломать захват
+        logger.warning("pcap cleanup failed: %s", e)
 
 
 def run_tcpdump_pcap(
@@ -55,8 +59,6 @@ def run_tcpdump_pcap(
     Захватывает трафик в .pcap через sniffer-контейнер.
     Возвращает dict с file_id, file_size, packets_captured, download_url.
     """
-    if not shutil.which("docker"):
-        raise TcpdumpError("docker CLI не установлен в web-контейнере")
 
     _cleanup_old_files()
 
@@ -72,7 +74,6 @@ def run_tcpdump_pcap(
     remote_path = f"/tmp/cerber_pcap/{file_id}.pcap"
 
     cmd = [
-        "docker", "exec", SNIFFER_CONTAINER,
         "tcpdump",
         "-nn", "-U",
         "-i", iface,
@@ -87,13 +88,8 @@ def run_tcpdump_pcap(
 
     started = time.monotonic()
     try:
-        proc = subprocess.run(
-            wrapped,
-            capture_output=True,
-            text=True,
-            timeout=duration + 3,
-            check=False,
-        )
+        from apps.core import ops_client
+        proc = ops_client.sniffer_run(wrapped, timeout=duration + 3)
         stdout = proc.stdout or ""
         stderr = proc.stderr or ""
         timed_out = (proc.returncode == 124)

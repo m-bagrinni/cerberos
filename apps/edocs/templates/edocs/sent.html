@@ -33,7 +33,7 @@
                 <a href="{% url 'edocs:document_detail' doc.pk %}" class="edocs-action-btn" title="Открыть">
                   <i class="bi bi-eye"></i>
                 </a>
-                <a href="{{ doc.file.url }}" class="edocs-action-btn" target="_blank" title="Скачать">
+                <a href="{% url 'edocs:download_file' doc.pk 'file' %}" class="edocs-action-btn" target="_blank" title="Скачать">
                   <i class="bi bi-download"></i>
                 </a>
               {% endif %}

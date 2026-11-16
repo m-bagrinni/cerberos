@@ -28,6 +28,9 @@ class MetricValue(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["device", "metric", "-ts"]),
+            # «последнее значение метрики NE по порту» — DDM линков, мультиплексоры
+            models.Index(fields=["ne_device", "metric", "instance", "-ts"],
+                         name="mv_ne_metric_inst_ts"),
             models.Index(fields=["-ts"]),
         ]
         verbose_name = "Значение метрики"

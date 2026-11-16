@@ -3,7 +3,6 @@ import asyncio
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from apps.devices.models import ActionLog
@@ -37,7 +36,6 @@ class InterfaceViewSet(viewsets.ReadOnlyModelViewSet):
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[IsAdminUser],
         url_path="set-admin-status",
     )
     def set_admin_status(self, request, pk=None):
@@ -46,6 +44,9 @@ class InterfaceViewSet(viewsets.ReadOnlyModelViewSet):
         POST /api/v1/interfaces/<id>/set-admin-status/
         Body: {"state": "up" | "down"}
         """
+        # Право проверяет AccessMiddleware (CAP_PATHS: port_control) — дублируем явно
+        if not request.user.access.has_cap("port_control"):
+            return Response({"error": "Нет права «Управление портами»"}, status=status.HTTP_403_FORBIDDEN)
         iface = self.get_object()
         device = iface.device
 
@@ -697,6 +698,8 @@ def set_interface_alias(request, pk):
     from django.shortcuts import get_object_or_404
     from apps.monitoring.models import Interface
 
+    if not request.user.access.has_cap("port_control"):
+        return Response({"error": "Нет права «Управление портами»"}, status=403)
     iface = get_object_or_404(
         Interface.objects.select_related("device"), pk=pk,
     )

@@ -36,10 +36,30 @@ UI_THEME_COOKIE = "ui_theme"
 
 
 def get_ui_theme(request):
-    value = request.COOKIES.get(UI_THEME_COOKIE, UI_THEME_DEFAULT)
+    value = request.COOKIES.get(UI_THEME_COOKIE)
+    if value is None:
+        # Нет cookie (новый браузер/компьютер) — берём тему из профиля
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated:
+            prefs = getattr(user, "_cached_prefs_theme", None)
+            if prefs is None:
+                from apps.accounts.models import UserPreferences
+                prefs = (UserPreferences.objects.filter(user=user)
+                         .values_list("ui_theme", flat=True).first() or "")
+                user._cached_prefs_theme = prefs
+            value = prefs
     return value if value in UI_THEMES else UI_THEME_DEFAULT
 
 
 def ui_theme(request):
     theme = get_ui_theme(request)
     return {"ui_theme": theme, "ui_theme_glass": theme == "glass"}
+
+
+def access(request):
+    """{{ acc }} — права текущего пользователя (apps/accounts/access.py)."""
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return {}
+    from apps.accounts.access import Access
+    return {"acc": Access.for_user(user)}

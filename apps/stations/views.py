@@ -31,6 +31,63 @@ class StationViewSet(viewsets.ModelViewSet):
         context["reachable"] = compute_reachable()
         return context
 
+    @action(detail=False, methods=["get"], url_path="traffic-summary")
+    def traffic_summary(self, request):
+        """
+        Суммарный трафик сети по минутам — для графика на /local/stations/.
+
+        Раньше браузер собирал его сам: interfaces/ на каждое устройство
+        станций + traffic-history/ на каждый поднятый физический порт
+        (~130 запросов, ~20 с работы web на каждое открытие страницы).
+        Здесь — один SQL с тем же фильтром выбросов (> 100 Мбит/с → 0).
+        ?hours=1..168 (по умолчанию 24)
+        """
+        from datetime import timedelta
+
+        from django.db.models import Case, IntegerField, Sum, Value, When
+        from django.db.models.functions import Coalesce, TruncMinute
+        from django.utils import timezone
+
+        from apps.monitoring.models import Interface, InterfaceSample
+
+        try:
+            hours = max(1, min(int(request.query_params.get("hours", 24)), 168))
+        except (TypeError, ValueError):
+            hours = 24
+
+        cap = 100_000_000
+        iface_ids = (
+            Interface.objects
+            .filter(
+                device__station_links__isnull=False,
+                oper_status=1,
+                if_type__in=Interface.PHYSICAL_IF_TYPES,
+                if_index__lt=150,
+            )
+            .values("id")
+        )
+
+        def capped(field):
+            return Sum(Case(
+                When(**{f"{field}__gt": cap}, then=Value(0)),
+                default=Coalesce(field, Value(0)),
+                output_field=IntegerField(),
+            ))
+
+        rows = (
+            InterfaceSample.objects
+            .filter(interface_id__in=iface_ids,
+                    ts__gte=timezone.now() - timedelta(hours=hours))
+            .annotate(minute=TruncMinute("ts"))
+            .values("minute")
+            .annotate(in_bps=capped("in_bps"), out_bps=capped("out_bps"))
+            .order_by("minute")
+        )
+        return Response([
+            {"ts": r["minute"].isoformat(), "in_bps": r["in_bps"], "out_bps": r["out_bps"]}
+            for r in rows
+        ])
+
     @action(detail=True, methods=["get"], url_path="ports")
     def ports(self, request, slug=None):
         """

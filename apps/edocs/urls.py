@@ -14,4 +14,5 @@ urlpatterns = [
     path('document/<int:pk>/reply/', views.view_reply, name='view_reply'),
     path('document/<int:pk>/status/', views.update_status, name='update_status'),
     path('document/<int:pk>/send-to-tg/', views.send_document_to_tg, name='send_document_to_tg'),
+    path('document/<int:pk>/download/<str:kind>/', views.download_file, name='download_file'),
 ]

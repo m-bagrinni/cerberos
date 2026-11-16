@@ -1,5 +1,7 @@
 """Модели платформы Cerberus (модули)."""
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Module(models.Model):
@@ -30,3 +32,43 @@ class Module(models.Model):
 
     def url(self):
         return self.url_prefix
+
+
+class Announcement(models.Model):
+    """Объявление на главной: плановые работы, изменения регламента и т.п."""
+
+    LEVEL_CHOICES = [
+        ("info", "Информация"),
+        ("warn", "Важно"),
+        ("crit", "Срочно"),
+    ]
+
+    title = models.CharField("Заголовок", max_length=200)
+    text = models.TextField("Текст", blank=True)
+    level = models.CharField("Уровень", max_length=10, choices=LEVEL_CHOICES, default="info")
+    is_pinned = models.BooleanField("Закрепить", default=False,
+                                    help_text="Закреплённое нельзя скрыть, оно всегда сверху")
+    is_active = models.BooleanField("Активно", default=True)
+    starts_at = models.DateTimeField("Показывать с", default=timezone.now)
+    ends_at = models.DateTimeField("Показывать до", null=True, blank=True,
+                                   help_text="Пусто — бессрочно")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name="announcements",
+                                   verbose_name="Автор")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-is_pinned", "-starts_at"]
+        verbose_name = "Объявление"
+        verbose_name_plural = "Объявления"
+
+    def __str__(self):
+        return self.title
+
+    @classmethod
+    def visible(cls):
+        now = timezone.now()
+        return (cls.objects.filter(is_active=True, starts_at__lte=now)
+                .filter(models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=now))
+                .select_related("created_by"))

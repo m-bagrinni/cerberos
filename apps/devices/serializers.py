@@ -68,10 +68,10 @@ class DeviceDetailSerializer(DeviceListSerializer):
         )
 
     def to_representation(self, instance):
-        # SNMP community — фактически пароль к устройству: отдаём только администраторам.
+        # SNMP community — фактически пароль к устройству: только с возможностью «SNMP community».
         data = super().to_representation(instance)
         request = self.context.get("request")
         user = getattr(request, "user", None)
-        if not (user and getattr(user, "is_admin_access", False)):
+        if not (user and user.is_authenticated and user.access.has_cap("snmp_secrets")):
             data.pop("snmp_community", None)
         return data

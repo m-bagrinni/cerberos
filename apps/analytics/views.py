@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.contrib.admin.views.decorators import staff_member_required
+from apps.accounts.access import EDIT, section_required
 from django.utils import timezone
 from datetime import timedelta
 from .models import NetworkReport
@@ -7,13 +7,13 @@ from apps.alerts.models import Alert
 from apps.devices.models import Device
 from apps.stations.models import OpticalLink
 
-@staff_member_required
+@section_required("analytics")
 def analytics_dashboard(request):
     reports = NetworkReport.objects.all()[:20]
     latest = reports[0] if reports else None
     return render(request, "analytics/dashboard.html", {"reports": reports, "latest": latest})
 
-@staff_member_required
+@section_required("analytics", EDIT)
 def generate_report(request):
     """Создает новый отчет и переадресует на его просмотр."""
     period_end = timezone.now()

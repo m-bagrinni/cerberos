@@ -42,10 +42,10 @@ def alerts_list(request):
 
 @require_POST
 def clear_alerts(request):
-    """Закрывает все активные алерты (только для админов)."""
+    """Закрывает все активные алерты (раздел «Алерты» на изменение)."""
     from apps.alerts.models import Alert
     
-    if not has_perm(request.user, 'admin.access') and not request.user.is_superuser:
+    if not request.user.access.can_edit('alerts'):
         return JsonResponse({'ok': False, 'error': 'Нет прав'}, status=403)
     
     active_alerts = Alert.objects.filter(state=Alert.STATE_FIRING)
