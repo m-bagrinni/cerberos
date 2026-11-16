@@ -441,3 +441,9 @@
     font-size: 12px;
     color: var(--text-muted, #8a94a6);
 }
+
+/* Кнопки шапки карточки подсети в «Старом виде» (раньше были инлайн-стилями в шаблоне).
+   В теме «Стекло» их перекрывает theme.css (раздел «Подсети»). */
+.subnet-btn-legacy { color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.subnet-btn-legacy--orange { background: #ff780a; }
+.subnet-btn-legacy--blue { background: #3b82f6; }

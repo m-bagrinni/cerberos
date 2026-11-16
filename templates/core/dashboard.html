@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="{% static 'css/cerber.css' %}">
     <link rel="stylesheet" href="{% static 'css/mobile.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2">{# раскладка /local/ — для обеих тем #}
-    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/stations.css' %}"><link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/stations.css' %}"><link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
     <script src="{% static 'js/core.js' %}?v=1"></script>
 </head>
 <body{% if ui_theme_glass %} class="theme-glass"{% endif %}>
@@ -37,31 +37,21 @@
         </a>
         <nav class="app-sidebar__nav">
     {# Этот шаблон используется ТОЛЬКО для /local/ — показываем только разделы ЛВС #}
-    {% if user.can_local or user.is_superuser %}
-        
-        {# --- Базовые разделы (видят все, у кого есть local) --- #}
-        <a href="/local/" class="app-sidebar__link {% if request.path == '/local/' %}is-active{% endif %}"><i class="bi bi-speedometer2"></i><span>Обзор</span></a>
-        <a href="/local/stations/" class="app-sidebar__link {% if '/local/stations/' in request.path %}is-active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i><span>Диспетчерская</span></a>
-        <a href="/alerts/" class="app-sidebar__link {% if '/alerts/' in request.path %}is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span></a>
-
-        {# --- Полный доступ (только для is_readonly=False) --- #}
-        {% if not user.position_ref.is_readonly or user.is_superuser %}
-            <a href="/local/metrics/" class="app-sidebar__link {% if '/local/metrics/' in request.path %}is-active{% endif %}"><i class="bi bi-graph-up"></i><span>Метрики</span></a>
-            <a href="/local/sfp/" class="app-sidebar__link {% if '/local/sfp/' in request.path %}is-active{% endif %}"><i class="bi bi-usb-plug"></i><span>SFP/DDM</span></a>
-            <a href="/local/multiplexers/" class="app-sidebar__link {% if '/local/multiplexers/' in request.path %}is-active{% endif %}"><i class="bi bi-hdd-network"></i><span>Мультиплексоры</span></a>
-            <a href="/analytics/" class="app-sidebar__link {% if '/analytics/' in request.path %}is-active{% endif %}"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></a>
-            <a href="/local/subnets/" class="app-sidebar__link {% if '/local/subnets/' in request.path %}is-active{% endif %}"><i class="bi bi-diagram-3"></i><span>Подсети</span></a>
-        {% endif %}
+    {# Пункты меню — по правам (acc, apps/accounts/access.py) #}
+    {% if acc.v.devices %}<a href="/local/" class="app-sidebar__link {% if request.path == '/local/' %}is-active{% endif %}"><i class="bi bi-speedometer2"></i><span>Обзор</span></a>{% endif %}
+    {% if acc.v.stations %}<a href="/local/stations/" class="app-sidebar__link {% if '/local/stations/' in request.path %}is-active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i><span>Диспетчерская</span></a>{% endif %}
+    {% if acc.v.alerts %}<a href="/alerts/" class="app-sidebar__link {% if '/alerts/' in request.path %}is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span></a>{% endif %}
+    {% if acc.v.metrics %}
+        <a href="/local/metrics/" class="app-sidebar__link {% if '/local/metrics/' in request.path %}is-active{% endif %}"><i class="bi bi-graph-up"></i><span>Метрики</span></a>
+        <a href="/local/sfp/" class="app-sidebar__link {% if '/local/sfp/' in request.path %}is-active{% endif %}"><i class="bi bi-usb-plug"></i><span>SFP/DDM</span></a>
     {% endif %}
+    {% if acc.v.mux %}<a href="/local/multiplexers/" class="app-sidebar__link {% if '/local/multiplexers/' in request.path %}is-active{% endif %}"><i class="bi bi-hdd-network"></i><span>Мультиплексоры</span></a>{% endif %}
+    {% if acc.v.analytics %}<a href="/analytics/" class="app-sidebar__link {% if '/analytics/' in request.path %}is-active{% endif %}"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></a>{% endif %}
+    {% if acc.v.subnets %}<a href="/local/subnets/" class="app-sidebar__link {% if '/local/subnets/' in request.path %}is-active{% endif %}"><i class="bi bi-diagram-3"></i><span>Подсети</span></a>{% endif %}
 
-    {# --- Службы (доступны всем) --- #}
-    <hr style="margin: 12px 8px;">
-    <a href="/services/" class="app-sidebar__link {% if '/services/' in request.path %}is-active{% endif %}"><i class="bi bi-gear-wide-connected"></i><span>Службы</span></a>
-    
-    {# --- Админ-панель (только для is_admin_access и не readonly) --- #}
-    {% if user.is_admin_access and not user.position_ref.is_readonly %}
-        <a href="/admin-ui/" class="app-sidebar__link {% if '/admin-ui/' in request.path %}is-active{% endif %}"><i class="bi bi-shield-lock"></i><span>Админ-панель</span></a>
-    {% endif %}
+    {% if acc.v.services or acc.admin_entry %}<hr style="margin: 12px 8px;">{% endif %}
+    {% if acc.v.services %}<a href="/services/" class="app-sidebar__link {% if '/services/' in request.path %}is-active{% endif %}"><i class="bi bi-gear-wide-connected"></i><span>Службы</span></a>{% endif %}
+    {% if acc.admin_entry %}<a href="/admin-ui/" class="app-sidebar__link {% if '/admin-ui/' in request.path %}is-active{% endif %}"><i class="bi bi-shield-lock"></i><span>Админ-панель</span></a>{% endif %}
 </nav>
         <div class="app-sidebar__bottom">
             <a href="/" class="app-sidebar__link app-sidebar__link--muted"><i class="bi bi-grid"></i><span>Модули</span></a>
@@ -82,7 +72,7 @@
     <main class="app-main">
         <div id="device-detail-content"
              data-status-url="{% url 'dashboard_status' %}"
-             data-show-secrets="{% if user.is_superuser %}1{% else %}0{% endif %}">
+             data-show-secrets="{% if acc.c.snmp_secrets %}1{% else %}0{% endif %}">
             <header class="page-head">
                 <div>
                     <h1>Устройства</h1>

@@ -1,5 +1,5 @@
 /* ============================================================================
-   Cerberus — тема «Тёмное стекло» (v1, пилот на /local/)
+   Cerberus — тема «Тёмное стекло», палитра «Графит» (строгая: сталь, сетка, без дрейфа)
 
    Подключение: <body class="theme-glass"> + этот файл ПОСЛЕ cerber.css, БЕЗ glass.css.
    Все правила под .theme-glass: тема не задевает страницы, которые её не подключили,
@@ -11,28 +11,30 @@
 
 /* ── 1. Токены ─────────────────────────────────────────────────────────────── */
 .theme-glass {
-    /* Фон: почти чёрный + яркие цветные пятна (слой body::before). Стекло видно только тогда,
-       когда под ним есть цвет — поэтому пятна насыщенные и стоят под панелями. */
-    --bg: #06070c;
-    --bg-glow-1: rgba(255, 112, 20, 0.55);   /* оранжевый — под сайдбаром и деревом */
-    --bg-glow-2: rgba(16, 200, 190, 0.42);   /* бирюзовый — справа снизу */
-    --bg-glow-3: rgba(124, 92, 255, 0.45);   /* фиолетовый — под панелью деталей */
-    --bg-glow-4: rgba(40, 120, 255, 0.35);   /* синий — справа сверху */
+    /* Фон «Графит»: строгий холодный тёмно-серый, приглушённые стальные пятна и тонкая
+       техническая сетка (слой body::before). Пятна неяркие — стекло читается по
+       блику и кромке, а не по цветному фону. */
+    --bg: #0b0d11;
+    --bg-glow-1: rgba(84, 104, 136, 0.30);   /* сталь — под сайдбаром и деревом */
+    --bg-glow-2: rgba(60, 78, 100, 0.26);    /* тёмная сталь — справа снизу */
+    --bg-glow-3: rgba(96, 108, 128, 0.22);   /* серый графит — под панелью деталей */
+    --bg-glow-4: rgba(70, 96, 130, 0.24);    /* холодный синий-серый — справа сверху */
+    --bg-grid: rgba(255, 255, 255, 0.025);   /* линии сетки 48px */
 
     /* Стекло: 1 — панели, 2 — вложенные карточки/строки, 3 — наведение */
-    --glass-tint: rgba(12, 14, 22, 0.38);                 /* тёмная подложка панели — держит контраст текста */
-    --glass-sheen: linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0.015) 100%);
-    --glass-spot: radial-gradient(420px 160px at 0% 0%, rgba(255,255,255,0.10), transparent 70%);
+    --glass-tint: rgba(16, 19, 25, 0.55);                 /* тёмная подложка панели — держит контраст текста */
+    --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.01) 100%);
+    --glass-spot: radial-gradient(420px 140px at 0% 0%, rgba(255,255,255,0.04), transparent 70%);
     --glass-1: var(--glass-tint);
     --glass-2: rgba(255, 255, 255, 0.05);
-    --glass-2-sheen: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+    --glass-2-sheen: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
     --glass-3: rgba(255, 255, 255, 0.09);
-    --glass-blur: blur(28px) saturate(185%);
-    --glass-border: rgba(255, 255, 255, 0.10);
-    --glass-border-strong: rgba(255, 255, 255, 0.18);
-    --glass-edge: linear-gradient(140deg, rgba(255,255,255,0.45), rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.03) 60%, rgba(255,255,255,0.18));
-    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
-    --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+    --glass-blur: blur(22px) saturate(120%);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-strong: rgba(255, 255, 255, 0.16);
+    --glass-edge: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07) 35%, rgba(255,255,255,0.05) 100%);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    --shadow-panel: 0 10px 30px rgba(0, 0, 0, 0.40), 0 1px 3px rgba(0, 0, 0, 0.30);
 
     /* Текст: 1 — основной, 2 — вторичный, 3 — подписи. Все ≥ 4.5:1 на --glass-1 */
     --text-1: #e9edf4;
@@ -51,9 +53,9 @@
     --info: #5ab8f5;   --info-soft: rgba(90, 184, 245, 0.14);
 
     /* Геометрия */
-    --r-panel: 14px;
-    --r-card: 10px;
-    --r-ctrl: 8px;
+    --r-panel: 10px;
+    --r-card: 8px;
+    --r-ctrl: 6px;
     --r-pill: 999px;
     --gap: 16px;
 
@@ -65,10 +67,10 @@
        стекло задаётся явно в разделе «Базовые примитивы», а не через эти переменные.
        (Было: --bg-elevated = 5% белого → маркеры станций на карте стали прозрачными.) */
     --bg-base: var(--bg);
-    --bg-panel: rgba(17, 19, 28, 0.94);
-    --bg-elevated: rgba(28, 31, 43, 0.96);
-    --bg-hover: rgba(40, 44, 58, 0.96);
-    --bg-input: rgba(8, 10, 16, 0.85);
+    --bg-panel: rgba(18, 21, 27, 0.95);
+    --bg-elevated: rgba(27, 31, 38, 0.97);
+    --bg-hover: rgba(38, 43, 52, 0.97);
+    --bg-input: rgba(9, 11, 15, 0.85);
     --border: var(--glass-border);
     --border-strong: var(--glass-border-strong);
     --text: var(--text-1);
@@ -92,30 +94,27 @@
 }
 /* Фон — на html, body прозрачный: иначе собственный фон body (cerber.css красит оба)
    рисуется ПОВЕРХ слоя пятен body::before с отрицательным z-index, и стекло нечему просвечивать. */
-html:has(> body.theme-glass) { background: #06070c; }
+html:has(> body.theme-glass) { background: #0b0d11; }
 body.theme-glass { background: transparent; }
 
-/* Слой цветных пятен: фиксирован, медленно дрейфует — стекло «живёт» при прокрутке и движении */
+/* Слой фона: приглушённые стальные пятна + сетка 48px с затуханием к краям.
+   Неподвижный — строгий вид, без «дрейфа». */
 body.theme-glass::before {
-    content: ""; position: fixed; inset: -15%; z-index: -2; pointer-events: none;
+    content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
     background:
-        radial-gradient(38% 42% at 18% 22%, var(--bg-glow-1), transparent 70%),
-        radial-gradient(34% 40% at 62% 58%, var(--bg-glow-3), transparent 70%),
-        radial-gradient(30% 36% at 88% 88%, var(--bg-glow-2), transparent 70%),
-        radial-gradient(28% 30% at 85% 12%, var(--bg-glow-4), transparent 70%),
-        radial-gradient(22% 26% at 35% 85%, rgba(255, 60, 120, 0.22), transparent 70%);
-    filter: blur(30px);
-    animation: tg-drift 38s ease-in-out infinite alternate;
+        linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0 / 48px 48px,
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px) 0 0 / 48px 48px,
+        radial-gradient(45% 50% at 15% 20%, var(--bg-glow-1), transparent 70%),
+        radial-gradient(40% 45% at 60% 60%, var(--bg-glow-3), transparent 70%),
+        radial-gradient(35% 40% at 90% 90%, var(--bg-glow-2), transparent 70%),
+        radial-gradient(30% 35% at 85% 10%, var(--bg-glow-4), transparent 70%);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 55%, rgba(0,0,0,.55) 100%);
+    mask-image: radial-gradient(120% 100% at 50% 40%, #000 55%, rgba(0,0,0,.55) 100%);
 }
 /* Матовое зерно поверх фона — без него стекло выглядит как пластик */
 body.theme-glass::after {
-    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .06;
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .04;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-}
-@keyframes tg-drift {
-    0%   { transform: translate3d(0, 0, 0) scale(1); }
-    50%  { transform: translate3d(-3%, 2%, 0) scale(1.05); }
-    100% { transform: translate3d(2%, -2%, 0) scale(1.02); }
 }
 
 /* ── 2. Базовые примитивы ──────────────────────────────────────────────────── */
@@ -181,10 +180,12 @@ body.theme-glass::after {
 .theme-glass .data-table thead th, .theme-glass .c-table thead th, .theme-glass table thead {
     background: rgba(14, 16, 24, 0.6);
 }
-@media (prefers-reduced-motion: reduce) { body.theme-glass::before { animation: none; } }
 
 .theme-glass ::selection { background: var(--accent-soft); color: var(--text-1); }
 .theme-glass a { color: var(--accent); }
+/* Ссылки-кнопки: цвет текста как у кнопок, а не у ссылок */
+.theme-glass a.btn--primary, .theme-glass a.btn--primary:hover { color: #1a0f05; text-decoration: none; }
+.theme-glass a.btn--secondary, .theme-glass a.btn--danger { text-decoration: none; }
 .theme-glass :focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
 .theme-glass [hidden] { display: none !important; }
 
@@ -574,8 +575,7 @@ body.theme-glass::after {
 }
 
 /* ── 6b. Главная (templates/core/home.html) ────────────────────────────────────
-   Разметка главной сверстана на inline-стилях под светлую тему, поэтому здесь —
-   единственное место темы с !important, и оно ограничено body.home-page.            */
+   Шапка и карточки модулей; остальное — в home.css.            */
 .theme-glass.home-page { min-height: 100vh; }
 .theme-glass.home-page .home-container { padding: 16px 24px 40px; }
 .theme-glass.home-page .home-header {
@@ -587,23 +587,6 @@ body.theme-glass::after {
 }
 .theme-glass.home-page .home-header__logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; color: var(--text-1); }
 .theme-glass.home-page .home-header__logo i { color: var(--accent) !important; font-size: 22px; }
-.theme-glass.home-page #notif-bell-btn {
-    background: var(--glass-3) !important; color: var(--text-1) !important;
-    border: 1px solid var(--glass-border) !important; box-shadow: none !important;
-}
-.theme-glass.home-page #notif-bell-btn:hover { border-color: var(--accent-line) !important; color: var(--accent) !important; }
-.theme-glass.home-page .notif-badge { background: var(--accent) !important; color: #1a0f05 !important; border: 0 !important; }
-.theme-glass.home-page #notif-popover {
-    background: rgba(16, 18, 27, 0.92) !important; border: 1px solid var(--glass-border-strong) !important;
-    box-shadow: var(--shadow-panel) !important; color: var(--text-1);
-}
-.theme-glass.home-page #notif-popover h4,
-.theme-glass.home-page #notif-popover a div:first-child { color: var(--text-1) !important; }
-.theme-glass.home-page #notif-popover a { background: var(--glass-2) !important; }
-.theme-glass.home-page #notif-popover a div + div,
-.theme-glass.home-page #notif-popover p { color: var(--text-3) !important; }
-.theme-glass.home-page #notif-popover > div > a { color: var(--accent) !important; background: none !important; }
-
 .theme-glass.home-page .profile-card {
     display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 6px; border-radius: var(--r-pill);
     background: var(--glass-2); border: 1px solid var(--glass-border);
@@ -618,7 +601,6 @@ body.theme-glass::after {
 .theme-glass.home-page .home-title {
     margin: 24px 0 0; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
 }
-.theme-glass.home-page .modules-grid { margin-top: 16px !important; }
 .theme-glass.home-page .module-card {
     position: relative; display: flex; flex-direction: column; gap: 16px; min-height: 200px;
     padding: 22px 24px; border-radius: var(--r-panel); text-decoration: none; color: var(--text-1);
@@ -659,19 +641,7 @@ body.theme-glass::after {
 .theme-glass.home-page .module-card:hover .module-card__action i { transform: translateX(4px); }
 .theme-glass.home-page .module-card__action i { transition: transform .2s; }
 
-.theme-glass.home-page .users-sidebar {
-    background: var(--glass-spot), var(--glass-sheen), var(--glass-tint) !important;
-    border: 1px solid var(--glass-border) !important; border-radius: var(--r-panel) !important;
-    box-shadow: var(--shadow-panel), var(--glass-highlight) !important;
-    backdrop-filter: var(--glass-blur) !important; -webkit-backdrop-filter: var(--glass-blur) !important;
-}
-.theme-glass.home-page .users-sidebar h3 { color: var(--text-1) !important; }
-.theme-glass.home-page .users-sidebar .user-info span:first-child { color: var(--text-1) !important; }
-.theme-glass.home-page .users-sidebar .user-info span + span,
-.theme-glass.home-page .users-sidebar p { color: var(--text-3) !important; }
-.theme-glass.home-page .user-item:hover { background: var(--glass-3) !important; }
-.theme-glass.home-page .user-avatar { border-color: var(--glass-border-strong) !important; }
-.theme-glass.home-page .user-avatar > div { background: var(--glass-3) !important; color: var(--text-2) !important; }
+/* Колокольчик, панели и список сотрудников главной — в static/css/home.css (токены --hp-*). */
 
 /* ── 6c. Вход / регистрация (accounts/base_auth.html) ───────────────────────────
    Inline-стиль страницы задан со !important под светлую тему — перекрываем адресно. */
@@ -693,6 +663,186 @@ body.auth-page.theme-glass { background: transparent !important; color: var(--te
 .theme-glass.auth-page .auth-card .aui-input:focus { border-color: var(--accent-line) !important; box-shadow: 0 0 0 3px var(--accent-soft); }
 .theme-glass.auth-page .auth-footer { color: var(--text-3); }
 .theme-glass.auth-page .auth-card .btn--primary { border-radius: var(--r-ctrl); }
+
+/* Флеш-сообщения Django (base.html) */
+.theme-glass .flash { padding: 10px 14px; margin-bottom: 8px; font-size: 13px; border-radius: var(--r-card); border: 1px solid transparent; border-left-width: 3px; }
+.theme-glass .flash--ok   { color: var(--ok);   background: var(--ok-soft);   border-color: rgba(111, 208, 140, .3) rgba(111, 208, 140, .3) rgba(111, 208, 140, .3) var(--ok); }
+.theme-glass .flash--crit { color: var(--crit); background: var(--crit-soft); border-color: rgba(255, 93, 108, .3) rgba(255, 93, 108, .3) rgba(255, 93, 108, .3) var(--crit); }
+.theme-glass .flash--warn { color: var(--warn); background: var(--warn-soft); border-color: rgba(245, 197, 66, .3) rgba(245, 197, 66, .3) rgba(245, 197, 66, .3) var(--warn); }
+.theme-glass .flash--info { color: var(--info); background: var(--info-soft); border-color: rgba(90, 184, 245, .3) rgba(90, 184, 245, .3) rgba(90, 184, 245, .3) var(--info); }
+
+/* ── 6b. Подсети (/local/subnets/ и карточка подсети, в т.ч. внутри панели списка) ──
+   Раньше вся раскладка карточки жила только в glass.css («Старый вид») — в этой теме
+   блоки оставались без стилей. Здесь — полная разметка на токенах. */
+.theme-glass .devices-layout { gap: var(--gap); height: calc(100vh - 48px); background: transparent; }
+.theme-glass .devices-sidebar { width: 320px; min-width: 320px; border-radius: var(--r-panel); overflow: hidden; }
+.theme-glass .devices-sidebar > div[style*="border-bottom"] { border-bottom-color: var(--glass-border) !important; }
+.theme-glass #subnets-scan-all { background: var(--glass-2) !important; border: 1px solid var(--glass-border) !important; color: var(--text-1) !important; border-radius: var(--r-ctrl); }
+.theme-glass #subnets-scan-all:hover { background: var(--glass-3) !important; }
+.theme-glass .devices-layout .device-detail-panel { padding: 0; border-radius: var(--r-panel); }
+.theme-glass .tree-subnet { border-radius: var(--r-ctrl); color: var(--text-1); }
+.theme-glass .tree-subnet:hover { background: var(--glass-2); }
+.theme-glass .tree-subnet.active { background: var(--glass-3); box-shadow: inset 2px 0 0 var(--accent); }
+.theme-glass .tree-subnet__title { color: var(--text-1); }
+.theme-glass .tree-subnet__icon, .theme-glass .tree-subnet__name { color: var(--text-3); }
+.theme-glass .tree-subnet__stats { background: var(--ok-soft); color: var(--ok); border-radius: var(--r-pill); }
+.theme-glass .detail-empty { color: var(--text-3); }
+
+.theme-glass .subnet-detail-page { display: flex; flex-direction: column; gap: 16px; padding: 24px; color: var(--text-1); }
+/* Внутри панели списка ссылка «К списку» не нужна */
+.theme-glass .devices-layout .subnet-detail-page .back-link { display: none; }
+.theme-glass .subnet-detail-page .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-3); text-decoration: none; margin-bottom: 8px; }
+.theme-glass .subnet-detail-page .back-link:hover { color: var(--text-1); }
+.theme-glass .subnet-detail__header {
+    display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--glass-border);
+}
+.theme-glass .subnet-detail__header h1 {
+    margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.3px; color: var(--text-1);
+    font-family: var(--font-mono); display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.theme-glass .subnet-detail__name { font-family: var(--font); font-size: 14px; font-weight: 500; color: var(--text-2); }
+.theme-glass .subnet-detail__descr { margin: 6px 0 0; font-size: 13px; color: var(--text-3); }
+.theme-glass .subnet-detail__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Кнопки карточки: одна система вместо инлайн-цветов */
+.theme-glass .subnet-detail-page .btn,
+.theme-glass .tcpdump-actions button,
+.theme-glass .grid-size-switch button,
+.theme-glass .ip-modal__actions .btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+    font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+    color: var(--text-1); background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
+    transition: background .15s, border-color .15s, color .15s;
+}
+.theme-glass .subnet-detail-page .btn:hover,
+.theme-glass .tcpdump-actions button:hover,
+.theme-glass .grid-size-switch button:hover,
+.theme-glass .ip-modal__actions .btn:hover { background: var(--glass-3); border-color: var(--glass-border-strong); }
+.theme-glass .subnet-detail-page .btn:disabled, .theme-glass .tcpdump-actions button:disabled { opacity: .55; cursor: default; }
+.theme-glass .subnet-detail-page .btn--primary,
+.theme-glass .tcpdump-actions .btn--primary { color: #1a0f05; background: var(--accent); border-color: transparent; font-weight: 600; }
+.theme-glass .subnet-detail-page .btn--primary:hover,
+.theme-glass .tcpdump-actions .btn--primary:hover { background: var(--accent-hover); }
+.theme-glass #subnet-toggle-auto.btn--primary { color: var(--ok); background: var(--ok-soft); border-color: transparent; font-weight: 500; }
+.theme-glass .ip-modal__actions .btn--ok { color: var(--ok); border-color: var(--ok-soft); }
+.theme-glass .ip-modal__actions .btn--crit { color: var(--crit); border-color: var(--crit-soft); }
+
+/* Сводка */
+.theme-glass .subnet-detail__summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.theme-glass .subnet-stat {
+    display: flex; flex-direction: column; gap: 6px; padding: 12px 14px;
+    background: var(--glass-2-sheen); border: 1px solid var(--glass-border); border-radius: var(--r-card);
+}
+.theme-glass .subnet-stat__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-3); }
+.theme-glass .subnet-stat__value { font-size: 24px; font-weight: 600; line-height: 1; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.theme-glass .subnet-stat--ok .subnet-stat__value { color: var(--ok); }
+
+/* Легенда и панель фильтров */
+.theme-glass .subnet-detail__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text-2); }
+.theme-glass .subnet-detail__legend .legend-item { display: inline-flex; align-items: center; gap: 6px; color: inherit; font-size: inherit; }
+.theme-glass .legend-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid transparent; box-sizing: border-box; }
+.theme-glass .legend-swatch--alive     { background: var(--ok-soft);   border-color: rgba(111, 208, 140, .45); }
+.theme-glass .legend-swatch--alive-mon { background: rgba(111, 208, 140, .30); border-color: var(--ok); }
+.theme-glass .legend-swatch--dead      { background: var(--crit-soft); border-color: rgba(255, 93, 108, .5); }
+.theme-glass .legend-swatch--reserved  { background: var(--warn-soft); border-color: rgba(245, 197, 66, .45); }
+.theme-glass .legend-swatch--free      { background: var(--glass-2);   border-color: var(--glass-border); }
+.theme-glass .legend-swatch--unknown   { background: transparent;      border-color: var(--glass-border); border-style: dashed; }
+
+.theme-glass .subnet-detail__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+.theme-glass .subnet-detail__filter,
+.theme-glass .tcpdump-form input,
+.theme-glass .tcpdump-form select {
+    height: 32px; padding: 0 10px; box-sizing: border-box; font: inherit; font-size: 13px;
+    color: var(--text-1); background: var(--bg-input); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
+}
+.theme-glass .subnet-detail__filter { width: 260px; max-width: 100%; }
+.theme-glass .subnet-detail__filter::placeholder { color: var(--text-3); }
+.theme-glass .subnet-detail__filter:focus,
+.theme-glass .tcpdump-form input:focus,
+.theme-glass .tcpdump-form select:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.theme-glass .subnet-detail__check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.theme-glass .subnet-detail__check input { accent-color: var(--accent); margin: 0; }
+.theme-glass .grid-size-switch { display: inline-flex; margin-left: auto; }
+.theme-glass .grid-size-switch button { height: 28px; padding: 0 10px; font-size: 12px; color: var(--text-2); border-radius: 0; margin-left: -1px; }
+.theme-glass .grid-size-switch button:first-child { border-radius: var(--r-ctrl) 0 0 var(--r-ctrl); margin-left: 0; }
+.theme-glass .grid-size-switch button:last-child { border-radius: 0 var(--r-ctrl) var(--r-ctrl) 0; }
+.theme-glass .grid-size-switch button.is-active { color: var(--text-1); background: var(--glass-3); border-color: var(--glass-border-strong); position: relative; }
+
+/* tcpdump: скрыта, пока не нажата «Захват трафика» (класс .is-open ставит glass.js) */
+.theme-glass .tcpdump-panel { display: none; padding: 16px; background: var(--glass-2-sheen); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
+.theme-glass .tcpdump-panel.is-open { display: block; }
+.theme-glass .tcpdump-panel__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.theme-glass .tcpdump-panel__title { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-1); }
+.theme-glass .tcpdump-panel__close { background: none; border: 0; padding: 0 4px; font-size: 20px; line-height: 1; color: var(--text-3); cursor: pointer; }
+.theme-glass .tcpdump-panel__close:hover { color: var(--text-1); }
+.theme-glass .tcpdump-form { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(110px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.theme-glass .tcpdump-form > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.theme-glass .tcpdump-form label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); }
+.theme-glass .tcpdump-form input, .theme-glass .tcpdump-form select { width: 100%; }
+.theme-glass #tcpdump-bpf { font-family: var(--font-mono); }
+.theme-glass .tcpdump-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.theme-glass .tcpdump-log {
+    max-height: 320px; overflow: auto; padding: 10px 12px; white-space: pre-wrap; word-break: break-all;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--text-2);
+    background: var(--bg-input); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
+}
+.theme-glass .tcpdump-log:empty::before { content: "Лог пуст — запустите захват"; color: var(--text-3); }
+
+/* Сетка IP. Размер ячейки и колонки задаёт subnets.js (--cell-px, grid-template-columns) */
+.theme-glass .ip-grid-wrap { padding: 16px; overflow-x: auto; background: rgba(0, 0, 0, .18); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
+.theme-glass .ip-grid { display: grid; justify-content: start; gap: 4px; background: none; border: 0; padding: 0; }
+.theme-glass .ip-grid__loading { color: var(--text-3); font-size: 13px; }
+.theme-glass .ip-cell {
+    width: var(--cell-px, 38px); height: var(--cell-px, 38px); box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums;
+    color: var(--text-3); background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: 4px;
+    cursor: pointer; transition: border-color .1s, background .1s;
+}
+.theme-glass .ip-grid.is-large .ip-cell { font-size: 12px; }
+.theme-glass .ip-grid.is-mini .ip-cell { font-size: 0; border-radius: 2px; }
+.theme-glass .ip-cell:hover { border-color: var(--text-1); background: var(--glass-3); position: relative; z-index: 2; transform: none; box-shadow: none; }
+.theme-glass .ip-cell.is-hover-row, .theme-glass .ip-cell.is-hover-col { border-color: var(--glass-border-strong); }
+.theme-glass .ip-cell--alive       { color: var(--ok);   background: var(--ok-soft);   border-color: rgba(111, 208, 140, .35); }
+.theme-glass .ip-cell--alive-mon   { color: var(--ok);   background: rgba(111, 208, 140, .24); border-color: var(--ok); font-weight: 700; }
+.theme-glass .ip-cell--dead        { color: var(--crit); background: var(--crit-soft); border-color: rgba(255, 93, 108, .45); }
+.theme-glass .ip-cell--reserved    { color: var(--warn); background: var(--warn-soft); border-color: rgba(245, 197, 66, .4); }
+.theme-glass .ip-cell--unreachable { color: #f0a35b;     background: rgba(240, 163, 91, .14); border-color: rgba(240, 163, 91, .4); }
+.theme-glass .ip-cell--free        { color: var(--text-3); }
+.theme-glass .ip-cell--unknown     { color: rgba(255, 255, 255, .25); background: transparent; border-style: dashed; }
+.theme-glass .ip-cell--hidden { display: none !important; }
+
+/* Тултип ячейки (создаётся в body) */
+.theme-glass .ip-cell__tooltip {
+    position: fixed; z-index: 3000; width: 260px; box-sizing: border-box; padding: 10px 12px; pointer-events: none;
+    font-size: 12px; line-height: 1.5; color: var(--text-2);
+    background: var(--bg-elevated); border: 1px solid var(--glass-border-strong); border-radius: var(--r-card);
+    box-shadow: var(--shadow-panel); opacity: 0; transition: opacity .1s;
+}
+.theme-glass .ip-cell__tooltip.is-visible { opacity: 1; }
+.theme-glass .ip-cell__tooltip .t-ip { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text-1); }
+.theme-glass .ip-cell__tooltip .t-host { color: var(--text-2); }
+.theme-glass .ip-cell__tooltip .t-bad { color: var(--crit); }
+.theme-glass .ip-cell__tooltip .t-mon { color: var(--ok); }
+.theme-glass .ip-cell__tooltip .t-reserved { color: var(--warn); }
+
+/* Модалка IP (в т.ч. перебивает инлайн-фикс из subnet_detail.html) */
+.theme-glass .ip-modal-backdrop { background: rgba(0, 0, 0, .6) !important; backdrop-filter: blur(2px); }
+.theme-glass .ip-modal { background: var(--bg-panel) !important; border: 1px solid var(--glass-border-strong) !important; border-radius: var(--r-panel) !important; box-shadow: var(--shadow-panel) !important; color: var(--text-1); }
+.theme-glass .ip-modal__head { background: transparent !important; border-bottom: 1px solid var(--glass-border) !important; }
+.theme-glass .ip-modal__head h3 { margin: 0; font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--text-1); }
+.theme-glass .ip-modal__close { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--text-3); cursor: pointer; }
+.theme-glass .ip-modal__close:hover { color: var(--text-1); }
+.theme-glass .ip-modal__body { font-size: 13px; color: var(--text-2); }
+.theme-glass .ip-modal__row { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--glass-border); }
+.theme-glass .ip-modal__row:last-of-type { border-bottom: 0; }
+.theme-glass .ip-modal__row-label { color: var(--text-3); }
+.theme-glass .ip-modal__row-value { color: var(--text-1); text-align: right; font-variant-numeric: tabular-nums; }
+.theme-glass .ip-modal__chart { margin-top: 14px; padding: 10px; background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
+.theme-glass .ip-modal__chart-title { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: var(--text-3); }
+.theme-glass .ip-modal__no-chart { padding: 16px; text-align: center; color: var(--text-3); }
+.theme-glass .ip-modal__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding: 0 !important; border: 0 !important; background: none !important; }
 
 /* ── 7. Адаптив ───────────────────────────────────────────────────────────── */
 @media (max-width: 1360px) {

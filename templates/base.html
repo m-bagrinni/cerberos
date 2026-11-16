@@ -64,7 +64,7 @@
   }
 </style>
     <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=1793429171">
-    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/core.js' %}?v=1"></script>
 </head>
@@ -83,48 +83,48 @@
         </a>
 
         <nav class="app-sidebar__nav">
+    {# Пункты меню — по правам пользователя (acc, apps/accounts/access.py) #}
     {# === МОДУЛЬ ЛВС (local) === #}
-    {% if user.can_local or user.is_superuser %}
+    {% if acc.any_local %}
         {% if '/local/' in request.path or request.path == '/' or '/alerts/' in request.path or '/analytics/' in request.path %}
-            <a href="/local/" class="app-sidebar__link {% if request.path == '/local/' %}is-active{% endif %}"><i class="bi bi-speedometer2"></i><span>Обзор</span></a>
-            <a href="/alerts/" class="app-sidebar__link {% if '/alerts/' in request.path %}is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span></a>
-            <a href="/local/stations/" class="app-sidebar__link {% if '/stations/' in request.path %}is-active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i><span>Диспетчерская</span></a>
-
-            {% if not user.position_ref.is_readonly or user.is_superuser %}
-                <a href="/local/metrics/" class="app-sidebar__link"><i class="bi bi-graph-up"></i><span>Метрики</span></a>
-                <a href="/local/sfp/" class="app-sidebar__link"><i class="bi bi-usb-plug"></i><span>SFP/DDM</span></a>
-                <a href="/local/multiplexers/" class="app-sidebar__link"><i class="bi bi-hdd-network"></i><span>Мультиплексоры</span></a>
-                <a href="/analytics/" class="app-sidebar__link"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></a>
-                <a href="/local/subnets/" class="app-sidebar__link"><i class="bi bi-hdd-network"></i><span>Подсети</span></a>
+            {% if acc.v.devices %}<a href="/local/" class="app-sidebar__link {% if request.path == '/local/' %}is-active{% endif %}"><i class="bi bi-speedometer2"></i><span>Обзор</span></a>{% endif %}
+            {% if acc.v.alerts %}<a href="/alerts/" class="app-sidebar__link {% if '/alerts/' in request.path %}is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span></a>{% endif %}
+            {% if acc.v.stations %}<a href="/local/stations/" class="app-sidebar__link {% if '/stations/' in request.path %}is-active{% endif %}"><i class="bi bi-grid-3x3-gap-fill"></i><span>Диспетчерская</span></a>{% endif %}
+            {% if acc.v.metrics %}
+                <a href="/local/metrics/" class="app-sidebar__link {% if '/local/metrics/' in request.path %}is-active{% endif %}"><i class="bi bi-graph-up"></i><span>Метрики</span></a>
+                <a href="/local/sfp/" class="app-sidebar__link {% if '/local/sfp/' in request.path %}is-active{% endif %}"><i class="bi bi-usb-plug"></i><span>SFP/DDM</span></a>
             {% endif %}
+            {% if acc.v.mux %}<a href="/local/multiplexers/" class="app-sidebar__link {% if '/multiplexers/' in request.path %}is-active{% endif %}"><i class="bi bi-hdd-network"></i><span>Мультиплексоры</span></a>{% endif %}
+            {% if acc.v.analytics %}<a href="/analytics/" class="app-sidebar__link {% if '/analytics/' in request.path %}is-active{% endif %}"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></a>{% endif %}
+            {% if acc.v.subnets %}<a href="/local/subnets/" class="app-sidebar__link {% if '/subnets/' in request.path %}is-active{% endif %}"><i class="bi bi-diagram-3"></i><span>Подсети</span></a>{% endif %}
         {% endif %}
     {% endif %}
 
     {# === МОДУЛЬ СЕРВЕРЫ (servers) === #}
-    {% if user.can_servers or user.is_superuser %}
+    {% if acc.v.servers %}
         {% if '/servers/' in request.path %}
             <a href="/servers/" class="app-sidebar__link is-active"><i class="bi bi-hdd-rack"></i><span>Серверы</span></a>
-            {% if not user.position_ref.is_readonly or user.is_superuser %}
-                <a href="/servers/api/ad-users/" class="app-sidebar__link"><i class="bi bi-people"></i><span>Пользователи AD</span></a>
-            {% endif %}
+            <a href="/servers/api/ad-users/" class="app-sidebar__link"><i class="bi bi-people"></i><span>Пользователи AD</span></a>
         {% endif %}
     {% endif %}
 
     {# === МОДУЛЬ E-DOCS (edocs) === #}
-    {% if user.can_edocs or user.is_superuser %}
+    {% if acc.v.edocs %}
         {% if '/edocs/' in request.path %}
             <a href="/edocs/" class="app-sidebar__link {% if request.path == '/edocs/' %}is-active{% endif %}"><i class="bi bi-inbox"></i><span>Входящие</span></a>
             <a href="/edocs/sent/" class="app-sidebar__link"><i class="bi bi-send"></i><span>Исходящие</span></a>
             <a href="/edocs/employees/" class="app-sidebar__link"><i class="bi bi-people"></i><span>Сотрудники</span></a>
-            <a href="/edocs/create/" class="app-sidebar__link" style="color: var(--primary);"><i class="bi bi-pencil-square"></i><span>Написать</span></a>
+            {% if acc.e.edocs %}<a href="/edocs/create/" class="app-sidebar__link" style="color: var(--primary);"><i class="bi bi-pencil-square"></i><span>Написать</span></a>{% endif %}
         {% endif %}
     {% endif %}
 
-    <hr style="border-color: var(--border); margin: 12px 0;">
-    
+    {% if acc.v.services or acc.admin_entry %}<hr style="border-color: var(--border); margin: 12px 0;">{% endif %}
+
+    {% if acc.v.services %}
     <a href="/services/" class="app-sidebar__link {% if '/services/' in request.path %}is-active{% endif %}"><i class="bi bi-gear-wide-connected"></i><span>Службы</span></a>
-    
-    {% if user.is_admin_access and not user.position_ref.is_readonly %}
+    {% endif %}
+
+    {% if acc.admin_entry %}
         <a href="/admin-ui/" class="app-sidebar__link {% if '/admin-ui/' in request.path %}is-active{% endif %}"><i class="bi bi-shield-lock"></i><span>Админ-панель</span></a>
     {% endif %}
 </nav>
@@ -171,12 +171,16 @@
         {% if messages %}
         <div style="margin-bottom:16px">
             {% for message in messages %}
+            {% if ui_theme_glass %}
+            <div class="flash flash--{% if message.tags == 'error' %}crit{% elif message.tags == 'success' %}ok{% elif message.tags == 'warning' %}warn{% else %}info{% endif %}" role="status">{{ message }}</div>
+            {% else %}
             <div style="padding:12px;border-radius:8px;margin-bottom:8px;
                         {% if message.tags == 'error' %}background:#fee2e2;color:#991b1b
                         {% elif message.tags == 'success' %}background:#d1fae5;color:#065f46
                         {% else %}background:#dbeafe;color:#1e40af{% endif %}">
                 {{ message }}
             </div>
+            {% endif %}
             {% endfor %}
         </div>
         {% endif %}

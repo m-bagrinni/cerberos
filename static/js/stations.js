@@ -498,8 +498,7 @@ const STATUS_COLOR = {
             } catch (e) { savedView = null; }
         }
 
-        const stations = await fetchStations();
-        const links = await fetchLinks();
+        const [stations, links] = await Promise.all([fetchStations(), fetchLinks()]);
 
         if (!_map) {
             _map = L.map("stationsMap", {
@@ -595,7 +594,10 @@ const STATUS_COLOR = {
             const initialLayer = baseLayers[savedLayer] || baseLayers["🌍 OpenTopoMap (топография)"];
             initialLayer.addTo(_map);
 
-            // Ж/Д линии — отдельный слой ПОД маркерами/линками
+            // Ж/Д линии — отдельный слой ПОД маркерами/линками.
+            // ~10 тыс. отрезков: рисуем на canvas (SVG на столько путей тормозит)
+            // в своей панели ниже overlayPane, чтобы canvas не перекрывал клики по линкам.
+            _map.createPane("railPane").style.zIndex = 350;
             _railLayer = L.layerGroup().addTo(_map);
 
             _markersLayer = L.layerGroup().addTo(_map);
@@ -627,11 +629,11 @@ const STATUS_COLOR = {
         } else {
             _markersLayer.clearLayers();
             _linksLayer.clearLayers();
-            if (_railLayer) _railLayer.clearLayers();
         }
 
-        // Загружаем ж/д линии (один раз, кеш)
-        await loadRailTracks();
+        // Ж/д линии грузим в фоне (один раз) — станции и линки не ждут ~0.5 МБ geojson.
+        // Слой не очищаем при перерисовке: пути статичны.
+        loadRailTracks();
 
         const bySlug = {};
         stations.forEach((s) => { bySlug[s.slug] = s; });
@@ -1135,16 +1137,19 @@ const STATUS_COLOR = {
 
     async function loadRailTracks() {
         if (_railLoaded || !_railLayer) return;
+        _railLoaded = true;   // сразу — чтобы перерисовка не запустила вторую загрузку
         try {
-            const resp = await fetch("/static/geojson/kyrgyzstan_railways.geojson");
+            // .min — округлённая копия; рядом лежит .gz, WhiteNoise отдаёт его (~0.5 МБ)
+            const resp = await fetch("/static/geojson/kyrgyzstan_railways.min.geojson");
             if (!resp.ok) {
                 console.warn("[rail] не удалось загрузить:", resp.status);
+                _railLoaded = false;
                 return;
             }
             const geojson = await resp.json();
-            _railLoaded = true;
 
             L.geoJSON(geojson, {
+                renderer: L.canvas({ pane: "railPane", tolerance: 4 }),
                 style: function () {
                     return {
                         color: "#ff8c00",       // ярко-оранжевый (заметно на любом фоне)
@@ -1166,6 +1171,7 @@ const STATUS_COLOR = {
 
         } catch (e) {
             console.warn("[rail] ошибка:", e);
+            _railLoaded = false;
         }
     }
 
@@ -1407,55 +1413,15 @@ const STATUS_COLOR = {
             const existing = Chart.getChart(canvas);
             if (existing) existing.destroy();
             
-            const devices = [];
-            stations.forEach(s => {
-                (s.devices || []).forEach(d => devices.push(d));
-            });
-            
-            if (!devices.length) return;
-            
-            // Загружаем трафик для всех устройств (параллельно)
-            const results = await Promise.all(
-                devices.map(d => 
-                    fetch(`/api/v1/devices/${d.device_ip}/interfaces/`)
-                        .then(r => r.json())
-                        .then(ports => {
-                            const physical = (Array.isArray(ports) ? ports : (ports.results || []))
-                                .filter(p => p.is_physical && p.oper_status === 1);
-                            if (!physical.length) return null;
-                            return Promise.all(
-                                physical.map(p => 
-                                    fetch(`/api/v1/interfaces/${p.id}/traffic-history/?hours=24`)
-                                        .then(r => r.json())
-                                        .catch(() => [])
-                                )
-                            );
-                        })
-                        .catch(() => null)
-                )
-            );
-            
-            // Суммируем по минутам (с фильтром выбросов)
+            // Сумма по минутам считается на сервере одним запросом
+            // (раньше — ~130 запросов interfaces/ + traffic-history/ из браузера).
+            const resp = await fetch('/api/v1/stations/traffic-summary/?hours=24', { credentials: 'same-origin' });
+            if (!resp.ok) return;
             const byMinute = {};
-            results.forEach(portResults => {
-                (portResults || []).forEach(points => {
-                    (points || []).forEach(p => {
-                        // Фильтр выбросов (out_bps > 10^9 — ошибка)
-                        // Фильтр выбросов (> 100 Мбит/с = 100_000_000 бит/с)
-                        const inBps = (p.in_bps || 0) > 100_000_000 ? 0 : (p.in_bps || 0);
-                        const outBps = (p.out_bps || 0) > 100_000_000 ? 0 : (p.out_bps || 0);
-                        
-                        const d = new Date(p.ts);
-                        d.setSeconds(0, 0);
-                        const key = d.toISOString();
-                        
-                        if (!byMinute[key]) byMinute[key] = { in: 0, out: 0 };
-                        byMinute[key].in += inBps;
-                        byMinute[key].out += outBps;
-                    });
-                });
+            (await resp.json()).forEach(p => {
+                byMinute[p.ts] = { in: p.in_bps || 0, out: p.out_bps || 0 };
             });
-            
+
             const minutes = Object.keys(byMinute).sort();
             if (!minutes.length) return;
             

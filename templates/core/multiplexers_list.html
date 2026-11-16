@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static cerber_json %}
 {% block title %}Мультиплексоры{% endblock %}
 
 {% block extra_head %}
@@ -235,7 +235,7 @@
 </div>
 
 <script>
-window.__MUX_DATA__ = {{ cards_json|safe }};
+window.__MUX_DATA__ = {{ cards_json|js_json }};
 
 document.addEventListener('DOMContentLoaded', () => {
     // Раскрытие/скрытие шлюзов

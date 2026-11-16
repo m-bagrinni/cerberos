@@ -18,7 +18,7 @@
                 {% else %}
                     <span class="c-status c-status--crit iface-card__state">down</span>
                 {% endif %}
-                {% if user.is_staff %}
+                {% if acc.c.port_control %}
                 <button class="port-toggle-btn iface-card__toggle"
                         data-iface-id="{{ row.iface.id }}"
                         data-iface-name="{{ row.iface.name }}"

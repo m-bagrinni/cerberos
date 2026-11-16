@@ -69,7 +69,7 @@
                         {% else %}
                             <span class="c-status c-status--crit" style="font-size:11px">down</span>
                         {% endif %}
-                        {% if user.is_staff %}
+                        {% if acc.c.port_control %}
                         <button class="port-toggle-btn"
                                 data-iface-id="{{ row.iface.id }}"
                                 data-iface-name="{{ row.iface.name }}"

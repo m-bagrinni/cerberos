@@ -19,6 +19,10 @@
   }
 // ─── Страница списка подсетей ─────────────────────────────
 
+  // subnets.js перезапускается списком при каждом выборе подсети — не дублируем обработчики
+  if (!window.__cerberSubnetsListBound) {
+  window.__cerberSubnetsListBound = true;
+
   const scanAllBtn = document.getElementById("subnets-scan-all");
   if (scanAllBtn) {
     scanAllBtn.addEventListener("click", async () => {
@@ -141,7 +145,15 @@
     });
   }
 
+  } // __cerberSubnetsListBound
+
   // ─── Страница деталей подсети ─────────────────────────────
+
+  // Предыдущий экземпляр (прошлая выбранная подсеть) — остановить таймеры и слушатели
+  if (typeof window.__cerberSubnetDetailTeardown === "function") {
+    try { window.__cerberSubnetDetailTeardown(); } catch (_) {}
+    window.__cerberSubnetDetailTeardown = null;
+  }
 
   const detailPage = document.querySelector(".subnet-detail-page");
   if (!detailPage) return;
@@ -470,7 +482,8 @@
 
   document.getElementById("ip-modal-close")?.addEventListener("click", closeModal);
   backdrop?.addEventListener("click", closeModal);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  function onModalKey(e) { if (e.key === "Escape") closeModal(); }
+  document.addEventListener("keydown", onModalKey);
 
   function closeModal() {
     if (modal) modal.hidden = true;
@@ -722,7 +735,7 @@
 
   // При изменении размера окна — перерисовать сетку
   var _resizeTimer = null;
-  window.addEventListener("resize", function () {
+  function onResize() {
     if (!currentIps.length) return;
     clearTimeout(_resizeTimer);
     _resizeTimer = setTimeout(function () {
@@ -732,7 +745,17 @@
       });
       applyFilters();
     }, 150);
-  });
+  }
+  window.addEventListener("resize", onResize);
+
+  window.__cerberSubnetDetailTeardown = function () {
+    stopLive();
+    clearTimeout(_resizeTimer);
+    clearTimeout(tooltipTimer);
+    window.removeEventListener("resize", onResize);
+    document.removeEventListener("keydown", onModalKey);
+    if (tooltipEl) tooltipEl.remove();
+  };
 
   loadGrid();
   startLive();

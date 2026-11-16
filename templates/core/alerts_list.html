@@ -44,7 +44,7 @@
             <span class="device-group__dot device-group__dot--crit"></span>
             Активные ({{ counts.firing_total }})
         </div>
-        {% if user.is_superuser %}
+        {% if acc.e.alerts %}
         <button id="clear-alerts-btn" class="btn--secondary btn--sm" style="padding: 4px 12px; font-size: 12px;">
             <i class="bi bi-trash"></i> Очистить все
         </button>

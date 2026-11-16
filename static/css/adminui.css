@@ -878,3 +878,33 @@ body {
 .data-table td .btn--icon:last-child {
     margin-right: 0;
 }
+
+/* ── Матрица прав (users/_access_matrix.html) ── */
+.acc { display: flex; flex-direction: column; gap: 16px; }
+.acc__presets-row { display: flex; gap: 8px; align-items: center; }
+.acc__presets-row .aui-input { max-width: 320px; }
+.acc__hint { margin-top: 2px; font-size: 12px; color: var(--text-muted); }
+.acc__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.acc__table th { padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.acc__table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.acc__col { width: 96px; text-align: center !important; }
+.acc__group td { padding: 14px 8px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); border-bottom: 0; }
+.acc__name { font-weight: 500; color: var(--text); }
+.acc__all { background: none; border: 0; padding: 2px 4px; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; border-radius: 4px; }
+.acc__all:hover { color: var(--text); background: var(--bg-hover); }
+.acc__radio { display: inline-flex; cursor: pointer; }
+.acc__radio input { position: absolute; opacity: 0; pointer-events: none; }
+.acc__radio span { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong, var(--border)); box-sizing: border-box; transition: border-color .12s, background .12s; }
+.acc__radio:hover span { border-color: var(--text-muted); }
+.acc__radio input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+.acc__radio--0 input:checked + span { border-color: var(--text-muted); background: radial-gradient(circle, var(--text-muted) 0 3px, transparent 4px); }
+.acc__radio--1 input:checked + span { border-color: var(--info, #5ab8f5); background: radial-gradient(circle, var(--info, #5ab8f5) 0 4px, transparent 5px); }
+.acc__radio--2 input:checked + span { border-color: var(--primary); background: radial-gradient(circle, var(--primary) 0 4px, transparent 5px); }
+.acc__caps { display: flex; flex-direction: column; gap: 6px; }
+.acc__cap { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; cursor: pointer; }
+.acc__cap input { margin-top: 2px; }
+.acc__cap span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text); }
+.acc__cap b { font-weight: 500; }
+.acc__cap small { font-size: 12px; color: var(--text-muted); }
+.acc-sum { display: flex; flex-wrap: wrap; gap: 4px; }
+.acc-sum .badge { font-weight: 500; }

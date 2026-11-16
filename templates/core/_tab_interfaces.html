@@ -62,7 +62,7 @@
                         {% else %}
                             <span class="iface-status iface-status--down">DOWN</span>
                         {% endif %}
-                        {% if user.is_staff %}
+                        {% if acc.c.port_control %}
                         <button class="port-toggle-btn"
                                 data-iface-id="{{ row.iface.id }}"
                                 data-iface-name="{{ row.iface.name }}"

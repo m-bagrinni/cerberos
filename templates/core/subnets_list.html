@@ -147,6 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const content = doc.getElementById('main-subnet-content');
             if (content) {
                 panel.innerHTML = content.outerHTML;
+                // Модалка IP лежит вне #main-subnet-content — переносим её в body
+                // (внутри панели position:fixed ломается из-за backdrop-filter у панели)
+                ['ip-modal-backdrop', 'ip-modal'].forEach(id => {
+                    document.getElementById(id)?.remove();
+                    const m = doc.getElementById(id);
+                    if (m) document.body.appendChild(document.importNode(m, true));
+                });
                 const scripts = panel.querySelectorAll('script');
                 scripts.forEach(oldScript => {
                     const newScript = document.createElement('script');
@@ -158,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const oldScript = document.querySelector('script[src*="subnets.js"]');
                 if (oldScript) {
                     const newScript = document.createElement('script');
-                    newScript.src = oldScript.src + '?v=' + Date.now(); // сброс кэша
+                    newScript.src = oldScript.src.split('?')[0] + '?v=' + Date.now(); // сброс кэша
                     newScript.onload = () => {
                         console.log('[AJAX] subnets.js перезагружен');
                     };

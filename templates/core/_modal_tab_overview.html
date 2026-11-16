@@ -34,7 +34,7 @@
         <div class="modal-info-grid__item">
             <div class="modal-info-grid__label">SNMP</div>
             <div class="modal-info-grid__value c-mono" style="font-size:12px">
-                v{{ device.snmp_version }} · {{ device.snmp_community }} · {{ device.snmp_port }}
+                v{{ device.snmp_version }}{% if acc.c.snmp_secrets %} · {{ device.snmp_community }}{% endif %} · {{ device.snmp_port }}
             </div>
         </div>
         <div class="modal-info-grid__item">

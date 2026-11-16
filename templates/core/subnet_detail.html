@@ -30,17 +30,17 @@
       {% endif %}
     </div>
     <div class="subnet-detail__actions">
-      <button id="subnet-tcpdump-btn" class="btn" style="background: #ff780a; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+      <button id="subnet-tcpdump-btn" class="btn subnet-btn-legacy subnet-btn-legacy--orange">
         <i class="bi bi-camera-video"></i> Захват трафика
       </button>
-      <button id="bulk-attach-station-btn" class="btn" style="background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+      <button id="bulk-attach-station-btn" class="btn subnet-btn-legacy subnet-btn-legacy--blue">
         <i class="bi bi-geo-alt"></i> Прикрепить активные IP
       </button>
       <button id="subnet-scan-now" class="btn btn--primary"
               data-subnet-id="{{ subnet.id }}">
         <i class="bi bi-arrow-clockwise"></i> Сканировать
       </button>
-      <button id="subnet-toggle-auto" class="btn"
+      <button id="subnet-toggle-auto" class="btn btn--primary"
               data-subnet-id="{{ subnet.id }}">
         <i class="bi bi-toggle-on"></i> LIVE
       </button>
@@ -154,6 +154,6 @@
   </div>
 </div>
 
-<link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=241">
-<script src="{% static 'js/subnets.js' %}?v=241"></script>
+<link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=242">
+<script src="{% static 'js/subnets.js' %}?v=242"></script>
 {% endblock %}

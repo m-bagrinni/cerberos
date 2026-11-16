@@ -4,46 +4,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cerberus — модули</title>
+  <title>Cerberus — главная</title>
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
   <link rel="stylesheet" href="{% static 'css/cerber.css' %}">
-  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261115k">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
-    <script src="{% static 'js/core.js' %}?v=1"></script>
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116j">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2">
+  <script src="{% static 'js/core.js' %}?v=1"></script>
 </head>
 <body class="home-page{% if ui_theme_glass %} theme-glass{% endif %}">
 
 <div class="home-container">
-  <!-- Шапка в стиле Grafana -->
-  <header class="home-header" style="width: 100%; max-width: none; margin: 0; border-radius: 0; position: relative; z-index: 1000;">
+
+  {# ═══════════ Шапка ═══════════ #}
+  <header class="home-header">
     <div class="home-header__logo">
-      <i class="bi bi-shield-lock-fill" style="color: #ff780a;"></i>
+      <i class="bi bi-shield-lock-fill"></i>
       <span>Cerberus</span>
     </div>
 
-    <div class="home-header__actions" style="display: flex; align-items: center; gap: 16px;">
-      <!-- Уведомления E-Docs (колокольчик с popover) -->
-      <div style="position: relative;" id="notif-wrapper">
-        <button type="button" id="notif-bell-btn" onclick="toggleNotifPopover()" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: #ff7300; border: none; color: #fff; cursor: pointer; position: relative; transition: 0.2s; box-shadow: 0 4px 12px rgba(255,115,0,0.3); margin-right: 8px;">
-          <i class="bi bi-bell" style="font-size: 1.2rem;"></i>
-          {% if unread_docs > 0 %}
-          <span class="notif-badge" style="position: absolute; top: -4px; right: -4px; background: #fff; color: #ff7300; font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 10px; border: 2px solid #ff7300; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">{{ unread_docs }}</span>
-          {% endif %}
-        </button>
+    <div class="home-header__actions">
+      <a href="{% url 'edocs:create' %}" class="hp-btn hp-btn--primary" title="Создать документ">
+        <i class="bi bi-plus-lg"></i><span class="hp-hide-sm">Новый документ</span>
+      </a>
 
-        <!-- Popover с уведомлениями -->
-        <div id="notif-popover" style="display: none; position: absolute; top: 54px; right: 0; width: 320px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-radius: 16px; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 16px; z-index: 9999;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: #1f2937;">Уведомления</h4>
-            <a href="/edocs/" style="font-size: 0.8rem; color: #ff7300; text-decoration: none; font-weight: 600;">Все →</a>
+      <div class="hp-notif" id="notif-wrapper">
+        <button type="button" id="notif-bell-btn" class="hp-bell" aria-label="Уведомления" aria-expanded="false">
+          <i class="bi bi-bell"></i>
+          {% if unread_docs %}<span class="notif-badge">{{ unread_docs }}</span>{% endif %}
+        </button>
+        <div id="notif-popover" class="hp-popover" hidden>
+          <div class="hp-popover__head">
+            <span>Непрочитанные</span>
+            <a href="{% url 'edocs:index' %}">Все →</a>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+          <div class="hp-popover__list">
             {% for doc in unread_docs_list %}
-            <a href="/edocs/document/{{ doc.id }}/" style="display: block; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.03); text-decoration: none; transition: 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.07)'" onmouseout="this.style.background='rgba(0,0,0,0.03)'">
-              <div style="font-size: 0.9rem; font-weight: 600; color: #1f2937;">{{ doc.title|truncatechars:40 }}</div>
-              <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">от {{ doc.author.get_full_name|default:doc.author.username }} · {{ doc.created_at|date:"d.m H:i" }}</div>
+            <a href="{% url 'edocs:document_detail' doc.id %}" class="hp-popover__item">
+              <div class="hp-popover__title">{{ doc.title|truncatechars:48 }}</div>
+              <div class="hp-popover__meta">от {{ doc.author.short_name }} · {{ doc.created_at|date:"d.m H:i" }}</div>
             </a>
             {% empty %}
-            <p style="color: #6b7280; font-size: 0.9rem; text-align: center; padding: 20px 0;">Нет новых уведомлений</p>
+            <p class="hp-empty">Нет новых документов</p>
             {% endfor %}
           </div>
         </div>
@@ -52,11 +53,11 @@
       <div class="profile-card">
         <a href="/accounts/profile/" class="profile-link">
           <div class="profile-avatar">
-            <i class="bi bi-person-circle"></i>
+            {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="">{% else %}<i class="bi bi-person-circle"></i>{% endif %}
           </div>
           <div class="profile-info">
             <div class="profile-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-            <div class="profile-role">Профиль</div>
+            <div class="profile-role">{{ request.user.position_ref.name|default:"Профиль" }}</div>
           </div>
         </a>
         <a href="/accounts/logout/" class="profile-logout" title="Выйти">
@@ -66,148 +67,262 @@
     </div>
   </header>
 
-  <h2 class="home-title">Модули</h2>
-
-    <div class="home-content-wrapper" style="position: relative; min-height: 80vh; padding: 0 20px; padding-right: 300px;">
-    <!-- Левая колонка: пользователи (фиксированная слева) -->
-    <aside class="users-sidebar" style="position: fixed; right: 10px; top: 180px; width: 260px; max-height: calc(100vh - 120px); overflow-y: auto; background: rgba(255,255,255,0.25); backdrop-filter: blur(20px); border-radius: 16px; border: 1px solid rgba(255,255,255,0.5); padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); z-index: 100;">
-      <h3 style="font-size: 1rem; font-weight: 700; color: #1f2937; margin-top: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-        <i class="bi bi-people-fill" style="color: #ff780a;"></i> Пользователи
-      </h3>
-      <div class="users-list" style="display: flex; flex-direction: column; gap: 12px;">
-        {% for u in users_list %}
-        <div class="user-item" style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; transition: background 0.2s; cursor: pointer;" 
-             data-user-id="{{ u.id }}" 
-             data-user-name="{{ u.short_name }}" 
-             data-user-role="{{ u.position_ref.name|default:'Без должности' }}"
-             onclick="showUserMenu(this)">
-          <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.8);">
-            {% if u.avatar %}
-              <img src="{{ u.avatar.url }}" alt="{{ u.username }}" style="width: 100%; height: 100%; object-fit: cover;">
-            {% else %}
-              <div style="width: 100%; height: 100%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #6b7280; font-size: 1.2rem;">
-                {{ u.first_name|first|default:u.username|first|upper }}
-              </div>
-            {% endif %}
-          </div>
-          <div class="user-info" style="display: flex; flex-direction: column;">
-            <span style="font-size: 0.9rem; font-weight: 600; color: #1f2937;">{{ u.short_name }}</span>
-            <span style="font-size: 0.75rem; color: #6b7280;">
-              {% if u.position_ref %}{{ u.position_ref.name }}{% else %}Без должности{% endif %}
-            </span>
-          </div>
-        </div>
-        {% empty %}
-        <p style="color: #6b7280; font-size: 0.9rem; text-align: center;">Нет пользователей</p>
-        {% endfor %}
-      </div>
-    </aside>
-
-    <!-- Центральная часть: плитки модулей -->
-    <div class="modules-grid" style="width: 100%; max-width: none; margin: 0; margin-top: 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px;">
-    {% for item in modules_data %}
-    <a href="{% if item.module.slug == 'local' %}/local/{% elif item.module.slug == 'servers' %}/servers/{% elif item.module.slug == 'edocs' %}/edocs/{% else %}#{% endif %}" 
-       class="module-card {% if not item.module.is_active or item.module.slug == 'huawei' %}module-card--disabled{% endif %}" 
-       style="--module-color: {{ item.module.color|default:'#ff780a' }};">
-      
-      <div class="module-card__header">
-        <div class="module-card__icon">
-          {% if item.module.slug == 'local' %}<i class="bi bi-globe2"></i>
-          {% elif item.module.slug == 'servers' %}<i class="bi bi-server"></i>
-          {% elif item.module.slug == 'edocs' %}<i class="bi bi-file-earmark-text"></i>
-          {% else %}<i class="bi bi-telephone"></i>{% endif %}
-        </div>
-        <div style="flex: 1">
-          <h3 class="module-card__title">{{ item.module.name }}</h3>
-          <p class="module-card__desc">{{ item.module.description }}</p>
-        </div>
-        {% if not item.module.is_active or item.module.slug == 'huawei' %}
-          <span class="module-card__badge">в разработке</span>
-        {% endif %}
-      </div>
-
-      {% if item.stats %}
-      <div class="module-card__stats">
-        <div class="module-stat">
-          <span class="module-stat__label">Устройств</span>
-          <span class="module-stat__value">{{ item.stats.devices }}</span>
-        </div>
-        <div class="module-stat">
-          <span class="module-stat__label">Алертов</span>
-          <span class="module-stat__value {% if item.stats.alerts > 0 %}module-stat__value--crit{% endif %}">{{ item.stats.alerts }}</span>
-        </div>
-      </div>
+  {# ═══════════ Приветствие ═══════════ #}
+  <section class="hp-hero">
+    <div>
+      <h1 class="hp-hero__title">{{ greeting }}, {{ request.user.first_name|default:request.user.username }}</h1>
+      <div class="hp-hero__date">{{ today|date:"l, j E Y" }}</div>
+    </div>
+    <div class="hp-hero__summary">
+      {% if pending_total %}
+        <a href="{% url 'edocs:index' %}" class="hp-hero__badge hp-hero__badge--todo">
+          <i class="bi bi-inbox"></i> Ждут вас: <b>{{ pending_total }}</b>
+        </a>
+      {% else %}
+        <span class="hp-hero__badge hp-hero__badge--ok"><i class="bi bi-check2-circle"></i> Всё разобрано</span>
       {% endif %}
+    </div>
+  </section>
 
-      <div class="module-card__action">
-        {% if item.module.is_active %}
-          <span>Открыть модуль</span>
-          <i class="bi bi-arrow-right"></i>
-        {% else %}
-          <span>Скоро</span>
-        {% endif %}
+  {# ═══════════ Объявления ═══════════ #}
+  {% if announcements %}
+  <section class="hp-announcements" aria-label="Объявления">
+    {% for a in announcements %}
+    <article class="hp-ann hp-ann--{{ a.level }}" data-ann-id="{{ a.id }}-{{ a.updated_at|date:'U' }}"{% if not a.is_pinned %} data-dismissible{% endif %}>
+      <i class="bi {% if a.level == 'crit' %}bi-exclamation-octagon-fill{% elif a.level == 'warn' %}bi-exclamation-triangle-fill{% else %}bi-megaphone-fill{% endif %} hp-ann__icon"></i>
+      <div class="hp-ann__body">
+        <div class="hp-ann__title">{% if a.is_pinned %}<i class="bi bi-pin-angle-fill" title="Закреплено"></i> {% endif %}{{ a.title }}</div>
+        {% if a.text %}<div class="hp-ann__text">{{ a.text|linebreaksbr }}</div>{% endif %}
+        <div class="hp-ann__meta">{{ a.created_by.short_name|default:"Администратор" }} · {{ a.starts_at|date:"j E, H:i" }}{% if a.ends_at %} · до {{ a.ends_at|date:"j E, H:i" }}{% endif %}</div>
       </div>
+      {% if not a.is_pinned %}<button type="button" class="hp-ann__close" title="Скрыть" aria-label="Скрыть объявление"><i class="bi bi-x-lg"></i></button>{% endif %}
+    </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {# ═══════════ Подсказки по профилю ═══════════ #}
+  {% if setup_hints %}
+  <section class="hp-hints" id="hp-hints">
+    {% for h in setup_hints %}
+    <a class="hp-hint" href="{{ h.href }}">
+      <i class="bi {{ h.icon }}"></i>
+      <span>{{ h.text }}</span>
+      <b>{{ h.action }} →</b>
     </a>
     {% endfor %}
-    </div>
+  </section>
+  {% endif %}
+
+  <div class="hp-layout">
+    <main class="hp-main">
+
+      {# ── Избранные станции (выбираются в профиле → Интерфейс) ── #}
+      {% if favorite_stations %}
+      <section class="hp-panel">
+        <header class="hp-panel__head">
+          <h2 class="hp-panel__title"><i class="bi bi-star-fill"></i> Мои станции</h2>
+          <a href="/accounts/profile/?tab=ui" class="hp-panel__link">Изменить →</a>
+        </header>
+        <div class="hp-fav">
+          {% for f in favorite_stations %}
+          <a href="/local/stations/" class="hp-fav__item hp-fav__item--{{ f.state }}">
+            <span class="hp-fav__dot"></span>
+            <span class="hp-fav__name">{{ f.station.name }}</span>
+            {% if f.crit %}<span class="hp-pill hp-pill--crit-st">{{ f.crit }} crit</span>{% endif %}
+            {% if f.warn %}<span class="hp-pill hp-pill--warn-st">{{ f.warn }} warn</span>{% endif %}
+            {% if f.state == "ok" %}<span class="hp-fav__ok">норма</span>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {# ── Ждут моего действия ── #}
+      <section class="hp-panel">
+        <header class="hp-panel__head">
+          <h2 class="hp-panel__title"><i class="bi bi-inbox"></i> Ждут моего действия</h2>
+          <a href="{% url 'edocs:index' %}" class="hp-panel__link">Все входящие →</a>
+        </header>
+        <div class="hp-tiles">
+          {% for t in pending_tiles %}
+          <a href="{% url 'edocs:index' %}?f={{ t.key }}" class="hp-tile hp-tile--{{ t.key }}{% if not t.count %} is-zero{% endif %}">
+            <span class="hp-tile__count">{{ t.count }}</span>
+            <span class="hp-tile__label">{{ t.label }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% if pending_list %}
+        <ul class="hp-list">
+          {% for doc in pending_list %}
+          <li>
+            <a href="{% url 'edocs:document_detail' doc.id %}" class="hp-row">
+              <span class="hp-row__dot hp-dot--{{ doc.status }}"></span>
+              <span class="hp-row__main">
+                <span class="hp-row__title">{% if not doc.is_read %}<b>{{ doc.title }}</b>{% else %}{{ doc.title }}{% endif %}</span>
+                <span class="hp-row__meta">от {{ doc.author.short_name }} · {{ doc.get_document_type_display }}</span>
+              </span>
+              <span class="hp-pill hp-pill--{{ doc.status }}">{{ doc.get_status_display }}</span>
+              <span class="hp-row__age">{{ doc.age }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="hp-empty"><i class="bi bi-cup-hot"></i> Новых задач нет</p>
+        {% endif %}
+      </section>
+
+      <div class="hp-split">
+        {# ── Мои отправленные ── #}
+        <section class="hp-panel">
+          <header class="hp-panel__head">
+            <h2 class="hp-panel__title"><i class="bi bi-send"></i> Мои отправленные</h2>
+            <a href="{% url 'edocs:sent' %}" class="hp-panel__link">Все →</a>
+          </header>
+          {% if sent_list %}
+          <ul class="hp-list">
+            {% for doc in sent_list %}
+            <li>
+              <a href="{% url 'edocs:document_detail' doc.id %}" class="hp-row">
+                <span class="hp-row__main">
+                  <span class="hp-row__title">{{ doc.title }}</span>
+                  <span class="hp-row__meta"><i class="bi bi-arrow-return-right"></i> {{ doc.recipient.short_name|default:"—" }} · {{ doc.age }}</span>
+                </span>
+                <span class="hp-pill hp-pill--{{ doc.status }}">{{ doc.get_status_display }}</span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="hp-empty">Вы ещё ничего не отправляли</p>
+          {% endif %}
+        </section>
+
+        {# ── Новые комментарии ── #}
+        <section class="hp-panel">
+          <header class="hp-panel__head">
+            <h2 class="hp-panel__title"><i class="bi bi-chat-left-text"></i> Комментарии за неделю</h2>
+          </header>
+          {% if comments_list %}
+          <ul class="hp-list">
+            {% for c in comments_list %}
+            <li>
+              <a href="{% url 'edocs:document_detail' c.document_id %}" class="hp-row hp-row--comment">
+                <span class="hp-row__main">
+                  <span class="hp-row__meta"><b>{{ c.author.short_name }}</b> · {{ c.document.title|truncatechars:40 }} · {{ c.age }}</span>
+                  <span class="hp-row__quote">{{ c.text|truncatechars:140 }}</span>
+                </span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="hp-empty">Новых комментариев нет</p>
+          {% endif %}
+        </section>
+      </div>
+
+      {# ── Модули ── #}
+      <h2 class="home-title">Модули</h2>
+      <div class="modules-grid">
+        {% for item in modules_data %}
+        <a href="{% if item.module.slug == 'local' %}/local/{% elif item.module.slug == 'servers' %}/servers/{% elif item.module.slug == 'edocs' %}/edocs/{% else %}#{% endif %}"
+           class="module-card {% if not item.module.is_active or item.module.slug == 'huawei' %}module-card--disabled{% endif %}"
+           style="--module-color: {{ item.module.color|default:'#ff780a' }};">
+          <div class="module-card__header">
+            <div class="module-card__icon">
+              {% if item.module.slug == 'local' %}<i class="bi bi-globe2"></i>
+              {% elif item.module.slug == 'servers' %}<i class="bi bi-server"></i>
+              {% elif item.module.slug == 'edocs' %}<i class="bi bi-file-earmark-text"></i>
+              {% else %}<i class="bi bi-telephone"></i>{% endif %}
+            </div>
+            <div style="flex: 1">
+              <h3 class="module-card__title">{{ item.module.name }}</h3>
+              <p class="module-card__desc">{{ item.module.description }}</p>
+            </div>
+            {% if not item.module.is_active or item.module.slug == 'huawei' %}
+              <span class="module-card__badge">в разработке</span>
+            {% endif %}
+          </div>
+          {% if item.stats %}
+          <div class="module-card__stats">
+            <div class="module-stat">
+              <span class="module-stat__label">Устройств</span>
+              <span class="module-stat__value">{{ item.stats.devices }}</span>
+            </div>
+            <div class="module-stat">
+              <span class="module-stat__label">Алертов</span>
+              <span class="module-stat__value {% if item.stats.alerts > 0 %}module-stat__value--crit{% endif %}">{{ item.stats.alerts }}</span>
+            </div>
+          </div>
+          {% endif %}
+          <div class="module-card__action">
+            {% if item.module.is_active %}<span>Открыть модуль</span><i class="bi bi-arrow-right"></i>{% else %}<span>Скоро</span>{% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </main>
+
+    {# ═══════════ Сотрудники ═══════════ #}
+    <aside class="hp-panel hp-people">
+      <header class="hp-panel__head">
+        <h2 class="hp-panel__title"><i class="bi bi-people-fill"></i> Сотрудники <span class="hp-count">{{ users_list|length }}</span></h2>
+      </header>
+      <div class="hp-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="people-search" placeholder="Имя или должность" autocomplete="off">
+      </div>
+      <div class="hp-people__list" id="people-list">
+        {% regroup users_list by position_ref.name as groups %}
+        {% for g in groups %}
+        <div class="hp-people__group">
+          <div class="hp-people__group-title">{{ g.grouper|default:"Без должности" }}</div>
+          {% for u in g.list %}
+          <button type="button" class="user-item"
+                  data-user-id="{{ u.id }}"
+                  data-user-name="{{ u.short_name }}"
+                  data-user-full="{{ u.get_full_name|default:u.username }}"
+                  data-user-role="{{ u.position_ref.name|default:'Без должности' }}"
+                  data-user-avatar="{% if u.avatar %}{{ u.avatar.url }}{% endif %}"
+                  data-user-tg="{% if u.telegram_account.is_active %}{{ u.telegram_account.username }}{% endif %}"
+                  data-self="{% if u.id == request.user.id %}1{% endif %}">
+            <span class="user-avatar">
+              {% if u.avatar %}<img src="{{ u.avatar.url }}" alt="">{% else %}<span>{{ u.first_name|default:u.username|first|upper }}</span>{% endif %}
+            </span>
+            <span class="user-info">
+              <span class="user-info__name">{{ u.short_name }}{% if u.id == request.user.id %} <small>(вы)</small>{% endif %}</span>
+              <span class="user-info__role">{{ u.position_ref.name|default:"Без должности" }}</span>
+            </span>
+            {% if u.telegram_account.is_active %}<i class="bi bi-telegram user-item__tg" title="Telegram привязан"></i>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+        {% empty %}
+        <p class="hp-empty">Нет сотрудников</p>
+        {% endfor %}
+        <p class="hp-empty" id="people-none" hidden>Никого не нашли</p>
+      </div>
+    </aside>
   </div>
-<!-- Мини-меню пользователя -->
-<div id="user-menu-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;" onclick="if(event.target === this) closeUserMenu()">
-  <div id="user-menu-card" style="background: rgba(255,255,255,0.4); backdrop-filter: blur(25px) saturate(180%); border-radius: 20px; padding: 24px; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.7); text-align: center;">
-    <div id="user-menu-avatar" style="width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 12px; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #6b7280; overflow: hidden;"></div>
-    <h3 id="user-menu-name" style="font-size: 1.2rem; font-weight: 700; color: #1f2937; margin: 0 0 4px;"></h3>
-    <p id="user-menu-role" style="font-size: 0.85rem; color: #6b7280; margin: 0 0 20px;"></p>
-    
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      <a id="user-menu-doc" href="#" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 10px; background: #ff7300; color: #fff; text-decoration: none; font-weight: 600; font-size: 15px; transition: 0.2s;">
-        <i class="bi bi-file-earmark-text"></i> Отправить документ
-      </a>
-      <button onclick="closeUserMenu()" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.6); color: #4b5563; border: 1px solid rgba(0,0,0,0.1); font-weight: 600; font-size: 15px; cursor: pointer;">
-        Закрыть
-      </button>
+</div>
+
+{# ═══════════ Карточка сотрудника ═══════════ #}
+<div id="user-menu-overlay" class="hp-overlay" hidden>
+  <div class="hp-usercard" role="dialog" aria-modal="true" aria-labelledby="user-menu-name">
+    <div id="user-menu-avatar" class="hp-usercard__avatar"></div>
+    <h3 id="user-menu-name" class="hp-usercard__name"></h3>
+    <p id="user-menu-role" class="hp-usercard__role"></p>
+    <div class="hp-usercard__actions">
+      <a id="user-menu-doc" href="#" class="hp-btn hp-btn--primary hp-btn--block"><i class="bi bi-file-earmark-text"></i> Отправить документ</a>
+      <a id="user-menu-tg" href="#" target="_blank" rel="noopener" class="hp-btn hp-btn--block" hidden><i class="bi bi-telegram"></i> Написать в Telegram</a>
+      <a id="user-menu-docs" href="#" class="hp-btn hp-btn--block"><i class="bi bi-person-lines-fill"></i> Карточка сотрудника</a>
+      <button type="button" class="hp-btn hp-btn--ghost hp-btn--block" data-close>Закрыть</button>
     </div>
   </div>
 </div>
 
-<script>
-function showUserMenu(el) {
-  const userId = el.dataset.userId;
-  const userName = el.dataset.userName;
-  const userRole = el.dataset.userRole || 'Пользователь системы';
-  
-  document.getElementById('user-menu-name').textContent = userName;
-  document.getElementById('user-menu-role').textContent = userRole;
-  document.getElementById('user-menu-doc').href = '/edocs/create/?to=' + userId;
-  
-  const avatarDiv = document.getElementById('user-menu-avatar');
-  avatarDiv.innerHTML = userName.charAt(0).toUpperCase();
-  
-  document.getElementById('user-menu-overlay').style.display = 'flex';
-}
-
-function closeUserMenu() {
-  document.getElementById('user-menu-overlay').style.display = 'none';
-}
-</script>
-<script>
-function toggleNotifPopover() {
-  const pop = document.getElementById('notif-popover');
-  if (pop.style.display === 'none' || pop.style.display === '') {
-    pop.style.display = 'block';
-  } else {
-    pop.style.display = 'none';
-  }
-}
-
-// Закрываем при клике вне popover
-document.addEventListener('click', function(e) {
-  const wrapper = document.getElementById('notif-wrapper');
-  const pop = document.getElementById('notif-popover');
-  if (wrapper && !wrapper.contains(e.target)) {
-    pop.style.display = 'none';
-  }
-});
-</script>
-
+<script src="{% static 'js/home.js' %}?v=1"></script>
 </body>
 </html>
