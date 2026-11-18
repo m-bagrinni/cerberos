@@ -1,0 +1,9 @@
+{% extends "edocs/base_edocs.html" %}
+{% block ed_title %}Черновики{% endblock %}
+
+{% block ed_content %}
+<section class="ed-panel">
+  {% include "edocs/_filters.html" with mode="drafts" %}
+  {% include "edocs/_doc_table.html" with mode="drafts" empty_icon="bi-pencil" empty_title="Черновиков нет" empty_text="При создании документа нажмите «Сохранить черновик», чтобы вернуться к нему позже." %}
+</section>
+{% endblock %}

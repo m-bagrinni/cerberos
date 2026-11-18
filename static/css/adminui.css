@@ -908,3 +908,54 @@ body {
 .acc__cap small { font-size: 12px; color: var(--text-muted); }
 .acc-sum { display: flex; flex-wrap: wrap; gap: 4px; }
 .acc-sum .badge { font-weight: 500; }
+
+/* ============================================================
+   Телефон (≤ 768px): меню — прокручиваемая лента сверху, контент в одну колонку
+   ============================================================ */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; }
+  .adminui-layout { display: block !important; min-height: 0; }
+  .adminui-sidebar {
+    position: sticky !important;
+    top: 0;
+    z-index: 50;
+    height: auto !important;
+    margin: 0 !important;
+    padding: calc(6px + var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)) 8px 6px !important;
+    border-radius: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border, #2c3235);
+    background: #14171d !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    backdrop-filter: none !important;
+  }
+  .adminui-sidebar::-webkit-scrollbar { display: none; }
+  .adminui-sidebar__title { flex: 0 0 auto; padding: 0 8px 0 4px !important; margin: 0 !important; border: 0 !important; }
+  .adminui-sidebar__title span { display: none; }
+  .adminui-nav { flex-direction: row !important; flex: 0 0 auto; gap: 4px; margin: 0 !important; }
+  .adminui-nav__group { display: none !important; }
+  .adminui-nav__item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    border-radius: 8px;
+  }
+  .adminui-nav__item.is-active::before { display: none; }
+  .adminui-main { min-width: 0; padding: 0 !important; }
+  .adminui-header { flex-wrap: wrap; gap: 10px; padding: 14px 12px 8px !important; }
+  .adminui-header__title { font-size: 20px !important; }
+  .adminui-header__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .adminui-content { padding: 0 12px 24px !important; }
+  .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .adminui-grid-2, .aui-form__grid { grid-template-columns: 1fr !important; }
+  .panel { overflow-x: auto; }
+  .panel table { white-space: nowrap; }
+  input, select, textarea { font-size: 16px !important; max-width: 100%; }
+}

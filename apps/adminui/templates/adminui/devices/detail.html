@@ -28,6 +28,8 @@
           <span>·</span>
           <span>{{ device.vendor.name|default:"—" }}</span>
           {% if device.ent_model %}<span>·</span><span class="mono">{{ device.ent_model }}</span>{% endif %}
+          {% if uplink_chain %}<span>·</span><span title="Цепочка до корня сети">{% for pk, name in uplink_chain %}{% if pk %}<a href="{% url 'adminui:device_detail' pk %}">{{ name }}</a>{% else %}{{ name }}{% endif %}{% if not forloop.last %} › {% endif %}{% endfor %} › <b>{{ device.name }}</b></span>{% endif %}
+          {% if dependents.devices or dependents.ne or dependents.subnets %}<span>·</span><a href="{% url 'adminui:dependencies' %}" title="Их алерты свернутся под алерт этого устройства">⛓ за ним: {% if dependents.devices %}{{ dependents.devices }} устр.{% endif %}{% if dependents.ne %} {{ dependents.ne }} NE{% endif %}{% if dependents.subnets %} {{ dependents.subnets }} подсет.{% endif %}</a>{% endif %}
           {% if device.profile %}<span>·</span><span>{{ device.profile.name }}</span>{% endif %}
         </div>
       </div>

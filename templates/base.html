@@ -21,54 +21,12 @@
 
     {% block extra_head %}{% endblock %}
 
-<style>
-  /* === Мобильная адаптация Cerberus (WebApp) === */
-  @media (max-width: 768px) {
-    /* 1. Убираем сайдбар */
-    /* .app-sidebar теперь управляется из mobile.css */
-
-    /* 2. Контент на всю ширину (сбрасываем отступ слева, который был под сайдбар) */
-    .app-main, .app-content, .main-content, .container {
-      margin-left: 0 !important;
-      padding: 10px !important;
-      width: 100% !important;
-      max-width: 100vw !important;
-      box-sizing: border-box !important;
-    }
-
-    /* 3. Сетки в колонку (карточки) */
-    .grid, .grid-2, .grid-3, .grid-4, 
-    .cards-grid, .stats-grid, .dashboard-grid, 
-    .subnets-grid, .devices-grid {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 12px !important;
-    }
-
-    /* 4. Карточки */
-    .card, .stat-card, .device-card, .subnet-card {
-      padding: 15px !important;
-      width: 100% !important;
-      box-sizing: border-box !important;
-    }
-
-    /* 5. Кнопки */
-    .btn { width: 100% !important; margin-bottom: 8px !important; }
-    .btn-group, .actions { flex-direction: column !important; width: 100% !important; }
-
-    /* 6. Шапки страниц */
-    .page-header, .header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-
-    /* 7. Таблицы (если есть) */
-    .table-responsive { overflow-x: auto !important; }
-  }
-</style>
-    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=1793429171">
-    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261117a">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-auth="{% if request.user.is_authenticated %}1{% else %}0{% endif %}" data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
 
 <div class="app-layout">
 
@@ -112,9 +70,11 @@
     {% if acc.v.edocs %}
         {% if '/edocs/' in request.path %}
             <a href="/edocs/" class="app-sidebar__link {% if request.path == '/edocs/' %}is-active{% endif %}"><i class="bi bi-inbox"></i><span>Входящие</span></a>
-            <a href="/edocs/sent/" class="app-sidebar__link"><i class="bi bi-send"></i><span>Исходящие</span></a>
-            <a href="/edocs/employees/" class="app-sidebar__link"><i class="bi bi-people"></i><span>Сотрудники</span></a>
-            {% if acc.e.edocs %}<a href="/edocs/create/" class="app-sidebar__link" style="color: var(--primary);"><i class="bi bi-pencil-square"></i><span>Написать</span></a>{% endif %}
+            <a href="/edocs/sent/" class="app-sidebar__link {% if request.path == '/edocs/sent/' %}is-active{% endif %}"><i class="bi bi-send"></i><span>Исходящие</span></a>
+            {% if acc.e.edocs %}<a href="/edocs/drafts/" class="app-sidebar__link {% if request.path == '/edocs/drafts/' %}is-active{% endif %}"><i class="bi bi-pencil"></i><span>Черновики</span></a>{% endif %}
+            {% if acc.c.edocs_journal %}<a href="/edocs/journal/" class="app-sidebar__link {% if '/edocs/journal/' in request.path %}is-active{% endif %}"><i class="bi bi-journal-text"></i><span>Журнал</span></a>{% endif %}
+            <a href="/edocs/employees/" class="app-sidebar__link {% if '/edocs/employees/' in request.path %}is-active{% endif %}"><i class="bi bi-people"></i><span>Сотрудники</span></a>
+            {% if acc.e.edocs %}<a href="/edocs/create/" class="app-sidebar__link {% if request.path == '/edocs/create/' %}is-active{% endif %}" style="color: var(--primary);"><i class="bi bi-file-earmark-plus"></i><span>Создать документ</span></a>{% endif %}
         {% endif %}
     {% endif %}
 
@@ -201,46 +161,9 @@
 <script src="{% static 'js/interface-edit.js' %}?v=20261116k"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 {% load static %}
-<script src="{% static 'js/telegram-webapp-auth.js' %}?v=1793429171"></script>
+<script src="{% static 'js/telegram-webapp-auth.js' %}?v=20261117"></script>
 
 
-
-<!-- Мобильное меню -->
-
-<!-- Мобильная навигация -->
-
-
-<!-- Мобильное меню (гамбургер) -->
-<button id="mobile-menu-btn" class="mobile-menu-btn" style="display:none; position:fixed; top:10px; left:10px; z-index:10600;">
-    <i class="bi bi-list"></i>
-</button>
-<div id="mobile-overlay" class="mobile-overlay"></div>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const btn = document.getElementById("mobile-menu-btn");
-    const sidebar = document.querySelector(".app-sidebar");
-    const overlay = document.getElementById("mobile-overlay");
-
-    if (btn && sidebar && overlay) {
-        if (window.innerWidth <= 768) {
-            btn.style.display = "flex";
-        }
-
-        btn.addEventListener("click", function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            sidebar.classList.toggle("mobile-open");
-            overlay.classList.toggle("active");
-        });
-
-        overlay.addEventListener("click", function(e) {
-            e.preventDefault();
-            sidebar.classList.remove("mobile-open");
-            overlay.classList.remove("active");
-        });
-    }
-});
-</script>
 
 <!-- Кастомное контекстное меню -->
 <div id="custom-context-menu" style="display: none; position: fixed; z-index: 10000; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.5); padding: 4px 0; min-width: 200px;">
@@ -308,16 +231,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 350);
         });
         
-        // Восстанавливаем состояние ТОЛЬКО на мобильных (ПК всегда развёрнут)
-        if (window.innerWidth < 769) {
-            if (localStorage.getItem('cerber-sidebar-hidden') === '1') {
-                layout.classList.add('is-sidebar-hidden');
-            }
-        } else {
-            // На ПК — принудительно развёрнут и сбрасываем «застрявший» флаг
-            layout.classList.remove('is-sidebar-hidden');
-            localStorage.removeItem('cerber-sidebar-hidden');
-        }
+        // Скрытие сайдбара — только в рамках текущей страницы; на телефоне сайдбар = выезжающее меню
+        layout.classList.remove('is-sidebar-hidden');
+        localStorage.removeItem('cerber-sidebar-hidden');
     }
 });
 </script>
@@ -444,46 +360,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 })();
 </script>
-    <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
+    <script src="{% static 'js/glass.js' %}?v=20261117b"></script>
 
 <script>
 // УМНАЯ ПОКРАСКА DDM (Запускается на всех страницах)
 (function() {
 })();
 </script>
-<div id="ip-modal" class="modal-backdrop" hidden>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modal-title">IP Адрес</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <div class="modal-body" id="modal-body"></div>
-    </div>
-</div>
 
-<!-- === Мобильная нижняя навигация (bottom nav) === -->
-<nav class="mobile-bottom-nav" aria-label="Мобильная навигация">
-    <a href="{% url 'stations_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'stations_list' %} active{% endif %}">
-        <i class="bi bi-broadcast"></i>
-        <span>Диспетчерская</span>
-    </a>
-    <a href="{% url 'alerts_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'alerts_list' %} active{% endif %}">
-        <i class="bi bi-exclamation-triangle"></i>
-        <span>Алерты</span>
-    </a>
-    <a href="{% url 'dashboard' %}" class="mbn-item{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}">
-        <i class="bi bi-grid-1x2"></i>
-        <span>Обзор</span>
-    </a>
-    <a href="{% url 'services_page' %}" class="mbn-item{% if request.resolver_match.url_name == 'services_page' %} active{% endif %}">
-        <i class="bi bi-hdd-stack"></i>
-        <span>Службы</span>
-    </a>
-    <a href="{% url 'subnets_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'subnets_list' %} active{% endif %}">
-        <i class="bi bi-diagram-3"></i>
-        <span>Подсети</span>
-    </a>
-</nav>
+{% include '_mobile_nav.html' %}
 
 </body>
 </html>

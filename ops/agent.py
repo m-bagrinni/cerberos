@@ -26,6 +26,8 @@ import json
 import logging
 import os
 import re
+import select
+import socket
 import subprocess
 import sys
 import threading
@@ -61,6 +63,7 @@ _EXACT = {
     ("ip", "neigh", "show"),
     ("find", "/tmp/cerber_pcap", "-name", "count_*.pcap", "-mmin", "+30", "-delete"),
     ("find", "/tmp/cerber_pcap", "-name", "*.pcap", "-mmin", "+60", "-delete"),
+    ("cat", "/usr/share/nmap/nmap-mac-prefixes"),   # база производителей по MAC (OUI)
 }
 _TCPDUMP_FLAGS = {"-nn", "-tttt", "-U", "-l", "-A", "-e", "-q", "-v"}
 _NMAP_SCRIPTS = {("445", "smb-os-discovery"), ("137", "nbstat.nse")}
@@ -132,6 +135,10 @@ def validate_argv(argv: list) -> list[str]:
         _host(args[4])
         return argv
     raise Reject(f"command not allowed: {prog!r}")
+
+
+# Фиксированный скрипт: печатает PID и заменяется командой из позиционных параметров.
+_PID_WRAPPER = 'echo "CERBER_PID $$"; exec "$@"'
 
 
 def _docker_exec(argv: list[str], timeout: int) -> list[str]:
@@ -254,20 +261,67 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _sniffer_stream(self, data: dict):
-        """Построчно отдаёт stdout. Обрыв соединения клиентом → процесс убивается."""
+        """
+        Построчно отдаёт stdout. Обрыв соединения клиентом → процесс в sniffer убивается.
+
+        Убить клиента `docker exec` мало — процесс в контейнере продолжит жить.
+        Поэтому запускаем через фиксированный sh-скрипт, который печатает свой PID
+        первой строкой и делает exec команды (argv — позиционные параметры, не код).
+        BusyBox timeout выполняет команду в том же процессе, так что этот PID —
+        PID самого tcpdump. Его и убиваем при обрыве.
+        """
         argv = validate_argv(data.get("argv"))
         timeout = self._timeout(data, default=MAX_TIMEOUT)
         deadline = time.monotonic() + timeout + 2
-        proc = subprocess.Popen(_docker_exec(argv, timeout), stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, bufsize=0)
+        cmd = _docker_exec(argv, timeout)            # docker exec SNIFFER timeout Ns ...
+        cmd = cmd[:3] + ["sh", "-c", _PID_WRAPPER, "sh", *cmd[3:]]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
         watchdog = threading.Timer(max(0.0, deadline - time.monotonic()), proc.kill)
         watchdog.daemon = True
         watchdog.start()
+        inner_pid = None
+        first = proc.stdout.readline()
+        m = re.fullmatch(rb"CERBER_PID (\d{1,9})\s*", first)
+        if m:
+            inner_pid = m.group(1).decode()
+            first = b""
+        killed = threading.Lock()
+
+        def stop_inner():
+            """Убивает tcpdump в sniffer и клиента docker exec (идемпотентно)."""
+            if not killed.acquire(blocking=False):
+                return
+            if proc.poll() is None and inner_pid:
+                # docker exec ещё жив → процесс в контейнере тоже, PID не переиспользован
+                try:
+                    subprocess.run(["docker", "exec", SNIFFER, "kill", "-TERM", inner_pid],
+                                   capture_output=True, timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+            if proc.poll() is None:
+                proc.kill()
+
+        def watch_client():
+            """При тихом фильтре строк нет и BrokenPipe не случится — следим за сокетом сами."""
+            sock = self.connection
+            while proc.poll() is None:
+                try:
+                    r, _, _ = select.select([sock], [], [], 0.5)
+                    if r and not sock.recv(1, socket.MSG_PEEK):
+                        stop_inner()
+                        return
+                except OSError:
+                    stop_inner()
+                    return
+
+        threading.Thread(target=watch_client, daemon=True).start()
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()
         try:
+            if first:
+                self.wfile.write(b"%x\r\n%s\r\n" % (len(first), first))
             for line in iter(proc.stdout.readline, b""):
                 self.wfile.write(b"%x\r\n%s\r\n" % (len(line), line))
                 self.wfile.flush()
@@ -276,8 +330,7 @@ class Handler(BaseHTTPRequestHandler):
             pass
         finally:
             watchdog.cancel()
-            if proc.poll() is None:
-                proc.kill()
+            stop_inner()
             proc.wait(timeout=5)
             self.close_connection = True
 

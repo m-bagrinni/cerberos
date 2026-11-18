@@ -1,71 +1,62 @@
 {% extends "edocs/base_edocs.html" %}
+{% block ed_title %}{{ employee.short_name }}{% endblock %}
 
-{% block edocs_content %}
-<div style="max-width: 800px; margin: 0 auto;">
-  <a href="{% url 'edocs:employees' %}" class="edocs-btn" style="background:transparent; border:1px solid var(--border); color:var(--text); margin-bottom: 20px;">
-    <i class="bi bi-arrow-left"></i> Назад к списку
-  </a>
-
-  <div class="edocs-card">
-    <div class="edocs-card__head">
-      <i class="bi bi-person-circle"></i> Профиль сотрудника
-    </div>
-    <div class="edocs-card__body" style="padding: 24px;">
-      <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
-        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--bg-input); border: 2px solid var(--primary); display: flex; align-items: center; justify-content: center; color: var(--primary);">
-          <i class="bi bi-person-fill" style="font-size: 40px;"></i>
-        </div>
-        <div>
-          <div style="font-size: 20px; font-weight: 600; color: var(--text-strong);">
-            {{ employee.last_name }} {{ employee.first_name }} {{ employee.middle_name }}
-          </div>
-          <div style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
-            @{{ employee.username }}
-          </div>
-          {% if employee.position %}
-          <div style="font-size: 13px; color: var(--tiffany); margin-top: 4px;">
-            {{ employee.position }}
-          </div>
-          {% endif %}
-        </div>
+{% block ed_content %}
+<a class="ed-back" href="{% url 'edocs:employees' %}"><i class="bi bi-arrow-left"></i> Все сотрудники</a>
+<div class="ed-grid">
+  <div>
+    <section class="ed-panel">
+      <div class="ed-panel__head">
+        <h2 class="ed-panel__title"><i class="bi bi-arrow-left-right"></i> Наша переписка</h2>
+        <div class="ed-panel__aside">последние 20</div>
       </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Отдел</span>
-          <span style="color: var(--text-strong); font-size: 13px;">{{ employee.department|default:"—" }}</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Email</span>
-          <span style="color: var(--text-strong); font-size: 13px;">{{ employee.email|default:"—" }}</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Рабочий телефон</span>
-          <span style="color: var(--text-strong); font-size: 13px;">{{ employee.work_phone|default:"—" }}</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Сотовый телефон</span>
-          <span style="color: var(--text-strong); font-size: 13px;">{{ employee.mobile_phone|default:"—" }}</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Telegram ID</span>
-          <span style="color: var(--text-strong); font-size: 13px;">{{ employee.telegram_id|default:"—" }}</span>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Статус</span>
-          <span style="color: {% if employee.registration_status == 'approved' %}var(--ok){% else %}var(--warn){% endif %}; font-size: 13px; font-weight: 600;">
-            {{ employee.get_registration_status_display }}
-          </span>
-        </div>
-      </div>
-
-      <div style="margin-top: 30px; display: flex; gap: 10px;">
-        <a href="{% url 'edocs:create' %}?to={{ employee.id }}" class="edocs-btn" style="flex: 1;">
-          <i class="bi bi-envelope"></i> Написать письмо
-        </a>
-      </div>
-    </div>
+      {% if shared %}
+      <table class="ed-table ed-table--docs">
+        <tbody>
+          {% for d in shared %}
+          <tr data-href="{% url 'edocs:document_detail' d.pk %}">
+            <td class="ed-c-num" style="width:128px"><div class="ed-num">{{ d.number }}</div><div class="ed-sub">{{ d.sent_at|date:"d.m.Y" }}</div></td>
+            <td class="ed-c-doc">
+              <a class="ed-doc__title" href="{% url 'edocs:document_detail' d.pk %}">{{ d.title }}</a>
+              <div class="ed-doc__meta">
+                <span class="ed-tag">{% if d.author_id == request.user.pk %}исходящий{% else %}входящий{% endif %}</span>
+                <span class="ed-tag ed-tag--{{ d.document_type }}">{{ d.get_document_type_display }}</span>
+              </div>
+            </td>
+            <td class="ed-c-st" style="width:150px"><span class="ed-badge ed-badge--{{ d.status }}">{{ d.status_label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="ed-empty"><i class="bi bi-envelope"></i><b>Общих документов пока нет</b></div>
+      {% endif %}
+    </section>
   </div>
+
+  <aside>
+    <section class="ed-panel">
+      <div class="ed-panel__body" style="display:flex;gap:14px;align-items:center">
+        <div class="ed-avatar" style="width:56px;height:56px;font-size:18px">{% if employee.avatar %}<img src="{{ employee.avatar.url }}" alt="">{% else %}{{ employee.last_name|default:employee.username|slice:":1"|upper }}{{ employee.first_name|slice:":1"|upper }}{% endif %}</div>
+        <div style="min-width:0">
+          <div style="font-size:16px;font-weight:600">{{ employee.last_name }} {{ employee.first_name }} {{ employee.middle_name }}</div>
+          <div class="ed-sub">{{ employee.position_ref.name|default:employee.position|default:"Должность не указана" }}</div>
+        </div>
+      </div>
+      <div class="ed-panel__body" style="border-top:1px solid var(--ed-border)">
+        <div class="ed-summary">
+          <div class="ed-summary__row"><span>Отдел</span><span>{{ employee.department|default:"—" }}</span></div>
+          <div class="ed-summary__row"><span>Email</span><span>{% if employee.email %}<a href="mailto:{{ employee.email }}">{{ employee.email }}</a>{% else %}—{% endif %}</span></div>
+          <div class="ed-summary__row"><span>Рабочий телефон</span><span>{{ employee.work_phone|default:"—" }}</span></div>
+          <div class="ed-summary__row"><span>Сотовый</span><span>{{ employee.mobile_phone|default:"—" }}</span></div>
+          <div class="ed-summary__row"><span>Telegram</span><span>{% if employee.telegram_id %}привязан{% else %}—{% endif %}</span></div>
+          <div class="ed-summary__row"><span>Документов в работе</span><span>{{ load }}</span></div>
+        </div>
+        {% if acc.e.edocs and employee.pk != request.user.pk %}
+        <a class="ed-btn ed-btn--primary" style="width:100%;margin-top:14px" href="{% url 'edocs:create' %}?to={{ employee.pk }}"><i class="bi bi-file-earmark-plus"></i> Создать документ</a>
+        {% endif %}
+      </div>
+    </section>
+  </aside>
 </div>
 {% endblock %}

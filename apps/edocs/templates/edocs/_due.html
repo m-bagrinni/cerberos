@@ -1,0 +1,10 @@
+{% if d.due_date %}
+<div class="ed-due{% if d.is_overdue %} is-overdue{% elif d.is_open and d.days_left <= 1 %} is-soon{% endif %}">
+  {{ d.due_date|date:"d.m.Y" }}
+  {% if d.is_open %}
+  <div class="ed-due__left">
+    {% if d.is_overdue %}просрочен на {{ d.overdue_days }} дн.{% elif d.days_left == 0 %}сегодня{% elif d.days_left == 1 %}завтра{% else %}через {{ d.days_left }} дн.{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% else %}<span class="ed-sub">без срока</span>{% endif %}

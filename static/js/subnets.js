@@ -164,6 +164,7 @@
   const filterInput = document.getElementById("ip-filter");
   const onlyAlive = document.getElementById("only-alive");
   const onlyMonitored = document.getElementById("only-monitored");
+  const typeFilter = document.getElementById("ip-type-filter");
 
   let liveTimer = null;
   let liveOn = true;
@@ -210,11 +211,13 @@
   filterInput?.addEventListener("input", applyFilters);
   onlyAlive?.addEventListener("change", applyFilters);
   onlyMonitored?.addEventListener("change", applyFilters);
+  typeFilter?.addEventListener("change", applyFilters);
 
   function applyFilters() {
     const q = (filterInput?.value || "").trim().toLowerCase();
     const a = onlyAlive?.checked || false;
     const m = onlyMonitored?.checked || false;
+    const ty = typeFilter?.value || "";
 
     document.querySelectorAll(".ip-cell").forEach(el => {
       const ip = el.dataset.ip || "";
@@ -223,9 +226,11 @@
       const monitored = el.dataset.monitored === "1";
 
       let show = true;
-      if (q && !ip.toLowerCase().includes(q) && !host.includes(q)) show = false;
+      const vendor = (el.dataset.vendor || "").toLowerCase();
+      if (q && !ip.toLowerCase().includes(q) && !host.includes(q) && !vendor.includes(q)) show = false;
       if (a && !alive) show = false;
       if (m && !monitored) show = false;
+      if (ty && (el.dataset.dtype || "none") !== ty) show = false;
 
       el.classList.toggle("ip-cell--hidden", !show);
     });
@@ -257,6 +262,20 @@
     parts.push('<div class="t-ip">' + esc(ip.ip) + '</div>');
     if (ip.hostname) {
       parts.push('<div class="t-host">' + esc(ip.hostname) + '</div>');
+    }
+    if (ip.dtype) {
+      var conf = ip.dconf === "medium" ? " (вероятно)" : "";
+      parts.push('<div class="t-type"><i class="bi ' + esc(ip.dicon) + '"></i> ' + esc(ip.dlabel) + esc(conf) + '</div>');
+      parts.push('<div class="t-why">' + esc(ip.dwhy) + '</div>');
+    } else if (ip.dcand) {
+      parts.push('<div class="t-type t-type--unsure">Тип неясен: ' + esc(ip.dcand) + '</div>');
+      parts.push('<div class="t-why">' + esc(ip.dwhy) + '</div>');
+    }
+    if (ip.fp && (ip.fp.ttl || ip.fp.nb)) {
+      var fpParts = [];
+      if (ip.fp.ttl) fpParts.push("TTL " + ip.fp.ttl);
+      if (ip.fp.nb) fpParts.push("NetBIOS " + ip.fp.nb + (ip.fp.domain ? " / " + ip.fp.domain : ""));
+      parts.push('<div class="t-why">' + esc(fpParts.join(" · ")) + '</div>');
     }
 
     var state = ip.state || "unknown";
@@ -293,7 +312,7 @@
 
     var rect = cellEl.getBoundingClientRect();
     var tw = 260;
-    var th = 130;
+    var th = 170;
     var spaceRight = window.innerWidth - rect.right;
     var spaceBelow = window.innerHeight - rect.bottom;
 
@@ -378,6 +397,7 @@
 
     gridEl.classList.toggle("is-large", cellPx >= 36);
     gridEl.classList.toggle("is-mini", cellPx <= 18);
+    gridEl.classList.toggle("has-icons", cellPx >= 28);
 
     const frag = document.createDocumentFragment();
     const cells = [];
@@ -394,6 +414,21 @@
 
       // Всегда рисуем цифры — CSS сам скроет для is-mini
       el.textContent = ip.ip.split(".").pop();
+      // Тип устройства «плюс-минус» (сервер: devtype.py) — иконка в углу
+      el.dataset.vendor = ip.vendor || "";
+      if (ip.dtype) {
+        // плитка: значок типа + номер под ним
+        el.dataset.dtype = ip.dtype;
+        el.classList.add("has-type", "has-type--" + (ip.dconf || "medium"));
+        el.textContent = "";
+        const ico = document.createElement("i");
+        ico.className = "ip-cell__ico bi " + ip.dicon;
+        ico.setAttribute("aria-hidden", "true");
+        const num = document.createElement("span");
+        num.className = "ip-cell__num";
+        num.textContent = ip.ip.split(".").pop();
+        el.append(ico, num);
+      }
 
       el.addEventListener("click", () => openIpModal(ip));
 
@@ -416,7 +451,52 @@
 
     gridEl.innerHTML = "";
     gridEl.appendChild(frag);
+    updateTypeFilter(data.ips);
   }
+
+  function updateTypeFilter(ips) {
+    if (!typeFilter) return;
+    const counts = new Map();
+    let none = 0;
+    for (const ip of ips) {
+      if (ip.dtype) {
+        const c = counts.get(ip.dtype) || { label: ip.dlabel, n: 0 };
+        c.n++; counts.set(ip.dtype, c);
+      } else if (ip.is_alive) {
+        none++;     // живой, но тип не определён или спорный
+      }
+    }
+    const cur = typeFilter.value;
+    const opts = ['<option value="">Все типы</option>'];
+    [...counts.entries()].sort((a, b) => b[1].n - a[1].n).forEach(([k, v]) => {
+      opts.push(`<option value="${esc(k)}">${esc(v.label)} — ${v.n}</option>`);
+    });
+    if (none) opts.push(`<option value="none">Не определён — ${none}</option>`);
+    typeFilter.innerHTML = opts.join("");
+    if ([...typeFilter.options].some(o => o.value === cur)) typeFilter.value = cur;
+
+    // Легенда значков: тип и количество, клик — фильтр
+    const legend = document.getElementById("ip-type-legend");
+    if (legend) {
+      const icons = {};
+      ips.forEach(ip => { if (ip.dtype) icons[ip.dtype] = ip.dicon; });
+      legend.innerHTML = [...counts.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, v]) =>
+        `<button type="button" class="type-chip${typeFilter.value === k ? " is-active" : ""}" data-dtype="${esc(k)}">` +
+        `<i class="bi ${esc(icons[k])}"></i> ${esc(v.label)} <span>${v.n}</span></button>`
+      ).join("") + (counts.size ? `<span class="type-legend__note" title="По производителю MAC, имени хоста и данным Cerber. Бледный значок — догадка.">тип определён автоматически</span>` : "");
+    }
+  }
+
+  document.getElementById("ip-type-legend")?.addEventListener("click", (e) => {
+    const chip = e.target.closest(".type-chip");
+    if (!chip || !typeFilter) return;
+    typeFilter.value = typeFilter.value === chip.dataset.dtype ? "" : chip.dataset.dtype;
+    document.querySelectorAll("#ip-type-legend .type-chip").forEach(c => c.classList.toggle("is-active", c.dataset.dtype === typeFilter.value));
+    applyFilters();
+  });
+  typeFilter?.addEventListener("change", () => {
+    document.querySelectorAll("#ip-type-legend .type-chip").forEach(c => c.classList.toggle("is-active", c.dataset.dtype === typeFilter.value));
+  });
 
   function ipCellClass(ip) {
     // Приоритет: reserved > monitored+dead > monitored+alive > alive > free > unknown
@@ -473,54 +553,252 @@
     liveTimer = null;
   }
 
-  // ─── Модалка IP (упрощённая, гарантированно рабочая) ───
+  // ─── Карточка IP ───────────────────────────────────────────
+  // Шапка (IP, имя, тип, статус) → «Устройство» → «Доступность» (+ график RTT) →
+  // правка (имя, станция, подпись) по кнопке → действия. Только непустые поля.
 
   const modal = document.getElementById("ip-modal");
   const backdrop = document.getElementById("ip-modal-backdrop");
-  const modalTitle = document.getElementById("ip-modal-title");
-  const modalBody = document.getElementById("ip-modal-body");
+  let modalIp = null;          // строка сетки (id, ip, тип …)
+  let modalData = null;        // ответ /api/v1/ip-addresses/<id>/
+  let modalEditing = false;
+  let stationsCache = null;
 
-  document.getElementById("ip-modal-close")?.addEventListener("click", closeModal);
   backdrop?.addEventListener("click", closeModal);
-  function onModalKey(e) { if (e.key === "Escape") closeModal(); }
+  function onModalKey(e) { if (e.key === "Escape" && modal && !modal.hidden) closeModal(); }
   document.addEventListener("keydown", onModalKey);
 
   function closeModal() {
     if (modal) modal.hidden = true;
     if (backdrop) backdrop.hidden = true;
+    if (currentChart) { try { currentChart.destroy(); } catch (_) {} currentChart = null; }
+    modalIp = modalData = null;
+    modalEditing = false;
   }
 
   async function openIpModal(ip) {
-    if (!modal || !modalBody) return;
-    modalTitle.textContent = ip.ip || "?";
-    modalBody.innerHTML = "Загрузка...";
+    if (!modal || !ip || !ip.id) return;
+    modalIp = ip;
+    modalEditing = false;
     modal.hidden = false;
     backdrop.hidden = false;
-
-    const id = ip.id;
-    if (!id) {
-      modalBody.innerHTML = '<div style="color:var(--crit)">Ошибка: у IP нет id</div>';
-      return;
-    }
-
+    renderModal(null, "loading");
     try {
-      const url = `/api/v1/ip-addresses/${id}/`;
-      const resp = await fetch(url);
-      if (!resp.ok) {
-        modalBody.innerHTML = `<div style="color:var(--crit)">HTTP ${esc(resp.status)} — ${esc(url)}</div>`;
-        return;
-      }
-      const data = await resp.json();
-      modalBody.innerHTML = buildModalHtml(data);
-      bindModalButtons(data);
-      if (data.is_monitored) {
-        // Отложенный вызов — canvas уже в DOM
-        setTimeout(function () { drawRttChart(data.id); }, 50);
-      }
+      const r = await fetch(`/api/v1/ip-addresses/${ip.id}/`);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json();
+      if (modalIp !== ip) return;               // успели открыть другой IP
+      modalData = data;
+      renderModal(data);
     } catch (e) {
-      modalBody.innerHTML = `<div style="color:var(--crit)">Ошибка: ${esc(e.message)}</div>`;
+      if (modalIp === ip) renderModal(null, "error", e.message);
     }
   }
+
+  function relTime(iso) {
+    if (!iso) return null;
+    const sec = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (sec < 0) return "только что";
+    if (sec < 60) return Math.round(sec) + " с назад";
+    if (sec < 3600) return Math.round(sec / 60) + " мин назад";
+    if (sec < 86400) return Math.round(sec / 3600) + " ч назад";
+    const d = Math.round(sec / 86400);
+    return d + (d === 1 ? " день" : d < 5 ? " дня" : " дней") + " назад";
+  }
+
+  function statusOf(d) {
+    if (d.is_alive) return { cls: "ok", text: "В сети" + (d.last_rtt_ms != null ? " · " + fmtMs(d.last_rtt_ms) : "") };
+    if (d.is_monitored) return { cls: "crit", text: "Не отвечает" };
+    if (d.last_seen_at) return { cls: "muted", text: "Не в сети" };
+    return { cls: "muted", text: "Свободен" };
+  }
+  function fmtMs(v) { return (v < 10 ? Number(v).toFixed(2) : Math.round(v)) + " мс"; }
+
+  function renderModal(d, state, err) {
+    const ip = modalIp || {};
+    const canEdit = !!(window.Cerber && Cerber.can("subnets"));
+    const icon = ip.dtype ? ip.dicon : "bi-question-lg";
+    const st = d ? statusOf(d) : null;
+    const name = (d && d.hostname) || ip.hostname || "";
+    const typeLine = ip.dtype ? ip.dlabel : (ip.vendor || "");
+
+    const h = [];
+    h.push(
+      `<header class="ipm__head">` +
+        `<div class="ipm__ico ipm__ico--${st ? st.cls : "muted"}"><i class="bi ${esc(icon)}"></i></div>` +
+        `<div class="ipm__titles">` +
+          `<h3 id="ip-modal-title">${esc(ip.ip || "")}</h3>` +
+          `<div class="ipm__sub">${[name ? `<b>${esc(name)}</b>` : "", esc(typeLine)].filter(Boolean).join(" · ") || '<span class="ipm__muted">нет данных об устройстве</span>'}</div>` +
+        `</div>` +
+        `<div class="ipm__badges">` +
+          (st ? `<span class="ipm-pill ipm-pill--${st.cls}">${esc(st.text)}</span>` : "") +
+          (d && d.is_reserved ? `<span class="ipm-pill ipm-pill--warn">Резерв</span>` : "") +
+        `</div>` +
+        `<button type="button" class="ipm__close" data-ipm="close" title="Закрыть (Esc)"><i class="bi bi-x-lg"></i></button>` +
+      `</header>`
+    );
+
+    h.push(`<div class="ipm__body">`);
+    if (state === "loading") h.push(`<div class="ipm__wait"><span class="ipm-spin"></span> Загрузка…</div>`);
+    if (state === "error") h.push(`<div class="ipm__err">Не удалось загрузить: ${esc(err || "")}</div>`);
+
+    if (d) {
+      // ── Устройство ──
+      const rows = [];
+      const row = (label, html) => rows.push(`<div class="ipm-row"><dt>${esc(label)}</dt><dd>${html}</dd></div>`);
+      if (ip.dtype) {
+        row("Тип", `${esc(ip.dlabel)}${ip.dconf === "medium" ? ' <span class="ipm__muted">(вероятно)</span>' : ""}` +
+                   `<div class="ipm__hint">${esc(ip.dwhy || "")}</div>`);
+      } else if (ip.dcand) {
+        row("Тип", `<span class="ipm__muted">${esc(ip.dcand)}</span><div class="ipm__hint">${esc(ip.dwhy || "")}</div>`);
+      }
+      const mac = d.mac || ip.mac;
+      if (mac) {
+        row("MAC", `<code>${esc(mac)}</code>` +
+                   `<button type="button" class="ipm-copy" data-ipm="copy" data-v="${esc(mac)}" title="Копировать"><i class="bi bi-copy"></i></button>` +
+                   (ip.vendor ? `<div class="ipm__hint">${esc(ip.vendor)}</div>` : ""));
+      }
+      if (d.fdb_device) row("Подключён", `${esc(d.fdb_device)}${d.fdb_port ? ` · порт <b>${esc(d.fdb_port)}</b>` : ""}`);
+      if (d.is_device_ip && d.device_name) {
+        row("В Cerber", `<a href="/local/devices/${encodeURIComponent(d.ip)}/">${esc(d.device_name)} <i class="bi bi-arrow-up-right"></i></a>`);
+      }
+      if (d.station_name) row("Станция", esc(d.station_name));
+      if (d.description) row("Подпись", esc(d.description));
+      if (ip.fp && ip.fp.nb && ip.fp.domain) row("Домен", esc(ip.fp.domain));
+      if (rows.length) h.push(`<section class="ipm-sec"><h4>Устройство</h4><dl class="ipm-dl">${rows.join("")}</dl></section>`);
+
+      // ── Доступность ──
+      const tiles = [];
+      const tile = (label, value, cls, title) =>
+        tiles.push(`<div class="ipm-tile"${title ? ` title="${esc(title)}"` : ""}><span>${esc(label)}</span><b class="${cls || ""}">${esc(value)}</b></div>`);
+      tile("Отклик", d.is_alive && d.last_rtt_ms != null ? fmtMs(d.last_rtt_ms) : "—");
+      tile("Потери", d.packet_loss_pct != null ? Math.round(d.packet_loss_pct) + "%" : "—",
+           d.packet_loss_pct > 0 ? (d.packet_loss_pct >= 50 ? "is-crit" : "is-warn") : "");
+      tile("Последний ответ", relTime(d.last_seen_at) || "никогда", "", d.last_seen_at ? fmtTime(d.last_seen_at) : "");
+      h.push(`<section class="ipm-sec"><h4>Доступность</h4><div class="ipm-tiles">${tiles.join("")}</div>` +
+             (d.is_monitored
+               ? `<div class="ipm-chart"><div class="ipm-chart__head"><span>Отклик за 24 часа</span><span id="ip-chart-info"></span></div>` +
+                 `<div class="ipm-chart__box"><canvas id="ip-rtt-chart"></canvas></div></div>`
+               : "") +
+             `</section>`);
+
+      // ── Правка ──
+      if (canEdit && modalEditing) {
+        h.push(
+          `<section class="ipm-sec ipm-edit"><h4>Изменить</h4>` +
+            `<label>Имя<input type="text" id="ipm-hostname" maxlength="255" value="${esc(d.hostname || "")}" placeholder="например, PC-067"></label>` +
+            `<label>Станция<select id="ipm-station"><option value="">— не прикреплён —</option></select></label>` +
+            `<label>Подпись<input type="text" id="ipm-description" maxlength="255" value="${esc(d.description || "")}" placeholder="кабинет, назначение…"></label>` +
+            `<div class="ipm-edit__btns"><button type="button" class="ipm-btn ipm-btn--primary" data-ipm="save">Сохранить</button>` +
+            `<button type="button" class="ipm-btn" data-ipm="cancel">Отмена</button></div>` +
+          `</section>`
+        );
+      }
+    }
+    h.push(`</div>`);
+
+    // ── Действия ──
+    if (d && canEdit && !modalEditing) {
+      h.push(
+        `<footer class="ipm__foot">` +
+          `<button type="button" class="ipm-btn" data-ipm="ping"><i class="bi bi-broadcast"></i> Пинг</button>` +
+          `<button type="button" class="ipm-btn${d.is_monitored ? " is-on" : ""}" data-ipm="monitor" title="${d.is_monitored ? "Снять с мониторинга" : "Поставить на мониторинг"}">` +
+            `<i class="bi ${d.is_monitored ? "bi-eye-fill" : "bi-eye"}"></i> ${d.is_monitored ? "На мониторинге" : "Мониторинг"}</button>` +
+          `<button type="button" class="ipm-btn${d.is_reserved ? " is-warn" : ""}" data-ipm="reserve" title="${d.is_reserved ? "Снять резерв" : "Зарезервировать адрес"}">` +
+            `<i class="bi bi-bookmark${d.is_reserved ? "-fill" : ""}"></i> ${d.is_reserved ? "В резерве" : "Резерв"}</button>` +
+          `<button type="button" class="ipm-btn ipm-btn--ghost" data-ipm="edit"><i class="bi bi-pencil"></i> Изменить</button>` +
+        `</footer>`
+      );
+    }
+    modal.innerHTML = h.join("");
+
+    if (d && d.is_monitored) setTimeout(() => drawRttChart(d.id), 30);
+    if (d && modalEditing) fillStations(d.station);
+  }
+
+  async function fillStations(current) {
+    const sel = document.getElementById("ipm-station");
+    if (!sel) return;
+    try {
+      if (!stationsCache) {
+        const r = await fetch("/api/v1/stations/?light=1");
+        const j = await r.json();
+        stationsCache = (j.results || j || []).map((s) => ({ id: s.id, name: s.name }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+      }
+      sel.insertAdjacentHTML("beforeend", stationsCache.map((s) =>
+        `<option value="${esc(s.id)}"${String(s.id) === String(current) ? " selected" : ""}>${esc(s.name)}</option>`).join(""));
+    } catch (e) {
+      sel.insertAdjacentHTML("beforeend", `<option disabled>станции не загрузились</option>`);
+    }
+  }
+
+  async function modalAction(btn, url, body) {
+    btn.disabled = true;
+    btn.classList.add("is-busy");
+    try {
+      const r = await csrfFetch(url, body
+        ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+        : { method: "POST" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove("is-busy");
+    }
+  }
+
+  modal?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-ipm]");
+    if (!btn || !modalData) {
+      if (btn && btn.dataset.ipm === "close") closeModal();
+      return;
+    }
+    const d = modalData;
+    const act = btn.dataset.ipm;
+    try {
+      if (act === "close") return closeModal();
+      if (act === "copy") {
+        await navigator.clipboard?.writeText(btn.dataset.v);
+        Cerber.toast("MAC скопирован", "success", 1500);
+        return;
+      }
+      if (act === "edit") { modalEditing = true; renderModal(d); document.getElementById("ipm-hostname")?.focus(); return; }
+      if (act === "cancel") { modalEditing = false; renderModal(d); return; }
+      if (act === "ping") {
+        const j = await modalAction(btn, `/api/v1/ip-addresses/${d.id}/ping-now/`);
+        Object.assign(d, j);
+        Cerber.toast(j.is_alive ? `Отвечает · ${fmtMs(j.last_rtt_ms)}` : "Не отвечает", j.is_alive ? "success" : "error", 2500);
+      } else if (act === "monitor") {
+        const j = await modalAction(btn, `/api/v1/ip-addresses/${d.id}/toggle-monitor/`);
+        d.is_monitored = j.is_monitored;
+      } else if (act === "reserve") {
+        const j = await modalAction(btn, `/api/v1/ip-addresses/${d.id}/set-reserved/`);
+        d.is_reserved = j.is_reserved; d.state = j.state;
+      } else if (act === "save") {
+        const hostname = document.getElementById("ipm-hostname").value.trim();
+        const sel = document.getElementById("ipm-station");
+        const description = document.getElementById("ipm-description").value.trim();
+        if (hostname !== (d.hostname || "")) {
+          await modalAction(btn, `/api/v1/ip-addresses/${d.id}/set-hostname/`, { hostname });
+        }
+        // update-station пишет и станцию, и подпись — отправляем обе, чтобы не стереть подпись
+        const j = await modalAction(btn, `/api/v1/ip-addresses/${d.id}/update-station/`,
+                                    { station: sel.value ? parseInt(sel.value, 10) : null, description });
+        d.hostname = hostname; d.description = j.description; d.station = j.station;
+        d.station_name = j.station ? (sel.selectedOptions[0] || {}).textContent : null;
+        if (modalIp) modalIp.hostname = hostname;
+        modalEditing = false;
+        Cerber.toast("Сохранено", "success", 1500);
+      } else {
+        return;
+      }
+      renderModal(d);
+      loadGrid();
+    } catch (err) {
+      Cerber.toast("Ошибка: " + err.message, "error", 4000);
+    }
+  });
 
   // ─── График RTT (Chart.js) ───
   var currentChart = null;
@@ -528,170 +806,61 @@
   async function drawRttChart(ipId) {
     var canvas = document.getElementById("ip-rtt-chart");
     if (!canvas) return;
-    if (typeof Chart === "undefined") {
-      canvas.parentElement.innerHTML =
-        '<div class="ip-modal__no-chart">Chart.js не загружен</div>';
-      return;
-    }
-
+    var box = canvas.parentElement;
+    if (typeof Chart === "undefined") { box.innerHTML = '<div class="ipm-chart__empty">График недоступен</div>'; return; }
     try {
       var r = await fetch("/api/v1/ip-addresses/" + ipId + "/ping-history/?hours=24");
       if (!r.ok) throw new Error("HTTP " + r.status);
       var data = await r.json();
       var samples = data.samples || [];
-
-      var info = document.getElementById("ip-chart-info");
-      if (info) info.textContent = samples.length + " точек";
-
-      if (samples.length === 0) {
-        canvas.parentElement.innerHTML =
-          '<div class="ip-modal__no-chart">Нет данных за 24 часа.<br>' +
-          'Воркер пингует каждые 30 сек — подожди минуту.</div>';
+      if (!document.body.contains(canvas)) return;
+      if (!samples.length) {
+        box.innerHTML = '<div class="ipm-chart__empty">Данных пока нет — опрос идёт раз в 30 секунд</div>';
         return;
       }
+      var lost = samples.filter(function (s) { return !s.is_alive; }).length;
+      var info = document.getElementById("ip-chart-info");
+      if (info) info.textContent = lost ? ("без ответа: " + lost + " из " + samples.length) : (samples.length + " замеров, потерь нет");
 
-      var labels = samples.map(function (s) {
-        var d = new Date(s.ts);
-        return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-      });
-      var rtts = samples.map(function (s) {
-        return (s.is_alive && s.rtt_ms != null) ? s.rtt_ms : null;
-      });
+      var css = getComputedStyle(document.body);
+      var ok = (css.getPropertyValue("--ok") || "#6fd08c").trim();
+      var crit = (css.getPropertyValue("--crit") || "#ff5d6c").trim();
+      var muted = (css.getPropertyValue("--text-3") || "#7d889b").trim();
 
       if (currentChart) { try { currentChart.destroy(); } catch (_) {} }
       currentChart = new Chart(canvas.getContext("2d"), {
         type: "line",
         data: {
-          labels: labels,
+          labels: samples.map(function (s) {
+            return new Date(s.ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+          }),
           datasets: [{
-            label: "RTT (ms)",
-            data: rtts,
-            borderColor: "#73bf69",
-            backgroundColor: "rgba(115,191,105,.15)",
-            borderWidth: 1.5,
-            pointRadius: 0,
-            tension: 0.25,
-            spanGaps: true,
-            fill: true,
+            data: samples.map(function (s) { return s.is_alive && s.rtt_ms != null ? s.rtt_ms : null; }),
+            borderColor: ok, backgroundColor: ok + "22", borderWidth: 1.5,
+            pointRadius: samples.map(function (s) { return s.is_alive ? 0 : 2.5; }),
+            pointBackgroundColor: crit, tension: 0.25, spanGaps: true, fill: true,
           }],
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: "index", intersect: false },
           plugins: {
             legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: function (ctx) {
-                  var s = samples[ctx.dataIndex];
-                  return s.is_alive
-                    ? ("RTT: " + (s.rtt_ms != null ? s.rtt_ms : "?") + " ms")
-                    : "❌ не отвечал";
-                },
-              },
-            },
+            tooltip: { callbacks: { label: function (ctx) {
+              var s = samples[ctx.dataIndex];
+              return s.is_alive ? ("отклик " + (s.rtt_ms != null ? fmtMs(s.rtt_ms) : "?")) : "не ответил";
+            } } },
           },
           scales: {
-            x: {
-              ticks: { color: "#8e8e8e", maxTicksLimit: 6, font: { size: 10 } },
-              grid: { color: "rgba(44,50,53,.5)" },
-            },
-            y: {
-              beginAtZero: true,
-              ticks: { color: "#8e8e8e", font: { size: 10 } },
-              grid: { color: "rgba(44,50,53,.5)" },
-            },
+            x: { ticks: { color: muted, maxTicksLimit: 6, font: { size: 10 } }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: muted, font: { size: 10 }, maxTicksLimit: 4,
+                 callback: function (v) { return v + " мс"; } }, grid: { color: "rgba(255,255,255,.05)" } },
           },
         },
       });
     } catch (e) {
-      console.error("[chart] error:", e);
-      canvas.parentElement.innerHTML =
-        '<div class="ip-modal__no-chart">Ошибка: ' + esc(e.message) + '</div>';
+      box.innerHTML = '<div class="ipm-chart__empty">Ошибка графика: ' + esc(e.message) + '</div>';
     }
-  }
-
-  function buildModalHtml(d) {
-    const rows = [
-      ["IP", d.ip],
-      ["Подсеть", d.subnet_cidr],
-      ["Hostname", d.hostname || "—"],
-      ["MAC", d.mac || "—"],
-      ["Состояние", d.state],
-      ["Живой", d.is_alive ? "✅ да" : "❌ нет"],
-      ["На мониторинге", d.is_monitored ? "✅ да" : "❌ нет"],
-      ["Reserved", d.is_reserved ? "✅ да" : "❌ нет"],
-      ["RTT", d.last_rtt_ms != null ? d.last_rtt_ms + " ms" : "—"],
-      ["Потери", d.packet_loss_pct != null ? d.packet_loss_pct + "%" : "—"],
-      ["Последний ping", fmtTime(d.last_ping_at)],
-      ["Последний ответ", fmtTime(d.last_seen_at)],
-    ];
-    let html = rows.map(r =>
-      '<div class="ip-modal__row"><span class="ip-modal__row-label">' + esc(r[0]) +
-      '</span><span class="ip-modal__row-value">' + esc(r[1]) + '</span></div>'
-    ).join("");
-    // График RTT для monitored IP
-    if (d.is_monitored) {
-      html += '<div class="ip-modal__chart">' +
-              '<div class="ip-modal__chart-title"><span>RTT за 24 часа</span>' +
-              '<span id="ip-chart-info"></span></div>' +
-              '<canvas id="ip-rtt-chart"></canvas>' +
-              '</div>';
-    }
-
-    html += '<div class="ip-modal__actions" id="ip-modal-actions"></div>';
-    return html;
-  }
-
-  function bindModalButtons(d) {
-    const cont = document.getElementById("ip-modal-actions");
-    if (!cont) return;
-    // Действия с IP меняют данные — только с правом «Подсети: изменение»
-    if (!(window.Cerber && Cerber.can("subnets"))) { cont.remove(); return; }
-
-    const toggle = document.createElement("button");
-    toggle.className = "btn " + (d.is_monitored ? "btn--crit" : "btn--ok");
-    toggle.textContent = d.is_monitored ? "Снять с мониторинга" : "На мониторинг";
-    toggle.addEventListener("click", async () => {
-      const r = await csrfFetch(`/api/v1/ip-addresses/${d.id}/toggle-monitor/`, { method: "POST" });
-      const j = await r.json();
-      d.is_monitored = j.is_monitored;
-      await loadGrid();
-      openIpModal(d);
-    });
-
-    const ping = document.createElement("button");
-    ping.className = "btn";
-    ping.textContent = "Пинговать";
-    ping.addEventListener("click", async () => {
-      ping.disabled = true;
-      ping.textContent = "Пингую...";
-      try {
-        const r = await csrfFetch(`/api/v1/ip-addresses/${d.id}/ping-now/`, { method: "POST" });
-        const j = await r.json();
-        await loadGrid();
-        openIpModal(j);
-      } catch (e) {
-        ping.textContent = "Ошибка";
-      }
-    });
-
-    const res = document.createElement("button");
-    res.className = "btn";
-    res.textContent = d.is_reserved ? "Снять reserved" : "Reserved";
-    res.addEventListener("click", async () => {
-      const r = await csrfFetch(`/api/v1/ip-addresses/${d.id}/set-reserved/`, { method: "POST" });
-      const j = await r.json();
-      d.is_reserved = j.is_reserved;
-      d.state = j.state;
-      await loadGrid();
-      openIpModal(d);
-    });
-
-    cont.appendChild(toggle);
-    cont.appendChild(ping);
-    cont.appendChild(res);
   }
 
   function fmtTime(iso) {

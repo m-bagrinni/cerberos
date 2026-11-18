@@ -23,6 +23,9 @@ class Station(models.Model):
     longitude = models.FloatField(null=True, blank=True)
 
     sort_order = models.IntegerField(default=0)
+    # Откуда ведётся мониторинг: от этой станции оптические линии ориентируются «к дальнему концу»
+    # (apps/alerts/correlation.py). Не задано — станция шлюза NE или самая связанная.
+    is_hub = models.BooleanField("Центр мониторинга", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

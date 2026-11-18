@@ -94,6 +94,34 @@ def sniffer_stream(argv: list[str], timeout: int = 3600) -> Iterator[str]:
         resp.close()
 
 
+def sniffer_stream_open(argv: list[str], timeout: int = 3600):
+    """
+    Как sniffer_stream, но отдаёт сам HTTP-ответ: построчное чтение — `resp.readline()`,
+    а оборвать чтение из другого потока можно через `abort_stream(resp)`.
+    """
+    return _request("POST", "/sniffer/stream", {"argv": argv, "timeout": int(timeout)},
+                    timeout=timeout + _HTTP_SLACK)
+
+
+def abort_stream(resp) -> None:
+    """Рвёт соединение потока (из любого потока): ops видит обрыв и убивает процесс."""
+    import socket
+    sock = None
+    try:
+        sock = resp.fp.raw._sock          # http.client.HTTPResponse → SocketIO → socket
+    except AttributeError:
+        pass
+    try:
+        if sock is not None:
+            sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    try:
+        resp.close()
+    except Exception:
+        pass
+
+
 def containers() -> list[dict]:
     return _json("GET", "/containers").get("containers", [])
 

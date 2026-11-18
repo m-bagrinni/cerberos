@@ -1,177 +1,336 @@
 /* ============================================================
-   Cerberus Mobile Adaptations (v6 — чистый)
+   Cerberus — мобильная версия (v7)
+   Телефон / Telegram WebApp, ширина ≤ 768px.
+   Подключается ПОСЛЕ темы (theme.css / glass.css).
+   Порядок: каркас → навигация → общие элементы → страницы.
    ============================================================ */
 
-/* ===== Скрываем гамбургер на десктопе ===== */
-@media (min-width: 769px) {
-    #mobile-menu-btn, .mobile-menu-btn {
-        display: none !important;
-    }
-    .mobile-overlay {
-        display: none !important;
-    }
-}
+/* Десктоп: мобильные элементы скрыты */
+.mobile-bottom-nav { display: none; }
+.mobile-overlay { display: none; }
 
-/* ============================================================
-   МОБИЛЬНАЯ ВЕРСИЯ (≤ 768px)
-   ============================================================ */
 @media (max-width: 768px) {
 
-    /* 1. Базовые настройки */
-    body {
-        overflow-x: hidden !important;
+    :root {
+        /* Telegram в полноэкранном режиме рисует свои кнопки поверх страницы — отступаем на их высоту */
+        --m-top: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
+        --m-bottom: var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+        --m-nav-h: 58px;
+        --m-pad: 12px;
     }
 
-    /* 2. Главный контейнер */
+    /* На телефоне размытие фона тормозит прокрутку */
+    *, *::before, *::after {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* ── 1. Каркас ─────────────────────────────────────────── */
+    html, body {
+        overflow-x: hidden !important;
+        -webkit-text-size-adjust: 100%;
+    }
+    body.tg-webapp {
+        padding: 0;
+        height: auto;
+        overflow-y: visible;
+    }
     .app-layout {
         display: block !important;
         width: 100% !important;
+        height: 100vh;
+        height: 100dvh;
         margin: 0 !important;
         padding: 0 !important;
+        overflow: hidden;
     }
-
-    /* 3. Основной контент */
-    .app-main {
-        margin-left: 0 !important;
-        padding: 10px !important;
-        padding-top: 60px !important;
+    .app-main,
+    .theme-glass .app-main,
+    .app-layout.is-sidebar-hidden .app-main {
+        height: 100% !important;
         width: 100% !important;
         max-width: 100vw !important;
+        margin: 0 !important;
         box-sizing: border-box !important;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        padding: calc(var(--m-pad) + var(--m-top)) var(--m-pad)
+                 calc(var(--m-nav-h) + var(--m-bottom) + 16px) !important;
     }
+    .app-main > footer { display: none; }
 
-    /* 4. Сайдбар (Drawer) */
-    .app-sidebar {
+    /* ── 2. Выезжающее меню (сайдбар) ──────────────────────── */
+    .app-sidebar,
+    .theme-glass .app-sidebar {
         display: flex !important;
         flex-direction: column !important;
         position: fixed !important;
-        top: 0;
-        left: -100% !important;
-        width: 260px !important;
-        height: 100vh !important;
-        z-index: 10500 !important;
-        transition: left 0.3s ease !important;
-        background: var(--bg-panel, #181b1f) !important;
-        box-shadow: 4px 0 15px rgba(0,0,0,0.5);
-        overflow-y: auto;
-        padding: 16px 10px !important;
-    }
-    .app-sidebar.mobile-open {
+        top: 0 !important;
+        bottom: 0 !important;
         left: 0 !important;
+        width: min(84vw, 300px) !important;
+        height: auto !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        z-index: 10600 !important;
+        transform: translateX(-105%);
+        transition: transform .25s ease !important;
+        background: #14171d !important;
+        box-shadow: 4px 0 24px rgba(0,0,0,.55);
+        overflow-y: auto;
+        padding: calc(14px + var(--m-top)) 8px calc(14px + var(--m-bottom)) !important;
     }
-    .app-sidebar span,
-    .app-sidebar .nav-text {
+    .app-sidebar.mobile-open { transform: translateX(0); }
+    .app-sidebar > *,
+    .app-layout.is-sidebar-hidden .app-sidebar > *:not(.sidebar-toggle) { display: revert; }
+    .app-sidebar .sidebar-toggle { display: none !important; }
+    .app-sidebar__brand {
+        display: flex !important;
+        justify-content: flex-start !important;
+        padding: 6px 14px 14px !important;
+    }
+    .app-sidebar__brand span,
+    .app-sidebar__link span {
         display: inline-block !important;
         opacity: 1 !important;
         visibility: visible !important;
         font-size: 15px !important;
     }
+    .app-sidebar__nav { display: block !important; }
     .app-sidebar__link {
         display: flex !important;
         align-items: center !important;
-        padding: 12px 16px !important;
+        justify-content: flex-start !important;
         gap: 12px !important;
+        min-height: 46px;
+        padding: 10px 14px !important;
     }
+    .app-sidebar__link i { font-size: 18px !important; }
+    .app-sidebar__bottom { display: block !important; margin-top: auto; }
 
-    /* 5. Оверлей */
-    #mobile-overlay,
     .mobile-overlay {
-        display: none !important;
-        position: fixed !important;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.6) !important;
-        z-index: 10400 !important;
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.6);
+        z-index: 10550;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease;
     }
-    #mobile-overlay.active,
-    .mobile-overlay.active {
-        display: block !important;
-    }
+    .mobile-overlay.active { opacity: 1; pointer-events: auto; }
 
-    /* 6. Гамбургер */
-    #mobile-menu-btn,
-    .mobile-menu-btn {
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 10600 !important;
-        width: 40px;
-        height: 40px;
-        background: var(--bg-input, #0b0c0e);
-        border: 1px solid var(--border, #2c3235);
-        border-radius: 4px;
-        font-size: 20px;
-        color: var(--text, #ccc);
+    /* ── 3. Нижняя навигация ───────────────────────────────── */
+    .mobile-bottom-nav {
         display: flex;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 10500;
+        height: calc(var(--m-nav-h) + var(--m-bottom));
+        padding: 4px 4px var(--m-bottom);
+        box-sizing: border-box;
+        background: #10131a;
+        border-top: 1px solid rgba(255,255,255,.08);
+        justify-content: space-around;
+        align-items: stretch;
+    }
+    .mobile-bottom-nav .mbn-item {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 3px;
+        padding: 4px 2px;
+        margin: 0;
+        min-height: 0;
+        color: #8a8f98;
+        background: transparent;
+        border: 0;
+        border-radius: 10px;
+        font: inherit;
+        text-decoration: none;
         cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
     }
+    .mobile-bottom-nav .mbn-item i { font-size: 20px; line-height: 1; }
+    .mobile-bottom-nav .mbn-item span {
+        font-size: 10.5px;
+        line-height: 1.1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    .mobile-bottom-nav .mbn-item.active,
+    .mobile-bottom-nav .mbn-item:active { color: var(--accent, #ff7a1a); background: rgba(255,122,26,.10); }
 
-    /* 7. Заголовки */
-    .page-header, .header {
+    /* Всплывающие сообщения — над нижней панелью, по ширине экрана */
+    #toast-container {
+        left: 12px !important;
+        right: 12px !important;
+        bottom: calc(var(--m-nav-h) + var(--m-bottom) + 12px) !important;
+    }
+    .cerber-toast { white-space: normal; }
+
+    /* ── 4. Общие элементы ─────────────────────────────────── */
+    h1 { font-size: 20px !important; line-height: 1.25; }
+    h2 { font-size: 17px !important; }
+    h3 { font-size: 15px !important; }
+
+    .page-header, .page-head {
         flex-direction: column !important;
-        align-items: flex-start !important;
-        padding-left: 0 !important;
+        align-items: stretch !important;
         gap: 10px !important;
+        margin-bottom: 14px !important;
     }
-    h1, .page-title {
-        margin-left: 50px !important;
-        font-size: 22px !important;
-    }
-    .app-main__title {
-        font-size: 20px !important;
-    }
+    .app-main__title { font-size: 20px !important; }
 
-    /* 8. Кнопки */
+    /* Кнопки: удобная высота для пальца, но не на всю ширину */
+    .btn, a.btn, .g-btn {
+        min-height: 40px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
     .header-actions, .top-actions, .btn-group {
         display: flex !important;
         flex-wrap: wrap !important;
         gap: 8px !important;
-        width: 100% !important;
     }
-    .btn {
-        flex: 1 1 45% !important;
-        padding: 8px !important;
-        font-size: 13px !important;
-        white-space: nowrap !important;
-        text-align: center !important;
-    }
+    /* Поля ввода ≥16px — иначе iOS увеличивает страницу при фокусе */
+    input[type="text"], input[type="search"], input[type="password"], input[type="email"],
+    input[type="number"], input[type="date"], input[type="datetime-local"], input:not([type]),
+    select, textarea { font-size: 16px !important; max-width: 100%; }
 
-    /* 9. Карта (stations) */
-    .stations-map-wrap {
-        padding: 0 !important;
-        border: none !important;
-        width: 100vw !important;
-        margin-left: -10px !important;
-    }
-    .stations-map {
-        width: 100vw !important;
-        height: calc(100vh - 220px) !important;
-        min-height: 400px !important;
-        border-radius: 0 !important;
-    }
-    .map-tips {
-        display: none !important;
-    }
-
-    /* 10. Сетки карточек */
-    .grid, .grid-2, .grid-3, .grid-4, .cards-grid, .stats-grid {
+    /* Сетки карточек — в одну колонку */
+    .grid, .grid-2, .grid-3, .grid-4, .cards-grid, .stats-grid,
+    .dashboard-grid, .subnets-grid, .devices-grid {
         display: flex !important;
         flex-direction: column !important;
         gap: 12px !important;
     }
 
-    /* 11. Fullscreen карты */
+    /* Таблицы: если не помещаются — прокрутка вбок внутри карточки, а не обрезка */
+    .app-main table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    .iface-table thead th, .iface-table tbody td,
+    .mux-table thead th, .mux-table tbody td { padding: 6px 8px !important; }
+    .iface-table, .mux-table, .c-table { font-size: 12px !important; }
+    .c-card { overflow-x: auto !important; }
+
+    /* Вкладки — горизонтальная прокрутка */
+    .detail-tabs, .g-tabs, .c-tabs, .view-tabs {
+        display: flex;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 4px !important;
+    }
+    .detail-tabs::-webkit-scrollbar, .g-tabs::-webkit-scrollbar,
+    .c-tabs::-webkit-scrollbar, .view-tabs::-webkit-scrollbar { display: none; }
+    .detail-tab, .g-tab {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Модальные окна — на весь экран */
+    .device-modal__content,
+.sm-modal,
+.ne-modal,
+.g-modal-content,
+.subnet-modal__content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        max-height: 100dvh !important;
+        box-sizing: border-box;
+    }
+    .device-ctx-menu, #custom-context-menu, #ne-ctx-menu { max-width: 90vw !important; }
+
+    /* ── 5. Обзор (/local/): дерево устройств + панель ─────── */
+    .devices-tree-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        min-height: 0 !important;
+    }
+    .devices-tree {
+        width: 100% !important;
+        max-height: 46vh !important;
+        box-sizing: border-box;
+    }
+    .device-detail-panel {
+        width: 100% !important;
+        max-height: none !important;
+        box-sizing: border-box;
+    }
+    #device-tab-content { overflow-x: auto !important; }
+    .tree-device { padding: 9px 10px !important; font-size: 14px !important; }
+    .tree-category__title { padding: 10px !important; font-size: 12px !important; }
+
+    .sfp-grid, .sfp-grid-detail { grid-template-columns: 1fr !important; gap: 8px !important; }
+    .sfp-card { padding: 12px !important; }
+    .sfp-card__metrics { grid-template-columns: 1fr 1fr !important; }
+    .vlan-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .vlan-card { padding: 10px 8px !important; }
+    .vlan-card__id { font-size: 22px !important; }
+
+    /* ── 6. Станции / диспетчерская ────────────────────────── */
+    .dispatch-stats-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .dispatch-stat-card { padding: 10px !important; }
+    .dispatch-stat-value { font-size: 20px !important; }
+
+    .dispatch-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        height: auto !important;
+    }
+    .dispatch-panel--left, .dispatch-panel--center, .dispatch-panel--right {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+    /* Карта — первой, данные станции под ней */
+    .dispatch-panel--center {
+        order: -1;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    .dispatch-panel--center > .dispatch-panel-header { flex-shrink: 0 !important; }
+    .dispatch-panel--center > .stations-map-wrap {
+        flex: 0 0 auto !important;
+        height: 56vh !important;
+        min-height: 320px !important;
+    }
+    .stations-map-wrap { padding: 0 !important; }
+    .stations-map, #stationsMap, .dispatch-map, .stations-map-wrap .leaflet-container {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 320px !important;
+    }
+    .map-tips { display: none !important; }
+    #btnMapFullscreen { display: inline-flex !important; visibility: visible !important; opacity: 1 !important; }
+
     .stations-canvas-wrap.is-fullscreen,
     .stations-map-wrap.is-fullscreen {
         position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
+        inset: 0 !important;
         width: 100vw !important;
-        height: 100vh !important;
-        z-index: 9999 !important;
+        height: 100dvh !important;
+        z-index: 10700 !important;
         padding: 0 !important;
         margin: 0 !important;
         display: flex !important;
@@ -184,355 +343,173 @@
     .stations-map-wrap.is-fullscreen #map,
     .stations-map-wrap.is-fullscreen #stationsMap {
         width: 100vw !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        max-height: 100vh !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        max-height: 100dvh !important;
         border: none !important;
         border-radius: 0 !important;
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
     }
-    body.map-fullscreen-active {
-        overflow: hidden !important;
-    }
+    body.map-fullscreen-active { overflow: hidden !important; }
 
-    /* 12. ДИСПЕТЧЕРСКАЯ (дерево + детали) */
-    .devices-tree-layout {
+    /* ── 7. «Список + панель»: подсети, мультиплексоры, серверы ─
+       На телефоне список сверху (ограничен по высоте), данные под ним. */
+    .app-main .devices-layout,
+    .app-main .g-wrapper {
         display: flex !important;
         flex-direction: column !important;
-        gap: 12px !important;
-        min-height: auto !important;
-    }
-    .devices-tree {
-        max-height: 300px !important;
-        width: 100% !important;
-        padding: 8px !important;
-    }
-    .device-detail-panel {
-        max-height: none !important;
-        width: 100% !important;
-        padding: 12px !important;
-    }
-    #device-tab-content {
-        overflow-x: auto !important;
-    }
-
-    /* 13. Вкладки (горизонтальный скролл) */
-    .detail-tabs {
-        overflow-x: auto !important;
-        flex-wrap: nowrap !important;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 8px;
-        gap: 4px !important;
-    }
-    .detail-tabs::-webkit-scrollbar {
-        height: 4px;
-    }
-    .detail-tabs::-webkit-scrollbar-thumb {
-        background: #3d444b;
-        border-radius: 2px;
-    }
-    .detail-tab {
-        white-space: nowrap !important;
-        flex-shrink: 0 !important;
-        font-size: 12px !important;
-        padding: 6px 10px !important;
-    }
-
-    /* 14. Таблицы (горизонтальный скролл) */
-    .iface-table,
-    .mux-table,
-    .c-table {
-        font-size: 11px !important;
-        min-width: 600px;
-    }
-    .iface-table thead th,
-    .iface-table tbody td,
-    .mux-table thead th,
-    .mux-table tbody td {
-        padding: 6px 8px !important;
-    }
-    .c-card {
-        overflow-x: auto !important;
-    }
-
-    /* 15. SFP — в одну колонку */
-    .sfp-grid,
-    .sfp-grid-detail {
-        grid-template-columns: 1fr !important;
-        gap: 8px !important;
-    }
-    .sfp-card {
-        padding: 12px !important;
-    }
-    .sfp-card__metrics {
-        grid-template-columns: 1fr 1fr !important;
-    }
-
-    /* 16. VLAN — 2 колонки */
-    .vlan-grid {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 8px !important;
-    }
-    .vlan-card {
-        padding: 10px 8px !important;
-    }
-    .vlan-card__id {
-        font-size: 22px !important;
-    }
-
-    /* 17. Модалки — на всю ширину */
-    .device-modal__content,
-    .sm-modal,
-    .ne-modal {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-        max-height: 100vh !important;
-    }
-
-    /* 18. Счётчики сводки — 2 колонки */
-    .dispatch-stats-grid {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 8px !important;
-    }
-    .dispatch-stat-card {
-        padding: 10px !important;
-    }
-    .dispatch-stat-value {
-        font-size: 20px !important;
-    }
-
-    /* 19. Дерево — компактнее */
-    .tree-device {
-        padding: 8px 10px !important;
-        font-size: 14px !important;
-    }
-    .tree-category__title {
-        padding: 10px !important;
-        font-size: 12px !important;
-    }
-
-    /* 20. Контекстное меню */
-    .device-ctx-menu {
-        min-width: 200px !important;
-        max-width: 90vw !important;
-    }
-
-    /* 21. Карта в диспетчерской (не stations, а на главной /local/) */
-    .mux-detail,
-    .device-detail-panel {
-        min-height: 300px !important;
-    }
-    #stationsMap,
-    .dispatch-map {
-        height: 400px !important;
-        min-height: 400px !important;
-        width: 100% !important;
-    }
-    .dispatch-panel--center {
-        min-height: 400px !important;
         height: auto !important;
+        overflow: visible !important;
+        gap: 12px;
     }
-
-
-    /* 22. Общие правила для карт на мобильных */
-    .leaflet-container {
-        height: 400px !important;
-        min-height: 400px !important;
-        width: 100% !important;
-    }
-    .stations-map-wrap,
-    .dispatch-map {
-        height: 400px !important;
-        min-height: 400px !important;
-    }
-
-
-    /* 25. Диспетчерская — в одну колонку на мобильном */
-    .dispatch-grid {
+    .app-main .mux-layout {
         display: flex !important;
         flex-direction: column !important;
+        min-height: 0 !important;
         gap: 12px !important;
-        height: auto !important;
     }
-    .dispatch-panel--left,
-    .dispatch-panel--center,
-    .dispatch-panel--right {
+    .app-main .devices-sidebar,
+    .app-main .g-sidebar {
         width: 100% !important;
-        max-width: 100% !important;
         min-width: 0 !important;
-        height: auto !important;
-        min-height: auto !important;
+        max-height: 48vh;
+        border-right: 0 !important;
+        box-sizing: border-box;
     }
-    .dispatch-panel--center {
-        min-height: 400px !important;
-        height: 400px !important;
+    .app-main .devices-sidebar > :last-child,
+    .app-main .g-list { overflow-y: auto; min-height: 0; }
+    .app-main .mux-tree {
+        width: 100%;
+        max-height: 44vh !important;
+        box-sizing: border-box;
     }
-    .dispatch-map,
-    #stationsMap {
-        height: 400px !important;
-        min-height: 400px !important;
+    .app-main .devices-layout .device-detail-panel,
+    .app-main .g-detail,
+    .app-main .mux-detail {
         width: 100% !important;
+        min-width: 0 !important;
+        min-height: 220px !important;
+        overflow: visible !important;
+        box-sizing: border-box;
+        scroll-margin-top: calc(var(--m-top) + 8px);
     }
-    .devices-tree-layout {
-        display: flex !important;
+    .app-main .g-detail { padding: 14px !important; }
+    .app-main .g-detail [style*="grid-template-columns"],
+    .app-main .mux-detail [style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+    .app-main .mux-ne { padding: 10px !important; font-size: 14px; }
+    .app-main .tree-subnet, .app-main .g-server-item { min-height: 44px; box-sizing: border-box; }
+    #subnets-add-btn { flex: 0 0 auto; width: 44px; padding: 0 !important; justify-content: center; }
+    /* Мультиплексоры: кнопка «Опросить все» — под заголовком, а не поверх него */
+    .app-main .page-header > .btn[style*="position:absolute"],
+    .app-main [style*="position:relative"] > .btn[style*="position:absolute"] {
+        position: static !important;
+        margin-top: 10px;
+        align-self: flex-start;
+    }
+
+    /* ── 8. Метрики / SFP: фильтры на всю ширину ───────────── */
+    .metrics-filters { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+    .metrics-filters__group { width: 100%; }
+    .metrics-filters__select { width: 100% !important; min-height: 42px; }
+    .metrics-charts-grid, .mux-metrics-charts, .modal-charts-grid { grid-template-columns: 1fr !important; }
+
+    /* ── 9. Аналитика ──────────────────────────────────────── */
+    .analytics-container { padding: 0 !important; }
+    .analytics-header {
         flex-direction: column !important;
+        align-items: stretch !important;
         gap: 12px !important;
     }
-    .devices-tree {
-        max-height: 300px !important;
-        width: 100% !important;
-    }
-    .device-detail-panel {
-        width: 100% !important;
-        max-height: none !important;
-    }
+    .analytics-controls { flex-wrap: wrap; }
+    .analytics-controls .btn { flex: 1 1 100%; justify-content: center; }
+    .analytics-controls select { flex: 1 1 auto; min-height: 42px; }
+    .analytics-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+    .analytics-grid > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }
+    .analytics-card { padding: 12px !important; }
+    .analytics-charts { grid-template-columns: 1fr !important; }
+    .analytics-report { padding: 14px !important; }
+    .problem-item { gap: 8px; }
+    .problem-item > :first-child { min-width: 0; overflow-wrap: anywhere; }
 
+    /* Мультиплексоры: заголовок выше кнопки */
+    .app-main__header[style*="position:relative"] { display: flex; flex-direction: column; }
+    .app-main__header[style*="position:relative"] > .btn { order: 5; }
 
-    /* 26. Кнопка "На весь экран" — всегда видна */
-    #btnMapFullscreen {
-        display: inline-flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
+    /* Карта: подсказка про колесо мыши на телефоне не нужна */
+    .dispatch-panel-header .dispatch-panel-sub { display: none; }
 
+    /* ── 10. СЭД ───────────────────────────────────────────── */
+    .edocs-page { padding: 0 !important; }
+    .edocs-title { font-size: 19px !important; margin-bottom: 14px !important; line-height: 1.25; }
+    .edocs-card__head { padding: 12px 14px !important; flex-wrap: wrap; }
+    .edocs-card__body { padding: 14px !important; }
+    .edocs-btn { min-height: 36px; white-space: nowrap; }
 
-    .dispatch-panel--center {
-        display: flex !important;
-        flex-direction: column !important;
-        min-height: 400px !important;
-        height: auto !important;
-    }
-    .dispatch-panel--center > .dispatch-panel-header {
-        flex-shrink: 0 !important;
-    }
-    .dispatch-panel--center > .stations-map-wrap {
-        flex: 1 1 auto !important;
-        min-height: 300px !important;
-        height: 300px !important;
-    }
-}
-
-/* ============================================================
-   WebApp в Telegram (tg-webapp)
-   ============================================================ */
-body.tg-webapp {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-    height: 100dvh;
-    overflow-y: auto;
-}
-
-/* На мобильных backdrop-filter тормозит — выключаем */
-@media (max-width: 768px) {
-    *, *::before, *::after {
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-    }
-
-    /* Тап-таргеты ≥ 44px */
-    button, .btn, a.btn, .icon-btn {
-        min-height: 44px;
-        font-size: 15px;
-    }
-
-    /* Таблицы — горизонтальный скролл */
-    table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Заголовки — компактнее */
-    h1 { font-size: 20px !important; }
-    h2 { font-size: 18px !important; }
-    h3 { font-size: 16px !important; }
-}
-
-/* ============================================================
-   Мобильная нижняя навигация (bottom nav)
-   ============================================================ */
-
-/* По умолчанию (десктоп) — скрыта */
-.mobile-bottom-nav {
-    display: none;
-}
-
-/* На мобильных — показываем, бургер и оверлей скрываем */
-@media (max-width: 768px) {
-
-    /* Прячем старый бургер и оверлей */
-    #mobile-menu-btn, .mobile-menu-btn,
-    #mobile-overlay, .mobile-overlay {
-        display: none !important;
-    }
-
-    /* Показываем bottom nav */
-    .mobile-bottom-nav {
-        display: flex !important;
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 10500;
-        background: rgba(15, 18, 24, 0.92);
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 6px 4px calc(6px + env(safe-area-inset-bottom)) 4px;
-        justify-content: space-around;
-        align-items: stretch;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-    }
-
-    .mobile-bottom-nav .mbn-item {
-        flex: 1 1 0;
-        min-width: 0;
+    /* Таблицы СЭД → карточки: тема крупно, остальное строкой под ней */
+    .app-main table.edocs-table { display: block; overflow: visible; white-space: normal; }
+    .edocs-table thead { display: none; }
+    .edocs-table tbody { display: block; }
+    .edocs-table tr {
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
         align-items: center;
-        justify-content: center;
-        gap: 2px;
-        padding: 6px 2px;
-        color: #8a8f98;
-        text-decoration: none;
-        border-radius: 10px;
-        transition: color .15s ease, background .15s ease;
-        -webkit-tap-highlight-color: transparent;
+        gap: 6px 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border, rgba(255,255,255,.08));
     }
+    .edocs-table tr:last-child { border-bottom: 0; }
+    .edocs-table td {
+        display: block;
+        padding: 0 !important;
+        border: 0 !important;
+        font-size: 13px;
+        color: var(--text-2, #9aa3b2);
+        min-width: 0;
+    }
+    .edocs-table td:first-child {
+        flex: 1 1 100%;
+        font-size: 14.5px;
+        color: var(--text-1, #e6e9ef);
+        overflow-wrap: anywhere;
+    }
+    .edocs-table td:last-child { margin-left: auto; }
+    .edocs-table td:empty { display: none; }
+    .edocs-table td.edocs-empty { flex: 1 1 100%; margin: 0; text-align: center; padding: 28px 10px !important; }
+    .edocs-table tr:hover td { background: transparent !important; }
+    .edocs-action-btn { padding: 8px !important; font-size: 19px !important; }
 
-    .mobile-bottom-nav .mbn-item i {
-        font-size: 20px;
-        line-height: 1;
+    /* Документ: «Назад» над заголовком, вкладки прокручиваются */
+    .edocs-page > [style*="justify-content:space-between"] {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 10px;
     }
+    .doc-layout { display: flex !important; flex-direction: column; height: auto !important; gap: 12px !important; }
+    .doc-preview { height: 62vh !important; min-height: 0; }
+    .doc-preview:has(> :only-child:not(iframe):not(embed):not(object)) { height: auto !important; }
+    .doc-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding: 0 8px !important;
+        scrollbar-width: none;
+    }
+    .doc-tabs::-webkit-scrollbar { display: none; }
+    .doc-tab { white-space: nowrap; flex: 0 0 auto; padding: 12px 10px !important; font-size: 13px !important; }
+    .doc-tab-content { overflow-y: visible !important; }
+    .edocs-modal__content { width: 100% !important; height: 100dvh !important; border-radius: 0 !important; }
+    .doc-sidebar { height: auto !important; overflow: visible !important; }
 
-    .mobile-bottom-nav .mbn-item span {
-        font-size: 10.5px;
-        line-height: 1.1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
+    /* ── 11. Главная (/) ───────────────────────────────────── */
+    .home-page .home-container {
+        padding-top: calc(12px + var(--m-top)) !important;
+        padding-bottom: calc(var(--m-nav-h) + var(--m-bottom) + 16px) !important;
     }
+    .mbn-item[hidden] { display: none !important; }
 
-    .mobile-bottom-nav .mbn-item.active,
-    .mobile-bottom-nav .mbn-item:active {
-        color: #4fd1c5;
-        background: rgba(79, 209, 197, 0.08);
-    }
-
-    /* Отступ снизу, чтобы контент не перекрывался панелью */
-    .app-main {
-        padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
-    }
-
-    /* Карта/контент на всю высоту — но не под панель */
-    body.tg-webapp .app-main {
-        padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
-    }
+    /* ── 12. Службы ────────────────────────────────────────── */
+    .services-page { padding: 0 !important; }
+    .services-health-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+    .services-containers-grid { grid-template-columns: 1fr !important; }
 }

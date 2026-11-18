@@ -3,15 +3,16 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Cerberus — главная</title>
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
   <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116m">
   {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
   <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
   <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body class="home-page{% if ui_theme_glass %} theme-glass{% endif %}" data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
+<body class="home-page{% if ui_theme_glass %} theme-glass{% endif %}" data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}" data-auth="{% if request.user.is_authenticated %}1{% else %}0{% endif %}">
 
 <div class="home-container">
 
@@ -160,9 +161,9 @@
               <span class="hp-row__dot hp-dot--{{ doc.status }}"></span>
               <span class="hp-row__main">
                 <span class="hp-row__title">{% if not doc.is_read %}<b>{{ doc.title }}</b>{% else %}{{ doc.title }}{% endif %}</span>
-                <span class="hp-row__meta">от {{ doc.author.short_name }} · {{ doc.get_document_type_display }}</span>
+                <span class="hp-row__meta">{{ doc.number }} · от {{ doc.author.short_name }} · {{ doc.get_document_type_display }}{% if doc.is_overdue %} · <b style="color:var(--crit)">просрочен</b>{% elif doc.due_date %} · до {{ doc.due_date|date:"d.m" }}{% endif %}</span>
               </span>
-              <span class="hp-pill hp-pill--{{ doc.status }}">{{ doc.get_status_display }}</span>
+              <span class="hp-pill hp-pill--{{ doc.status }}">{{ doc.status_label }}</span>
               <span class="hp-row__age">{{ doc.age }}</span>
             </a>
           </li>
@@ -189,7 +190,7 @@
                   <span class="hp-row__title">{{ doc.title }}</span>
                   <span class="hp-row__meta"><i class="bi bi-arrow-return-right"></i> {{ doc.recipient.short_name|default:"—" }} · {{ doc.age }}</span>
                 </span>
-                <span class="hp-pill hp-pill--{{ doc.status }}">{{ doc.get_status_display }}</span>
+                <span class="hp-pill hp-pill--{{ doc.status }}">{{ doc.status_label }}</span>
               </a>
             </li>
             {% endfor %}
@@ -323,6 +324,9 @@
   </div>
 </div>
 
+{% include '_mobile_nav.html' %}
 <script src="{% static 'js/home.js' %}?v=1"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="{% static 'js/telegram-webapp-auth.js' %}?v=20261117"></script>
 </body>
 </html>

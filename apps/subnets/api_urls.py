@@ -14,8 +14,11 @@ from .api import (
     tcpdump_subnet_iface_view,
     tcpdump_pcap_view,
     tcpdump_download_view,
-    tcpdump_stream_view,
-    tcpdump_poll_view,
+    tcpdump_validate_view,
+    capture_live_start_view,
+    capture_live_poll_view,
+    capture_live_stop_view,
+    capture_identify_view,
     resolve_mac_view,
     resolve_ip_info_view,
     bulk_attach_station_view,
@@ -30,17 +33,16 @@ urlpatterns = [
     path("subnets/ping/", ping_ip, name="subnet-ping"),
     path("subnets/<int:subnet_id>/traffic/", subnet_traffic_view, name="subnet-traffic"),
 
-    # tcpdump — интерфейсы + запуск
+    # Захват трафика: всё под subnets/tcpdump/ — право traffic_capture (apps/accounts/access.py)
     path("subnets/tcpdump/ifaces/", tcpdump_ifaces_view, name="subnet-tcpdump-ifaces"),
     path("subnets/tcpdump/iface-for/", tcpdump_subnet_iface_view, name="subnet-tcpdump-iface-for"),
-
-    # tcpdump — pcap + скачивание
-    path("subnets/tcpdump/stream/", tcpdump_stream_view, name="subnet-tcpdump-stream"),
-    path("subnets/tcpdump/poll/", tcpdump_poll_view, name="subnet-tcpdump-poll"),
+    path("subnets/tcpdump/validate/", tcpdump_validate_view, name="subnet-tcpdump-validate"),
+    path("subnets/tcpdump/live/", capture_live_start_view, name="subnet-capture-start"),
+    path("subnets/tcpdump/live/<str:sid>/", capture_live_poll_view, name="subnet-capture-poll"),
+    path("subnets/tcpdump/live/<str:sid>/stop/", capture_live_stop_view, name="subnet-capture-stop"),
+    path("subnets/tcpdump/identify/", capture_identify_view, name="subnet-capture-identify"),
     path("subnets/tcpdump/pcap/", tcpdump_pcap_view, name="subnet-tcpdump-pcap"),
     path("subnets/tcpdump/download/<str:file_id>/", tcpdump_download_view, name="subnet-tcpdump-download"),
-
-    # tcpdump — текстовый вывод (должен быть ПОСЛЕ pcap, иначе pcap перехватится)
     path("subnets/tcpdump/", tcpdump_view, name="subnet-tcpdump"),
 
     path("subnets/resolve-mac/", resolve_mac_view, name="resolve-mac"),

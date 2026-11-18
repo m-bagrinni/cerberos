@@ -61,284 +61,7 @@
     border-color: #7a5a3a;
 }
 
-/* ============================================================
-   tcpdump — кнопка + панель-консоль под сеткой IP
-   ============================================================ */
-.tcpdump-section {
-    margin: 18px 0 8px;
-    display: flex;
-    justify-content: flex-start;
-}
-
-.tcpdump-panel {
-    margin-top: 8px;
-    background: #1a1d23;
-    border: 1px solid #2a2f37;
-    border-radius: 10px;
-    padding: 14px 16px 12px;
-    animation: tdFadeIn .18s ease-out;
-}
-@keyframes tdFadeIn {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.tcpdump-panel__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-.tcpdump-panel__title {
-    font-weight: 600;
-    font-size: 15px;
-    color: #e6e9ef;
-}
-.tcpdump-panel__title i { color: #f59e0b; margin-right: 6px; }
-.tcpdump-panel__close {
-    background: transparent;
-    border: none;
-    color: #8a94a6;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 4px;
-}
-.tcpdump-panel__close:hover { color: #fff; }
-
-.tcpdump-panel__controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: flex-end;
-    margin-bottom: 10px;
-}
-.tcpdump-field { display: flex; flex-direction: column; min-width: 160px; }
-.tcpdump-field--sm { min-width: 90px; max-width: 90px; }
-.tcpdump-field--btn { min-width: auto; }
-.tcpdump-label {
-    font-size: 11px;
-    color: #8a94a6;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-}
-.tcpdump-input {
-    background: #0e1014;
-    border: 1px solid #2a2f37;
-    color: #d8dde6;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 13px;
-    outline: none;
-}
-.tcpdump-input:focus { border-color: #f59e0b; }
-
-.tcpdump-info {
-    font-size: 12px;
-    color: #8a94a6;
-    margin-bottom: 8px;
-    min-height: 16px;
-}
-
-.tcpdump-output {
-    background: #0b0d11;
-    color: #c8d1dc;
-    border: 1px solid #232830;
-    border-radius: 6px;
-    padding: 10px 12px;
-    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    font-size: 12px;
-    line-height: 1.5;
-    max-height: 420px;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-    min-height: 80px;
-}
-.tcpdump-output:empty::before {
-    content: "Нажмите «Запуск», чтобы начать захват…";
-    color: #556070;
-}
-
-/* Кнопки-пилюли для быстрого выбора BPF */
-.tcpdump-chip {
-    background: #232830;
-    color: #b8c2cc;
-    border: 1px solid #2f3640;
-    border-radius: 12px;
-    padding: 3px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all .15s;
-    font-family: inherit;
-}
-.tcpdump-chip:hover {
-    background: #2f3640;
-    color: #fff;
-    border-color: #f59e0b;
-}
-.tcpdump-chip:active {
-    transform: scale(.96);
-}
-
-/* Кнопки-пилюли для быстрого выбора BPF */
-.tcpdump-chip {
-    background: #232830;
-    color: #b8c2cc;
-    border: 1px solid #2f3640;
-    border-radius: 12px;
-    padding: 3px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all .15s;
-    font-family: inherit;
-}
-.tcpdump-chip:hover {
-    background: #2f3640;
-    color: #fff;
-    border-color: #f59e0b;
-}
-.tcpdump-chip:active { transform: scale(.96); }
-
-/* ============================================================
-   tcpdump — таблица пакетов и фильтры
-   ============================================================ */
-.tcpdump-filters {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-    align-items: center;
-}
-.td-filter {
-    background: #232830;
-    color: #b8c2cc;
-    border: 1px solid #2f3640;
-    border-radius: 12px;
-    padding: 3px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all .15s;
-}
-.td-filter:hover { background: #2f3640; color: #fff; }
-.td-filter--active {
-    background: #f59e0b;
-    color: #000;
-    border-color: #f59e0b;
-    font-weight: 600;
-}
-.td-filter-search {
-    background: #0e1014;
-    border: 1px solid #2a2f37;
-    color: #d8dde6;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
-    outline: none;
-    min-width: 200px;
-    margin-left: auto;
-}
-.td-filter-search:focus { border-color: #f59e0b; }
-
-.tcpdump-table-wrap {
-    max-height: 500px;
-    overflow: auto;
-    border: 1px solid #232830;
-    border-radius: 6px;
-    background: #0b0d11;
-}
-.tcpdump-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    font-size: 12px;
-}
-.tcpdump-table thead {
-    position: sticky;
-    top: 0;
-    background: #1a1d23;
-    z-index: 2;
-}
-.tcpdump-table th {
-    text-align: left;
-    padding: 6px 8px;
-    color: #8a94a6;
-    font-weight: 500;
-    border-bottom: 1px solid #2a2f37;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-}
-.tcpdump-table td {
-    padding: 4px 8px;
-    border-bottom: 1px solid #181b21;
-    color: #c8d1dc;
-    vertical-align: top;
-}
-.tcpdump-table tr:hover { background: #15181e; }
-.tcpdump-table .td-cat {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-/* Цвета по категории */
-.td-cat--arp   { background: #4b5563; color: #fff; }
-.td-cat--icmp  { background: #10b981; color: #fff; }
-.td-cat--ssdp  { background: #8b5cf6; color: #fff; }
-.td-cat--snmp  { background: #0ea5e9; color: #fff; }
-.td-cat--dhcp  { background: #f59e0b; color: #000; }
-.td-cat--stp   { background: #ef4444; color: #fff; }
-.td-cat--lldp  { background: #06b6d4; color: #fff; }
-.td-cat--tcp   { background: #64748b; color: #fff; }
-.td-cat--udp   { background: #6366f1; color: #fff; }
-.td-cat--dns   { background: #ec4899; color: #fff; }
-.td-cat--mdns  { background: #a855f7; color: #fff; }
-.td-cat--igmp  { background: #f97316; color: #fff; }
-.td-cat--ip    { background: #334155; color: #fff; }
-.td-cat--other { background: #1f2937; color: #8a94a6; }
-
-.tcpdump-table .td-ip {
-    color: #f59e0b;
-    cursor: pointer;
-    text-decoration: underline dotted;
-}
-.tcpdump-table .td-ip:hover { color: #fbbf24; }
-
-.tcpdump-raw {
-    background: #0b0d11;
-    color: #c8d1dc;
-    border: 1px solid #232830;
-    border-radius: 6px;
-    padding: 10px 12px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    max-height: 400px;
-    overflow: auto;
-    white-space: pre-wrap;
-}
-
-/* Live / Broadcast / Multicast */
-.td-cat--broadcast { background: #ef4444; color: #fff; }
-.td-cat--multicast { background: #a855f7; color: #fff; }
-.tcpdump-live-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ef4444;
-    margin-right: 4px;
-    animation: tdPulse 1.2s infinite;
-}
-@keyframes tdPulse {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.3; }
-}
-
-/* Кнопки Live / Stop */
+/* Кнопка-опасность (общая) */
 .btn--danger {
     background: #ef4444;
     color: #fff;
@@ -346,32 +69,6 @@
 }
 .btn--danger:hover { background: #dc2626; border-color: #dc2626; }
 .btn--danger:disabled { opacity: .4; cursor: not-allowed; }
-
-.tcpdump-live-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ef4444;
-    margin-right: 4px;
-    animation: tdPulse 1.2s infinite;
-}
-@keyframes tdPulse {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.3; }
-}
-.td-cat--broadcast { background: #ef4444; color: #fff; }
-.td-cat--multicast { background: #a855f7; color: #fff; }
-
-/* MAC-адреса в таблице */
-.td-mac {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: #9ca3af;
-    cursor: pointer;
-    text-decoration: underline dotted;
-}
-.td-mac:hover { color: #fbbf24; }
 
 /* --- ВОССТАНОВЛЕННЫЕ СТИЛИ СЕТКИ ПОДСЕТЕЙ --- */
 .subnets-grid {
@@ -447,3 +144,154 @@
 .subnet-btn-legacy { color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .subnet-btn-legacy--orange { background: #ff780a; }
 .subnet-btn-legacy--blue { background: #3b82f6; }
+
+/* === Модалка IP ===
+   Раньше эти правила жили только в inline-<style> страницы подсети. Список подсетей подгружает
+   панель через fetch и копирует лишь #main-subnet-content — inline-стиль терялся, и модалка
+   открывалась внизу страницы. Здесь они доступны обеим страницам. */
+
+/* ── Тип устройства в сетке IP: плитка «значок + номер» (данные — apps/subnets/devtype.py) ── */
+.ip-cell__ico, .ip-cell__num { pointer-events: none; }
+.ip-cell__ico { display: none; }
+.ip-grid.has-icons .ip-cell.has-type { flex-direction: column; gap: 2px; line-height: 1; }
+.ip-grid.has-icons .ip-cell.has-type .ip-cell__ico {
+    display: block; font-size: clamp(13px, calc(var(--cell-px, 38px) * 0.32), 22px); line-height: 1;
+}
+.ip-grid.has-icons .ip-cell.has-type .ip-cell__num {
+    font-size: clamp(9px, calc(var(--cell-px, 38px) * 0.17), 12px); opacity: .8;
+}
+.ip-grid.has-icons .ip-cell.has-type--medium .ip-cell__ico { opacity: .6; }
+.ip-cell__tooltip .t-type { margin-top: 4px; color: var(--text-1, #e9edf4); }
+.ip-cell__tooltip .t-why { font-size: 11px; color: var(--text-3, #7d889b); }
+.ip-cell__tooltip .t-type--unsure { color: var(--warn, #f5c542); }
+.subnet-detail__type {
+    height: 32px; padding: 0 8px; font: inherit; font-size: 13px;
+    color: var(--text-1, #e9edf4); background: var(--bg-input, #0e1014);
+    border: 1px solid var(--glass-border, #2a2f37); border-radius: var(--r-ctrl, 6px);
+}
+.type-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 10px; }
+.type-legend:empty { display: none; }
+.type-chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+    font: inherit; font-size: 12px; color: var(--text-2, #a9b3c3); cursor: pointer;
+    background: var(--glass-2, rgba(255,255,255,.05)); border: 1px solid var(--glass-border, #2a2f37); border-radius: 999px;
+}
+.type-chip span { color: var(--text-3, #7d889b); font-variant-numeric: tabular-nums; }
+.type-chip:hover { color: var(--text-1, #e9edf4); border-color: var(--glass-border-strong, #3a404a); }
+.type-chip.is-active { color: var(--accent, #ff7a1a); border-color: var(--accent, #ff7a1a); background: var(--accent-soft, rgba(255,122,26,.14)); }
+.type-legend__note { font-size: 11px; color: var(--text-3, #7d889b); margin-left: 4px; cursor: help; }
+
+/* ── Карточка IP (subnets.js → openIpModal) ─────────────────────────── */
+.ipm-backdrop {
+    position: fixed; inset: 0; z-index: 2147483000;
+    background: rgba(0, 0, 0, .6); backdrop-filter: blur(2px);
+}
+.ipm-backdrop[hidden], .ipm[hidden] { display: none !important; }
+.ipm {
+    --ipm-ok: var(--ok, #6fd08c); --ipm-crit: var(--crit, #ff5d6c); --ipm-warn: var(--warn, #f5c542);
+    --ipm-t1: var(--text-1, #e9edf4); --ipm-t2: var(--text-2, #a9b3c3); --ipm-t3: var(--text-3, #7d889b);
+    --ipm-line: var(--glass-border, rgba(255,255,255,.08)); --ipm-line2: var(--glass-border-strong, rgba(255,255,255,.16));
+    --ipm-soft: var(--glass-2, rgba(255,255,255,.05));
+    position: fixed; z-index: 2147483001; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 560px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px);
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg-elevated, #1b1f26); color: var(--ipm-t1);
+    border: 1px solid var(--ipm-line2); border-radius: var(--r-panel, 10px);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .6); font-size: 13px;
+}
+.ipm__head { display: flex; align-items: center; gap: 14px; padding: 18px 18px 16px; border-bottom: 1px solid var(--ipm-line); }
+.ipm__ico {
+    flex: none; width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center;
+    font-size: 22px; background: var(--ipm-soft); color: var(--ipm-t2); border: 1px solid var(--ipm-line);
+}
+.ipm__ico--ok { color: var(--ipm-ok); background: var(--ok-soft, rgba(111,208,140,.12)); border-color: rgba(111,208,140,.3); }
+.ipm__ico--crit { color: var(--ipm-crit); background: var(--crit-soft, rgba(255,93,108,.12)); border-color: rgba(255,93,108,.3); }
+.ipm__titles { min-width: 0; flex: 1; }
+.ipm__titles h3 { margin: 0; font-family: var(--font-mono, monospace); font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.ipm__sub { margin-top: 3px; color: var(--ipm-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ipm__sub b { color: var(--ipm-t1); font-weight: 600; }
+.ipm__badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.ipm__close {
+    align-self: flex-start; width: 30px; height: 30px; display: grid; place-items: center; flex: none;
+    background: none; border: 0; border-radius: 6px; color: var(--ipm-t3); cursor: pointer; font-size: 15px;
+}
+.ipm__close:hover { color: var(--ipm-t1); background: var(--ipm-soft); }
+.ipm-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; white-space: nowrap; border: 1px solid var(--ipm-line2); color: var(--ipm-t2);
+}
+.ipm-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.ipm-pill--ok { color: var(--ipm-ok); border-color: rgba(111,208,140,.35); }
+.ipm-pill--crit { color: var(--ipm-crit); border-color: rgba(255,93,108,.4); }
+.ipm-pill--warn { color: var(--ipm-warn); border-color: rgba(245,197,66,.4); }
+.ipm-pill--muted { color: var(--ipm-t3); }
+
+.ipm__body { padding: 4px 18px 16px; overflow-y: auto; overflow-x: hidden; }
+.ipm__wait { display: flex; align-items: center; gap: 8px; color: var(--ipm-t2); padding: 18px 0; }
+.ipm__err { color: var(--ipm-crit); padding: 16px 0; }
+.ipm__muted { color: var(--ipm-t3); }
+.ipm__hint { color: var(--ipm-t3); font-size: 12px; margin-top: 2px; line-height: 1.4; }
+.ipm-sec { padding-top: 14px; }
+.ipm-sec h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; color: var(--ipm-t3); text-transform: uppercase; letter-spacing: .06em; }
+.ipm-dl { margin: 0; display: flex; flex-direction: column; }
+.ipm-row { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding: 7px 0; border-top: 1px solid var(--ipm-line); }
+.ipm-row:first-child { border-top: 0; }
+.ipm-row dt { color: var(--ipm-t3); }
+.ipm-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ipm-row code { font-family: var(--font-mono, monospace); font-size: 12.5px; }
+.ipm-row a { color: var(--info, #5ab8f5); text-decoration: none; }
+.ipm-row a:hover { text-decoration: underline; }
+.ipm-copy { margin-left: 6px; padding: 0 4px; background: none; border: 0; color: var(--ipm-t3); cursor: pointer; }
+.ipm-copy:hover { color: var(--ipm-t1); }
+
+.ipm-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ipm-tile { padding: 9px 11px; background: var(--ipm-soft); border: 1px solid var(--ipm-line); border-radius: var(--r-ctrl, 6px); min-width: 0; }
+.ipm-tile span { display: block; font-size: 11px; color: var(--ipm-t3); }
+.ipm-tile b { display: block; margin-top: 2px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ipm-tile b.is-ok { color: var(--ipm-ok); }
+.ipm-tile b.is-warn { color: var(--ipm-warn); }
+.ipm-tile b.is-crit { color: var(--ipm-crit); }
+.ipm-tile b.is-muted { color: var(--ipm-t3); font-weight: 500; }
+.ipm-chart { margin-top: 10px; padding: 10px 12px 8px; background: var(--ipm-soft); border: 1px solid var(--ipm-line); border-radius: var(--r-ctrl, 6px); }
+.ipm-chart__head { display: flex; justify-content: space-between; font-size: 12px; color: var(--ipm-t2); margin-bottom: 6px; }
+.ipm-chart__head span:last-child { color: var(--ipm-t3); }
+.ipm-chart__box { position: relative; height: 130px; min-width: 0; }
+.ipm-chart__box canvas { max-width: 100%; }
+.ipm-chart__empty { display: grid; place-items: center; height: 100%; color: var(--ipm-t3); font-size: 12px; text-align: center; }
+
+.ipm-edit label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; color: var(--ipm-t3); }
+.ipm-edit input, .ipm-edit select {
+    height: 32px; padding: 0 10px; font: inherit; font-size: 13px; color: var(--ipm-t1);
+    background: var(--bg-input, #0e1014); border: 1px solid var(--ipm-line2); border-radius: var(--r-ctrl, 6px); outline: none;
+}
+.ipm-edit input:focus, .ipm-edit select:focus { border-color: var(--accent, #ff7a1a); box-shadow: 0 0 0 3px var(--accent-soft, rgba(255,122,26,.14)); }
+.ipm-edit__btns { display: flex; gap: 8px; }
+
+.ipm__foot { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--ipm-line); }
+.ipm-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+    font: inherit; font-size: 13px; color: var(--ipm-t1); cursor: pointer; white-space: nowrap;
+    background: var(--ipm-soft); border: 1px solid var(--ipm-line2); border-radius: var(--r-ctrl, 6px);
+}
+.ipm-btn:hover:not(:disabled) { background: var(--glass-3, rgba(255,255,255,.09)); }
+.ipm-btn:disabled { opacity: .55; cursor: default; }
+.ipm-btn.is-busy { cursor: progress; }
+.ipm-btn.is-on { color: var(--ipm-ok); border-color: rgba(111,208,140,.35); }
+.ipm-btn.is-warn { color: var(--ipm-warn); border-color: rgba(245,197,66,.4); }
+.ipm-btn--primary { background: var(--accent, #ff7a1a); color: #1a0f05; border-color: transparent; font-weight: 600; }
+.ipm-btn--primary:hover:not(:disabled) { background: var(--accent-hover, #ff9442); }
+.ipm-btn--ghost { margin-left: auto; background: none; }
+.ipm-spin {
+    width: 13px; height: 13px; border-radius: 50%; display: inline-block;
+    border: 2px solid var(--ipm-line2); border-top-color: var(--accent, #ff7a1a); animation: ipmSpin .8s linear infinite;
+}
+@keyframes ipmSpin { to { transform: rotate(360deg); } }
+@media (max-width: 600px) {
+    .ipm { top: auto; bottom: 0; left: 0; transform: none; width: 100%; max-width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; }
+    .ipm__head { flex-wrap: wrap; }
+    .ipm__badges { flex-direction: row; order: 3; width: 100%; align-items: center; }
+    .ipm-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ipm-tile b { font-size: 13px; white-space: normal; }
+    .ipm-row { grid-template-columns: 1fr; gap: 2px; }
+    .ipm-btn--ghost { margin-left: 0; }
+}

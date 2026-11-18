@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#0a0c11">
     <title>Устройства — Cerberus</title>
@@ -18,12 +18,12 @@
 
     <!-- Тема: ui_theme из cookie (apps/core/context_processors.py) — «стекло» = theme.css, «классика» = glass.css -->
     <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116m">
-    <link rel="stylesheet" href="{% static 'css/mobile.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2">{# раскладка /local/ — для обеих тем #}
     {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/stations.css' %}"><link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+    <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
     <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
+<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}" data-auth="{% if request.user.is_authenticated %}1{% else %}0{% endif %}">
 
 <div class="app-layout">
     <!-- ЛЕВОЕ МЕНЮ (стили — theme.css, раздел «Каркас») -->
@@ -164,10 +164,12 @@
     </main>
 </div>
 
+{% include '_mobile_nav.html' %}
+
 <script src="{% static 'vendor/js/sortable.min.js' %}"></script>
 <script src="{% static 'js/interface-edit.js' %}?v=20261116k"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="{% static 'js/telegram-webapp-auth.js' %}"></script>
+<script src="{% static 'js/telegram-webapp-auth.js' %}?v=20261117"></script>
 <script src="{% static 'js/context-menu.js' %}?v=20261116k"></script>
 <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
 <script src="{% static 'js/dashboard.js' %}?v=20261115b"></script>

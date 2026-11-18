@@ -35,7 +35,8 @@ SECTIONS = [
                       "/devices/", "/panel/", "/modal/", "/discoveries/", "/classic/",
                       "/api/v1/devices", "/api/v1/vendors", "/api/v1/profiles", "/api/v1/metrics",
                       "/api/v1/metric-values", "/api/v1/interfaces", "/api/v1/vlans"),
-            admin=("devices", "profiles", "vendors", "categories", "subcategories", "api"), url="/local/"),
+            admin=("devices", "profiles", "vendors", "categories", "subcategories", "api", "dependencies"),
+            url="/local/"),
     Section("alerts", "Алерты", "local", "Список алертов, закрытие",
             prefixes=("/alerts/", "/api/v1/alerts/"), admin=("alerts",), url="/alerts/"),
     Section("stations", "Диспетчерская и станции", "local", "Карта станций, оптические линии, муфты",
@@ -77,6 +78,8 @@ CAPABILITIES = [
     Capability("traffic_capture", "Захват трафика", "tcpdump/pcap на сервере — видно весь трафик подсети", "subnets"),
     Capability("snmp_secrets", "SNMP community", "Видеть community устройств"),
     Capability("announcements", "Объявления", "Публиковать объявления на главной"),
+    Capability("edocs_journal", "Журнал СЭД", "Видеть все документы, отчёт по исполнительской дисциплине, выгрузка CSV",
+               "edocs"),
     Capability("users_manage", "Пользователи и права", "Подтверждать регистрации, менять права, шаблоны, модули"),
 ]
 CAP_BY_KEY = {c.key: c for c in CAPABILITIES}
@@ -90,6 +93,7 @@ ADMIN_CAP_SEGMENTS = {
 CAP_PATHS = [
     (re.compile(r"^/api/v1/interfaces/\d+/(set-admin-status|set-alias)/"), "port_control"),
     (re.compile(r"^/api/v1/subnets/tcpdump/"), "traffic_capture"),
+    (re.compile(r"^/edocs/journal/"), "edocs_journal"),
 ]
 # POST, который ничего не меняет (расчёт маршрута) — достаточно просмотра
 VIEW_POSTS = ("/api/v1/route/",)

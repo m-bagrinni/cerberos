@@ -175,12 +175,10 @@ body.auth-page {
     color: #1e293b !important;
 }
 
-
    СТИЛИ ДЛЯ HOME.HTML (Настоящее матовое стекло V2)
    ============================================================ */
 
 /* 1. Делаем фон насыщенным, чтобы стекло размывало цвета, а не серость */
-
 
 /* 2. Карточки делаем реально прозрачными (30% белого) */
 .module-card {
@@ -213,7 +211,6 @@ body.auth-page {
    ============================================================ */
 
 /* 1. Делаем общий фон тёмно-серым с цветными пятнами */
-
 
 /* 2. Шапка (top bar) — как на скрине, полупрозрачная */
 .home-header {
@@ -269,14 +266,6 @@ body.auth-page {
 
 /* 8. Текст в шапке */
 .home-header__logo span { color: #ffffff !important; }
-
-
-
-
-
-
-
-
 
 /* ============================================================
    СТИЛЬ GRAFANA ДЛЯ HOME.HTML (Светло-серый фон, графит, оранжевый)
@@ -1298,7 +1287,6 @@ html, body, .app-layout, .app-main {
 .iface-toolbar__info {
     color: #94a3b8 !important;
 }
-
 
 /* ============================================================
    СТАБИЛЬНЫЙ ФОН ДЛЯ ВКЛАДОК (Как в начале, тёмный графит)
@@ -3267,50 +3255,11 @@ div[style*="font-size: 12px"][style*="color: #8a94a6"] {
     border-radius: 8px !important;
 }
 
-/* 7. Кнопка "Захват трафика (tcpdump)" */
-.subnet-tcpdump-btn {
-    background: #ff780a !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 8px 16px !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 15px rgba(255, 120, 10, 0.3) !important;
-}
-
-/* ============================================================
-   СТИЛЬ ДЛЯ МОДАЛЬНОГО ОКНА IP (ip-modal)
-   ============================================================ */
-
 /* 1. Само окно (когда открыто) */
-#ip-modal:not([hidden]) {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    position: fixed !important;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 10000 !important;
-    background: rgba(0, 0, 0, 0.6) !important;
-    backdrop-filter: blur(4px) !important;
-}
 
 /* 2. Контент модалки (карточка) */
-#ip-modal .modal__content,
-#ip-modal > div {
-    background: rgba(30, 34, 42, 0.95) !important;
-    backdrop-filter: blur(30px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
-    color: #ffffff !important;
-    padding: 24px !important;
-    width: 100%;
-    max-width: 500px;
-}
 
 /* 3. Заголовок модалки */
-#ip-modal h2,
-#ip-modal .modal-title,
 #modal-title {
     color: #ffffff !important;
     font-size: 18px;
@@ -3342,108 +3291,16 @@ div[style*="font-size: 12px"][style*="color: #8a94a6"] {
 }
 
 /* 6. Кнопка закрытия */
-#ip-modal .modal-close,
-#ip-modal .btn-close {
-    color: #94a3b8 !important;
-    background: transparent !important;
-    border: none !important;
-    font-size: 20px;
-}
-
-/* ============================================================
-   СТИЛЬ ДЛЯ ПАНЕЛИ TCPDUMP
-   ============================================================ */
 
 /* 1. Сама панель (когда открыта) */
-.tcpdump-panel {
-    background: rgba(30, 34, 42, 0.9) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-    color: #e2e8f0 !important;
-    margin-top: 16px;
-    padding: 20px !important;
-}
 
 /* 2. Заголовок панели */
-.tcpdump-panel__title {
-    color: #ff780a !important;
-    font-weight: 700 !important;
-}
 
 /* 3. Поля ввода (BPF-фильтр) */
-.tcpdump-field label,
-.tcpdump-label {
-    color: #94a3b8 !important;
-    font-size: 12px;
-}
-
-.tcpdump-field input,
-.tcpdump-field select {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #ffffff !important;
-    border-radius: 8px !important;
-    padding: 8px 12px !important;
-}
-
-.tcpdump-field input:focus,
-.tcpdump-field select:focus {
-    border-color: #ff780a !important;
-    outline: none !important;
-}
 
 /* 4. Кнопки в панели */
-.tcpdump-panel button {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    color: #ffffff !important;
-    border-radius: 8px !important;
-    padding: 8px 16px !important;
-    font-weight: 600 !important;
-    transition: all 0.2s;
-}
-
-.tcpdump-panel button:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-}
-
-.tcpdump-panel button[type="submit"],
-.tcpdump-panel .btn--primary {
-    background: #ff780a !important;
-    border-color: #ff780a !important;
-}
-
-.tcpdump-panel button[type="submit"]:hover,
-.tcpdump-panel .btn--primary:hover {
-    background: #ff9d4d !important;
-}
 
 /* 5. Кнопка закрытия панели */
-.tcpdump-panel__close {
-    background: transparent !important;
-    border: none !important;
-    color: #94a3b8 !important;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-/* 6. Основная кнопка "Захват трафика (tcpdump)" */
-.tcpdump-section button {
-    background: #ff780a !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 10px 20px !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 15px rgba(255, 120, 10, 0.4) !important;
-}
-.tcpdump-section button:hover {
-    background: #ff9d4d !important;
-    transform: translateY(-2px);
-}
 
 /* ============================================================
    ФИКС: ВОЗВРАТ ТЁМНОГО СТЕКЛА ДЛЯ КАРТОЧЕК SFP
@@ -3597,17 +3454,8 @@ div[style*="font-size: 12px"][style*="color: #8a94a6"] {
 /* ============================================================
    ФИКС МОДАЛКИ IP (принудительное отображение)
    ============================================================ */
-.ip-modal[style*="display: flex"],
-.ip-modal[style*="display:flex"] {
-    display: flex !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
 
 /* Если modal.hidden = false, но CSS его скрывает */
-.ip-modal:not([hidden]) {
-    display: flex !important;
-}
 
 /* ============================================================
    КРАСОТА ДЛЯ ШАПКИ ПОДСЕТИ (subnet_detail)
@@ -4006,397 +3854,33 @@ label:has(> #only-monitored) {
     display: none;
 }
 
-/* ============================================================
-   ПАНЕЛЬ TCPDUMP (Захват трафика)
-   ============================================================ */
-.tcpdump-panel {
-    background: rgba(0, 0, 0, 0.4) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 12px !important;
-    padding: 16px !important;
-    margin: 16px 0 !important;
-    display: none; /* Скрыта по умолчанию */
-}
-
-.tcpdump-panel.is-open {
-    display: block;
-}
-
-.tcpdump-panel__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.tcpdump-panel__title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-    margin: 0;
-}
-
-.tcpdump-panel__close {
-    background: transparent;
-    border: none;
-    color: #9ca3af;
-    font-size: 20px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0 4px;
-}
-
-.tcpdump-panel__close:hover {
-    color: #fff;
-}
-
-.tcpdump-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-@media (max-width: 768px) {
-    .tcpdump-form {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-.tcpdump-form label {
-    display: block;
-    font-size: 12px;
-    color: #9ca3af;
-    margin-bottom: 4px;
-}
-
-.tcpdump-form input,
-.tcpdump-form select {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 13px;
-    outline: none;
-    box-sizing: border-box;
-}
-
-.tcpdump-form input:focus,
-.tcpdump-form select:focus {
-    border-color: #ff780a;
-}
-
-.tcpdump-actions {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.tcpdump-actions button {
-    padding: 6px 14px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
-    color: #d1d5db;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.2s;
-}
-
-.tcpdump-actions button:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
-.tcpdump-actions button.btn--primary {
-    background: #ff780a;
-    border-color: #ff780a;
-    color: #fff;
-}
-
-.tcpdump-actions button.btn--primary:hover {
-    background: #ff8f33;
-}
-
-.tcpdump-actions button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
 /* Окно лога (терминал) */
-.tcpdump-log {
-    background: #0b0c0e;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 12px;
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 12px;
-    color: #d1d5db;
-    height: 200px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-    line-height: 1.5;
-}
-
-.tcpdump-log:empty::before {
-    content: 'Вывод появится здесь...';
-    color: #4b5563;
-    font-style: italic;
-}
 
 /* ============================================================
    ПРЕСЕТЫ BPF — красивые кнопки
    ============================================================ */
-.tcpdump-presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.tcpdump-presets .bpf-preset {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #9ca3af;
-    padding: 5px 12px;
-    border-radius: 20px; /* Таблетка */
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    outline: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.tcpdump-presets .bpf-preset:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #fff;
-}
-
-.tcpdump-presets .bpf-preset.is-active {
-    background: rgba(255, 120, 10, 0.15) !important;
-    border-color: #ff780a !important;
-    color: #ff780a !important;
-    font-weight: 600;
-}
 
 /* Поле BPF-фильтра (чтобы не было белым) */
-#tcpdump-bpf {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #fff !important;
-    border-radius: 8px !important;
-    padding: 8px 12px !important;
-    font-size: 13px;
-    outline: none;
-    transition: all 0.2s;
-}
-
-#tcpdump-bpf:focus {
-    border-color: #ff780a !important;
-    box-shadow: 0 0 0 2px rgba(255, 120, 10, 0.2);
-}
 
 /* Поля длительности и пакетов */
-#tcpdump-duration, #tcpdump-packets {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #fff !important;
-    border-radius: 8px !important;
-}
 
 /* Выпадающий список интерфейсов */
-#tcpdump-iface {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #fff !important;
-    border-radius: 8px !important;
-}
 
 /* ============================================================
    МОДАЛКА IP — стекло и красивые строки
    ============================================================ */
-#ip-modal .modal-content {
-    background: rgba(24, 27, 31, 0.85) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
-    color: #e5e7eb !important;
-}
-
-#ip-modal .modal-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-    padding: 16px 20px !important;
-}
-
-#ip-modal .modal-title {
-    font-size: 16px !important;
-    font-weight: 600 !important;
-    color: #fff !important;
-}
-
-#ip-modal .modal-body {
-    padding: 16px 20px !important;
-    max-height: 70vh;
-    overflow-y: auto;
-}
 
 /* Строки */
-.ip-modal__row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    font-size: 14px;
-}
-
-.ip-modal__row:last-child {
-    border-bottom: none;
-}
-
-.ip-modal__row-label {
-    color: #9ca3af;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.ip-modal__row-label i {
-    font-size: 14px;
-    opacity: 0.8;
-}
-
-.ip-modal__row-value {
-    color: #fff;
-    font-weight: 500;
-    text-align: right;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
 
 /* Кнопки в модалке (если есть) */
-.ip-modal__actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-    flex-wrap: wrap;
-}
-
-.ip-modal__actions .btn {
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-size: 13px;
-    border: none;
-    cursor: pointer;
-}
 
 /* ============================================================
    МОДАЛКА IP — светлее, прозрачнее, стекло
    ============================================================ */
-#ip-modal .modal-content {
-    /* Было: rgba(24, 27, 31, 0.85) — стало светлее и прозрачнее */
-    background: rgba(45, 50, 56, 0.75) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-    color: #e5e7eb !important;
-}
-
-#ip-modal .modal-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-    padding: 16px 20px !important;
-}
-
-#ip-modal .modal-title {
-    font-size: 16px !important;
-    font-weight: 600 !important;
-    color: #fff !important;
-}
-
-#ip-modal .modal-body {
-    padding: 16px 20px !important;
-    max-height: 70vh;
-    overflow-y: auto;
-}
 
 /* Строки */
-.ip-modal__row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    font-size: 14px;
-}
-
-.ip-modal__row:last-child {
-    border-bottom: none;
-}
-
-.ip-modal__row-label {
-    color: #b0b7c3;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.ip-modal__row-label i {
-    font-size: 14px;
-    opacity: 0.8;
-}
-
-.ip-modal__row-value {
-    color: #fff;
-    font-weight: 500;
-    text-align: right;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
 
 /* Кнопки в модалке */
-.ip-modal__actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-    flex-wrap: wrap;
-}
-
-.ip-modal__actions .btn {
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 13px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.ip-modal__actions .btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.ip-modal__actions .btn--primary {
-    background: #ff780a;
-    border-color: #ff780a;
-}
-
-.ip-modal__actions .btn--primary:hover {
-    background: #ff8f33;
-}
 
 /* ============================================================
    ФИКС МОДАЛКИ "ДОБАВИТЬ ПОДСЕТЬ" (и других форм)
@@ -5441,8 +4925,6 @@ body:has(.g-wrapper) .app-content {
     -webkit-backdrop-filter: blur(8px) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
-
-
 
 /* ============================================================
 /* ============================================================

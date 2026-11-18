@@ -1,0 +1,78 @@
+{% comment %}
+  Мобильная навигация: нижняя панель (пункты по правам) + выезжающее меню по кнопке «Ещё».
+  Подключается в base.html, core/dashboard.html и core/home.html. Стили — static/css/mobile.css
+{% endcomment %}
+<!-- === Мобильная нижняя навигация (bottom nav) — пункты по правам, остальное в «Ещё» === -->
+<nav class="mobile-bottom-nav" aria-label="Мобильная навигация">
+    <a href="/" class="mbn-item{% if request.path == '/' %} active{% endif %}">
+        <i class="bi bi-house"></i>
+        <span>Главная</span>
+    </a>
+    {% if acc.v.alerts %}
+    <a href="{% url 'alerts_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'alerts_list' %} active{% endif %}">
+        <i class="bi bi-bell"></i>
+        <span>Алерты</span>
+    </a>
+    {% endif %}
+    {% if acc.v.devices %}
+    <a href="{% url 'dashboard' %}" class="mbn-item{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}">
+        <i class="bi bi-speedometer2"></i>
+        <span>Обзор</span>
+    </a>
+    {% endif %}
+    {% if acc.v.stations %}
+    <a href="{% url 'stations_list' %}" class="mbn-item{% if request.resolver_match.url_name == 'stations_list' %} active{% endif %}">
+        <i class="bi bi-broadcast"></i>
+        <span>Станции</span>
+    </a>
+    {% endif %}
+    {% if acc.v.edocs %}
+    <a href="/edocs/" class="mbn-item{% if '/edocs/' in request.path %} active{% endif %}">
+        <i class="bi bi-file-earmark-text"></i>
+        <span>СЭД</span>
+    </a>
+    {% endif %}
+    <button type="button" id="mbn-more" class="mbn-item" aria-label="Меню">
+        <i class="bi bi-list"></i>
+        <span>Ещё</span>
+    </button>
+</nav>
+<!-- Мобильное меню: выезжающая панель (открывается кнопкой «Ещё» в нижней навигации) -->
+<div id="mobile-overlay" class="mobile-overlay"></div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const sidebar = document.querySelector(".app-sidebar");
+    const overlay = document.getElementById("mobile-overlay");
+    const more = document.getElementById("mbn-more");
+    if (!sidebar || !overlay) { if (more) more.hidden = true; return; }
+    function setOpen(open) {
+        sidebar.classList.toggle("mobile-open", open);
+        overlay.classList.toggle("active", open);
+        if (more) more.classList.toggle("active", open);
+    }
+    if (more) more.addEventListener("click", function(e) {
+        e.preventDefault();
+        setOpen(!sidebar.classList.contains("mobile-open"));
+    });
+    overlay.addEventListener("click", function() { setOpen(false); });
+    document.addEventListener("keydown", function(e) { if (e.key === "Escape") setOpen(false); });
+
+    // Телефон: после выбора в списке (подсеть, NE, сервер, устройство) прокручиваем к панели с данными
+    const PAIRS = [
+        [".tree-subnet", "#subnet-detail-panel"],
+        [".mux-ne", "#mux-detail"],
+        [".g-server-item", "#server-detail-panel"],
+        [".devices-tree .tree-device", ".device-detail-panel"],
+    ];
+    document.addEventListener("click", function(e) {
+        if (window.innerWidth > 768) return;
+        for (const [item, panel] of PAIRS) {
+            if (e.target.closest(item)) {
+                const el = document.querySelector(panel);
+                if (el) setTimeout(function() { el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150);
+                return;
+            }
+        }
+    });
+});
+</script>

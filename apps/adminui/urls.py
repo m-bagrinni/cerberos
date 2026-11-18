@@ -20,6 +20,7 @@ urlpatterns = [
 
     # ========== Devices ==========
     path("devices/", views.DeviceListView.as_view(), name="devices"),
+    path("dependencies/", views.DependenciesView.as_view(), name="dependencies"),
     path("devices/new/", views.DeviceCreateView.as_view(), name="device_create"),
     path("devices/<int:pk>/", views.DeviceDetailView.as_view(), name="device_detail"),
     path("devices/<int:pk>/edit/", views.DeviceUpdateView.as_view(), name="device_update"),

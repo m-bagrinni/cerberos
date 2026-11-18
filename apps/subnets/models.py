@@ -41,6 +41,13 @@ class Subnet(models.Model):
     description = models.TextField(blank=True, default="")
     gateway_ip = models.GenericIPAddressField(null=True, blank=True)
     vlan_id = models.PositiveIntegerField(null=True, blank=True)
+    # За каким устройством стоит подсеть: если оно недоступно, пинг-алерты IP подсети подавляются
+    uplink = models.ForeignKey(
+        "devices.Device", null=True, blank=True, on_delete=models.SET_NULL, related_name="dependent_subnets",
+        verbose_name="Вышестоящее устройство",
+        help_text="Коммутатор/маршрутизатор, через который доступна подсеть. Если он упадёт — "
+                  "алерты «IP не отвечает» свернутся под его алертом.",
+    )
     is_active = models.BooleanField(default=True, db_index=True)
 
     # Сканирование
@@ -160,6 +167,9 @@ class IpAddress(models.Model):
     last_ping_at = models.DateTimeField(null=True, blank=True)
     last_rtt_ms = models.FloatField(null=True, blank=True)
     packet_loss_pct = models.FloatField(null=True, blank=True)
+    # Отпечаток узла для определения типа (fingerprint.py): TTL ping, ответ NetBIOS, время.
+    # null=True — чтобы старый код воркеров мог создавать записи до перезапуска.
+    fingerprint = models.JSONField(null=True, blank=True, default=dict)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

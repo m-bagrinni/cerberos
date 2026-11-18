@@ -1,80 +1,145 @@
 {% extends "edocs/base_edocs.html" %}
+{% block ed_title %}{% if doc %}Черновик{% else %}Новый документ{% endif %}{% endblock %}
 
-{% block edocs_content %}
-<div class="edocs-card" style="max-width: 600px; margin: 0 auto;">
-  <div class="edocs-card__head"><i class="bi bi-pencil-square"></i> Новое письмо / Поручение</div>
-  <div class="edocs-card__body">
-    <form method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      <div class="edocs-field">
-        <label>Кому (Получатель)</label>
-        <select name="recipient" required>
-          <option value="">— Выберите сотрудника —</option>
-          {% for emp in employees %}
-            <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      
-      <div class="edocs-field">
-        <label>Тип документа</label>
-        <select name="document_type">
-          <option value="execution">Исполнение (требует действий)</option>
-          <option value="approval">Согласование (требует подтверждения)</option>
-          <option value="review">Ознакомление (просто прочитать)</option>
-          <option value="info">Информация (к сведению)</option>
-        </select>
-      </div>
-
-      <div class="edocs-field">
-        <label>Тема</label>
-        <input type="text" name="title" required placeholder="Например: Согласование акта">
-      </div>
-
-      <div class="edocs-field">
-        <label>Текст письма</label>
-        <textarea name="message" rows="4" placeholder="Комментарий к документу..."></textarea>
-      </div>
-
-      <div class="edocs-field">
-        <label>Файл (необязательно)</label>
-        <input type="file" name="file">
-      </div>
-
-      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-        <a href="{% url 'edocs:sent' %}" class="edocs-btn" style="background:transparent; color:var(--text-muted); border:1px solid var(--border);">Отмена</a>
-        <button type="submit" class="edocs-btn"><i class="bi bi-send"></i> Отправить</button>
-      </div>
-    </form>
-  </div>
+{% block ed_header %}
+<a class="ed-back" href="{% if doc %}{% url 'edocs:drafts' %}{% else %}{% url 'edocs:sent' %}{% endif %}"><i class="bi bi-arrow-left"></i> {% if doc %}Черновики{% else %}Исходящие{% endif %}</a>
+<div class="ed-head">
+  <h1 class="ed-head__title"><i class="bi bi-file-earmark-plus"></i> {% if doc %}Черновик{% else %}Новый документ{% endif %}</h1>
+  {% if doc %}<span class="ed-head__sub">сохранён {{ doc.updated_at|date:"d.m.Y H:i" }}</span>{% endif %}
 </div>
+{% endblock %}
 
+{% block ed_content %}
+<form method="post" enctype="multipart/form-data" class="ed-form" id="ed-doc-form" novalidate>
+  {% csrf_token %}
+  <div>
+    <section class="ed-panel">
+      <div class="ed-panel__head"><h2 class="ed-panel__title"><i class="bi bi-card-text"></i> Документ</h2></div>
+      <div class="ed-panel__body">
+        <div class="ed-field">
+          <span class="ed-label">Вид документа</span>
+          <div class="ed-types">
+            {% for k, l in TYPES %}
+            <div class="ed-type">
+              <input type="radio" name="document_type" id="t-{{ k }}" value="{{ k }}"{% if v.document_type == k %} checked{% endif %}>
+              <label for="t-{{ k }}">
+                <i class="bi {% if k == 'execution' %}bi-list-check{% elif k == 'approval' %}bi-patch-check{% elif k == 'review' %}bi-eye{% else %}bi-info-circle{% endif %}"></i>
+                <div><b>{{ l }}</b>
+                  <span>{% if k == 'execution' %}Поручение: исполнитель отчитывается о выполнении{% elif k == 'approval' %}Адресаты согласуют или отклоняют{% elif k == 'review' %}Адресаты подтверждают «Ознакомлен»{% else %}К сведению, с отметкой о прочтении{% endif %}</span>
+                </div>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
 
+        <div class="ed-field">
+          <label class="ed-label" for="f-title">Тема <span class="ed-req">*</span></label>
+          <input class="ed-input" id="f-title" name="title" maxlength="255" required value="{{ v.title }}" placeholder="Например: Акт приёмки работ по ВОЛС, участок Бишкек — Кант" autofocus>
+        </div>
 
+        <div class="ed-field">
+          <label class="ed-label" for="f-message">Содержание / поручение</label>
+          <textarea class="ed-textarea" id="f-message" name="message" rows="6" maxlength="5000" placeholder="Что нужно сделать, к какому сроку, какой результат ожидается…">{{ v.message }}</textarea>
+        </div>
 
-<script>
-  window.addEventListener('load', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const toId = urlParams.get('to');
-    if (!toId) return;
-    
-    const select = document.querySelector('select[name="recipient"]');
-    if (!select) {
-      console.error('❌ Select not found');
-      return;
-    }
-    
-    console.log('🔍 Trying to select recipient:', toId);
-    console.log('📋 Available options:', Array.from(select.options).map(o => o.value));
-    
-    for (let i = 0; i < select.options.length; i++) {
-      if (select.options[i].value === toId) {
-        select.selectedIndex = i;
-        console.log('✅ Recipient selected:', toId);
-        return;
-      }
-    }
-    console.error('❌ Option not found for ID:', toId);
-  });
-</script>
+        <div class="ed-row" style="margin-top:14px">
+          <div class="ed-field">
+            <label class="ed-label" for="f-due">Срок исполнения</label>
+            <input class="ed-input" type="date" id="f-due" name="due_date" value="{{ v.due_date }}" min="{{ today|date:'Y-m-d' }}">
+            <div class="ed-quick" data-ed-due-quick>
+              <button type="button" data-days="1">Завтра</button>
+              <button type="button" data-days="3">3 дня</button>
+              <button type="button" data-days="7">Неделя</button>
+              <button type="button" data-days="14">2 недели</button>
+              <button type="button" data-days="">Без срока</button>
+            </div>
+          </div>
+          <div class="ed-field">
+            <span class="ed-label">Приоритет</span>
+            <div class="ed-seg">
+              {% for k, l in PRIORITIES %}
+              <input type="radio" name="priority" id="p-{{ k }}" value="{{ k }}"{% if v.priority == k %} checked{% endif %}><label for="p-{{ k }}">{{ l }}</label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ed-panel">
+      <div class="ed-panel__head">
+        <h2 class="ed-panel__title"><i class="bi bi-paperclip"></i> Файлы</h2>
+        <div class="ed-panel__aside">до {{ max_mb }} МБ каждый</div>
+      </div>
+      <div class="ed-panel__body">
+        {% if files %}
+        <div class="ed-upl" style="margin:0 0 10px">
+          {% for att in files %}
+          <label class="ed-upl__item" data-ed-remove>
+            <i class="bi {{ att.icon }} ed-file__icon"></i>
+            <span class="ed-file__name">{{ att.name }}</span>
+            <span class="ed-file__size">{{ att.size|filesizeformat }}</span>
+            <span class="ed-check"><input type="checkbox" name="remove_file" value="{{ att.pk }}"> удалить</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <label class="ed-drop" data-ed-drop>
+          <input type="file" name="files" multiple accept="{{ allowed_ext }}">
+          <i class="bi bi-cloud-arrow-up"></i>
+          Перетащите файлы сюда или <u>выберите</u>
+          <div class="ed-hint">PDF, Word, Excel, PowerPoint, изображения, архивы. Офисные файлы можно будет смотреть прямо в браузере.</div>
+        </label>
+        <div class="ed-upl" data-ed-upl></div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="ed-sticky">
+    <section class="ed-panel">
+      <div class="ed-panel__head"><h2 class="ed-panel__title"><i class="bi bi-people"></i> Адресаты</h2></div>
+      <div class="ed-panel__body">
+        <div class="ed-field">
+          <label class="ed-label" for="f-main">Ответственный <span class="ed-req">*</span></label>
+          <select class="ed-select" id="f-main" name="main" required>
+            <option value="">— выберите сотрудника —</option>
+            {% for e in employees %}
+            <option value="{{ e.pk }}"{% if v.main == e.pk|stringformat:"d" %} selected{% endif %}>{{ e.short_name }}{% if e.position_ref %} · {{ e.position_ref.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <div class="ed-hint">Его решение и отчёт — основные. Документ можно будет передать другому.</div>
+        </div>
+        <div class="ed-field">
+          <span class="ed-label">Соисполнители / ещё адресаты <span class="ed-hint" data-ed-co-count></span></span>
+          <div class="ed-picker">
+            <input class="ed-input ed-picker__search" type="search" placeholder="Найти сотрудника…" data-ed-picker-search aria-label="Найти сотрудника">
+            <div class="ed-picker__list">
+              {% for e in employees %}
+              <label class="ed-pick" data-name="{{ e.get_full_name|lower }} {{ e.username|lower }} {{ e.position_ref.name|default:''|lower }}" data-id="{{ e.pk }}">
+                <input type="checkbox" name="co" value="{{ e.pk }}"{% if e.pk|stringformat:"d" in v.co %} checked{% endif %}>
+                <span class="ed-pick__name">{{ e.short_name }}{% if e.position_ref %}<small>{{ e.position_ref.name }}</small>{% endif %}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="ed-hint">Каждый получит документ и отметится сам. Документ завершится, когда отметятся все.</div>
+        </div>
+        <div class="ed-form-actions">
+          <button class="ed-btn ed-btn--primary" type="submit" name="submit" value="send"><i class="bi bi-send"></i> Зарегистрировать и отправить</button>
+          <button class="ed-btn" type="submit" name="submit" value="draft" formnovalidate><i class="bi bi-floppy"></i> Сохранить черновик</button>
+        </div>
+      </div>
+    </section>
+    {% if doc %}
+    <button class="ed-btn ed-btn--ghost ed-btn--sm" type="submit" form="ed-del-form" style="width:100%;margin-top:12px"><i class="bi bi-trash"></i> Удалить черновик</button>
+    {% endif %}
+  </aside>
+</form>
+{% if doc %}
+<form id="ed-del-form" method="post" action="{% url 'edocs:action' doc.pk %}" data-ed-confirm="Удалить черновик без возможности восстановления?" hidden>
+  {% csrf_token %}
+  <input type="hidden" name="action" value="delete">
+</form>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,10 @@
+<div class="ed-pager">
+  <span>{{ page.start_index }}–{{ page.end_index }} из {{ page.paginator.count }}</span>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="ed-pager__nav">
+    {% if page.has_previous %}<a class="ed-btn ed-btn--sm" href="?{% if qstr %}{{ qstr }}&amp;{% endif %}page={{ page.previous_page_number }}"><i class="bi bi-chevron-left"></i></a>{% endif %}
+    <span class="ed-btn ed-btn--sm ed-btn--ghost">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="ed-btn ed-btn--sm" href="?{% if qstr %}{{ qstr }}&amp;{% endif %}page={{ page.next_page_number }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>

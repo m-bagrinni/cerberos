@@ -251,6 +251,22 @@ class Device(models.Model):
         verbose_name="Подкатегория",
     )
     description = models.TextField(blank=True)
+    # Зависимость: через какое устройство это доступно (коммутатор/маршрутизатор выше по сети).
+    # Если вышестоящее недоступно, алерты этого устройства подавляются (apps/alerts/correlation.py).
+    uplink = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="downlinks",
+        verbose_name="Вышестоящее устройство",
+        help_text="Через какое устройство это доступно. Если оно упадёт — алерты этого устройства "
+                  "не будут слать уведомлений, а свернутся под алертом вышестоящего.",
+    )
+    # …или NE мультиплексора, через канал которого подключено устройство (LAN-порт Olencom).
+    # Задаётся вместо uplink: если указаны оба, главнее uplink.
+    uplink_ne = models.ForeignKey(
+        "devices.NeDevice", null=True, blank=True, on_delete=models.SET_NULL, related_name="dependent_devices",
+        verbose_name="Вышестоящий NE",
+        help_text="NE мультиплексора, через который подключено устройство. Обрыв оптики до этого NE "
+                  "свернёт и алерты устройства.",
+    )
 
     snmp_version = models.CharField(
         max_length=8, default="2c",

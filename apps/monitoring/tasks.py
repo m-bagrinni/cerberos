@@ -14,6 +14,8 @@ log = logging.getLogger(__name__)
 # soft — бросает SoftTimeLimitExceeded, hard — убивает процесс; замок живёт дольше hard.
 FAST = dict(soft_time_limit=240, time_limit=270)
 FAST_LOCK = 300
+DEVICE_PING_FAILS = 4  # при интервале 30 с ≈ 2 минуты тишины (ICMP + SNMP)
+NE_CONFIRM_FAILS = 2  # подряд проваленных циклов до аварии «нет питания/связи»
 
 
 def _fanout(task, ip, expires):
@@ -591,6 +593,13 @@ def poll_optical_links_fast():
         OpticalLink.objects.filter(is_active=True)
         .select_related("ne_a__gateway", "ne_b__gateway")
     )
+    # Ближние к центру — первыми: обрыв выше по цепочке фиксируется раньше «нет связи» за ним,
+    # и алерты дальних линий сворачиваются под него (apps/alerts/correlation.py)
+    try:
+        from apps.alerts.correlation import topo_order
+        links = topo_order(links, prefix="l")
+    except Exception as e:  # noqa: BLE001 — порядок не критичен для самого опроса
+        log.warning(f"poll fast: topo_order: {e}")
 
     ne_ids = set()
     for l in links:
@@ -606,10 +615,19 @@ def poll_optical_links_fast():
         cached = cache.get_many([f"ne_alive_raw_{nid}" for nid in ne_ids])
     except Exception:
         cached = {}
+    # Одиночный сбой SNMP у хрупких шлюзов Olencom — норма. «Нет питания» объявляем,
+    # только когда NE не ответил NE_CONFIRM_FAILS циклов подряд (счётчик ведёт poll_ne_availability_fast).
+    try:
+        fails = cache.get_many([f"ne_fail_count_{nid}" for nid in ne_ids])
+    except Exception:
+        fails = {}
     for nid in ne_ids:
         v = cached.get(f"ne_alive_raw_{nid}")
         if v is not None:
-            ne_alive[nid] = bool(v)
+            alive = bool(v)
+            if not alive and (fails.get(f"ne_fail_count_{nid}") or 0) < NE_CONFIRM_FAILS:
+                alive = True  # пока не подтверждено — считаем живым (статус линии не меняем)
+            ne_alive[nid] = alive
     missing = [nid for nid in ne_ids if nid not in ne_alive]
     with ThreadPoolExecutor(max_workers=2) as ex:
         futs = {ex.submit(_check_ne_fast, nid): nid for nid in missing}
@@ -683,7 +701,6 @@ def poll_optical_links_fast():
                 if a_link is False or b_link is False:
                     new_status = "crit"
                 elif a_link is True and b_link is True:
-                    from apps.monitoring.tasks import _end_state, _calc_link_status
                     sa = _end_state(l, "a")
                     sb = _end_state(l, "b")
                     new_status = _calc_link_status(sa, sb)
@@ -1125,9 +1142,12 @@ def ping_all_devices():
     from apps.alerts.models import Alert
     from apps.subnets.scanner import ping_one
     from apps.accounts.telegram_notify import notify_alert_created
+    from apps.alerts.correlation import topo_order
     from django.utils import timezone
-    
-    devices = Device.objects.all()
+
+    # Сначала вышестоящие (Device.uplink): если узел и всё за ним упали разом, алерт узла
+    # создаётся первым и алерты остальных сразу сворачиваются под него (apps/alerts/correlation.py)
+    devices = topo_order(Device.objects.all())
     for dev in devices:
         try:
             result = ping_one(dev.ip, retries=1)
@@ -1189,7 +1209,7 @@ def ping_all_devices():
             # Если 3 неудачи подряд и устройство считается доступным — создаем алерт
             # Переоткрываем алерт, если 3+ фейла подряд, даже если is_reachable уже False
             # (иначе после "моргания" устройства алерт закрывается и больше не открывается).
-            if dev.ping_fail_count >= 3:
+            if dev.ping_fail_count >= DEVICE_PING_FAILS:
                 dev.is_reachable = False
                 dev.status = Device.STATUS_UNREACHABLE
                 active = Alert.objects.filter(
@@ -1202,8 +1222,8 @@ def ping_all_devices():
                         severity=Alert.SEVERITY_CRIT,
                         state=Alert.STATE_FIRING,
                         value=dev.ping_fail_count,
-                        threshold=3,
-                        message=f"Устройство {dev.name} ({dev.ip}) недоступно (3 неудачных пинга подряд)"
+                        threshold=DEVICE_PING_FAILS,
+                        message=f"Устройство {dev.name} ({dev.ip}) недоступно ({DEVICE_PING_FAILS} неудачных проверок подряд)"
                     )
                     try:
                         notify_alert_created(alert)

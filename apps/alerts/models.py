@@ -83,12 +83,19 @@ class Alert(models.Model):
     resolved_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
                                     related_name="+", verbose_name="Закрыл")
     resolution = models.TextField(blank=True, verbose_name="Что сделано")
+    # Корреляция (apps/alerts/correlation.py): алерт-причина, если этот — следствие
+    # (недоступно вышестоящее устройство). Подавленный алерт активен, но без уведомлений и эскалации.
+    suppressed_by = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL,
+                                      related_name="suppressed", verbose_name="Подавлен алертом")
+    # Уведомление придержано: вышестоящее устройство уже не отвечает, ждём, станет ли оно причиной
+    notify_held_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-started_at"]
         indexes = [
             models.Index(fields=["state", "-started_at"]),
             models.Index(fields=["device", "metric_key", "state"]),
+            models.Index(fields=["state", "suppressed_by"]),
         ]
 
     def __str__(self):
@@ -101,6 +108,10 @@ class Alert(models.Model):
     @property
     def is_firing(self):
         return self.state == self.STATE_FIRING
+
+    @property
+    def is_suppressed(self):
+        return self.suppressed_by_id is not None
 
     @property
     def severity_emoji(self):

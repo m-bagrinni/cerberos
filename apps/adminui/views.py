@@ -111,6 +111,12 @@ class DeviceDetailView(PermissionRequiredMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
         device = get_object_or_404(Device, pk=kwargs["pk"])
         ctx["device"] = device
+        from apps.alerts.correlation import build_graph, dependents
+        g = build_graph()
+        # Путь до центра: устройства — ссылками, NE — текстом (линии пропускаем)
+        ctx["uplink_chain"] = [(int(x[1:]) if x[0] == "d" else None, g.label.get(x, x))
+                               for x in reversed(g.chain(f"d{device.pk}", include_self=False)) if x[0] != "l"]
+        ctx["dependents"] = dependents(device.pk)
 
         metrics_dict = {}
         if device.profile:
@@ -1560,3 +1566,127 @@ class UserDeleteView(UserDeleteView):  # noqa: F811
         if request.user.is_authenticated:
             _guard_superuser_target(request, self.get_object())
         return super().dispatch(request, *args, **kwargs)
+
+
+# ============================================================
+# Зависимости сети (Device.uplink / Subnet.uplink) — подавление каскадов алертов
+# ============================================================
+
+class DependenciesView(PermissionRequiredMixin, TemplateView):
+    """Топология для подавления каскадов: ручные родители устройств/подсетей + вычисленное по оптике."""
+    permission_required = "device.update"
+    template_name = "adminui/dependencies.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.alerts.correlation import build_graph, manual_parent, ne_suggestions
+        from apps.devices.models import NeDevice
+        from apps.stations.models import Station
+        ctx = super().get_context_data(**kwargs)
+        g = build_graph()
+
+        def names(node):
+            return [g.label.get(x, x) for x in reversed(g.chain(node, include_self=False)) if x[0] != "l"]
+
+        def below(node):
+            b = g.below(node)
+            return b, {"d": sum(1 for x in b if x[0] == "d"), "n": sum(1 for x in b if x[0] == "n")}
+
+        nes = list(NeDevice.objects.select_related("gateway").order_by("ne_id"))
+        ne_label = {n.pk: f"NE-{n.ne_id} {n.display_name}" for n in nes}
+        hints = ne_suggestions(g)
+
+        devices = list(Device.objects.select_related("category").order_by("name"))
+        for d in devices:
+            node = f"d{d.pk}"
+            chain = names(node)
+            d.path = " › ".join(chain)
+            d.level = len(chain)
+            d.sort_key = (chain, d.name)
+            d.manual = manual_parent({"uplink_id": d.uplink_id, "uplink_ne_id": d.uplink_ne_id}) or ""
+            b, d.below = below(node)
+            d.excluded = {x for x in b if x[0] in "dn"} | {node}
+            d.auto_via = g.label.get(g.via_link.get(node, ""), "") if not d.manual else ""
+            lp = g.link_parent.get(node)
+            d.link_hint = (lp, g.label.get(lp, "")) if lp and d.manual and lp != d.manual else None
+            d.ne_hint = (f"n{hints[d.pk]}", ne_label.get(hints[d.pk], "")) if d.pk in hints else None
+        devices.sort(key=lambda d: d.sort_key)
+
+        for n in nes:
+            node = f"n{n.pk}"
+            chain = names(node)
+            n.path = " › ".join(chain)
+            n.depth = sum(1 for x in g.chain(node, include_self=False) if x[0] == "n")
+            n.via = g.label.get(g.via_link.get(node, ""), "")
+            _b, cnt = below(node)
+            n.n_below, n.d_below = cnt["n"], cnt["d"]
+            n.sort_key = (chain, n.ne_id)
+        nes.sort(key=lambda n: n.sort_key)
+
+        ctx.update({
+            "rows": devices, "devices": sorted(devices, key=lambda d: d.name), "nes": nes,
+            "ne_options": [(f"n{n.pk}", ne_label[n.pk]) for n in sorted(nes, key=lambda n: n.ne_id)],
+            "subnets": Subnet.objects.select_related("uplink").order_by("cidr"),
+            "n_roots": sum(1 for d in devices if not g.parent.get(f"d{d.pk}")),
+            "n_linked": sum(1 for d in devices if g.parent.get(f"d{d.pk}")),
+            "n_hints": sum(1 for d in devices if d.ne_hint or d.link_hint),
+            "stations": Station.objects.order_by("name"),
+            "hub_names": g.hub_names,
+            "hub_explicit": Station.objects.filter(is_hub=True).values_list("pk", flat=True).first(),
+        })
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from django.db import transaction
+
+        from apps.alerts.correlation import cycles_with
+        from apps.devices.models import NeDevice
+        from apps.stations.models import Station
+
+        def _id(v):
+            return int(v) if v and str(v).isdigit() else None
+
+        dev_ids = set(Device.objects.values_list("id", flat=True))
+        ne_ids = set(NeDevice.objects.values_list("id", flat=True))
+
+        def _node(v):
+            v = (v or "").strip()
+            if len(v) > 1 and v[0] == "d" and _id(v[1:]) in dev_ids:
+                return v
+            if len(v) > 1 and v[0] == "n" and _id(v[1:]) in ne_ids:
+                return v
+            return None
+
+        wanted = {d: _node(request.POST.get(f"dev_{d}")) for d in dev_ids if f"dev_{d}" in request.POST}
+        wanted = {d: (None if p == f"d{d}" else p) for d, p in wanted.items()}
+        bad = cycles_with(wanted)
+        if bad:
+            names = ", ".join(Device.objects.filter(pk__in=bad).values_list("name", flat=True)[:6])
+            messages.error(request, f"Получается цикл зависимостей ({names}). Ничего не сохранено.")
+            return redirect("adminui:dependencies")
+
+        changed = 0
+        hub = _id(request.POST.get("hub"))
+        with transaction.atomic():
+            if "hub" in request.POST:
+                if Station.objects.filter(is_hub=True).exclude(pk=hub).update(is_hub=False):
+                    changed += 1
+                if hub and Station.objects.filter(pk=hub, is_hub=False).update(is_hub=True):
+                    changed += 1
+            for d in Device.objects.filter(pk__in=list(wanted)).only("id", "uplink_id", "uplink_ne_id"):
+                p = wanted[d.pk]
+                up = int(p[1:]) if p and p[0] == "d" else None
+                up_ne = int(p[1:]) if p and p[0] == "n" else None
+                if (d.uplink_id, d.uplink_ne_id) != (up, up_ne):
+                    Device.objects.filter(pk=d.pk).update(uplink_id=up, uplink_ne_id=up_ne)
+                    changed += 1
+            for sub in Subnet.objects.only("id", "uplink_id"):
+                if f"sub_{sub.pk}" not in request.POST:
+                    continue
+                u = _id(request.POST.get(f"sub_{sub.pk}"))
+                u = u if u in dev_ids else None
+                if sub.uplink_id != u:
+                    Subnet.objects.filter(pk=sub.pk).update(uplink_id=u)
+                    changed += 1
+        messages.success(request, f"Сохранено, изменений: {changed}." if changed else "Изменений нет.")
+        return redirect("adminui:dependencies")

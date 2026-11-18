@@ -1,43 +1,30 @@
 {% extends "edocs/base_edocs.html" %}
+{% block ed_title %}Сотрудники{% endblock %}
 
-{% block edocs_content %}
-<div class="edocs-card">
-  <div class="edocs-card__head"><i class="bi bi-people"></i> Сотрудники ({{ employees|length }})</div>
-  <div style="overflow-x:auto;">
-    <table class="edocs-table">
-      <thead>
-        <tr>
-          <th>Имя</th>
-          <th>Логин</th>
-          <th>Email</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for emp in employees %}
-        <tr onclick="window.location='{% url 'edocs:employee_detail' emp.pk %}'" style="cursor: pointer;">
-          <td>
-            <a href="{% url 'edocs:employee_detail' emp.pk %}" style="color: var(--text-strong); text-decoration: none; font-weight: 600;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-strong)'">
-              {{ emp.get_full_name|default:emp.username }}
-            </a>
-          </td>
-          <td>{{ emp.username }}</td>
-          <td>{{ emp.email|default:"—" }}</td>
-          <td>
-            <div class="edocs-actions" onclick="event.stopPropagation();">
-              <a href="{% url 'edocs:create' %}?to={{ emp.id }}" class="edocs-btn" style="padding:4px 10px; font-size:12px; text-decoration:none;">
-                <i class="bi bi-envelope"></i> Написать
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="4" class="edocs-empty">Сотрудники не найдены</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% block ed_content %}
+<section class="ed-panel">
+  <form class="ed-filters" method="get" role="search">
+    <div class="ed-search">
+      <i class="bi bi-search"></i>
+      <input class="ed-input" type="search" name="q" value="{{ q }}" placeholder="Фамилия, имя, должность…" aria-label="Поиск сотрудника">
+    </div>
+    <span class="ed-sub" style="margin-left:auto">{{ employees|length }} чел.</span>
+  </form>
+  {% if employees %}
+  <div class="ed-people-grid">
+    {% for e in employees %}
+    <a class="ed-emp" href="{% url 'edocs:employee_detail' e.pk %}">
+      <div class="ed-avatar">{% if e.avatar %}<img src="{{ e.avatar.url }}" alt="">{% else %}{{ e.last_name|default:e.username|slice:":1"|upper }}{{ e.first_name|slice:":1"|upper }}{% endif %}</div>
+      <div style="min-width:0;flex:1">
+        <div class="ed-emp__name">{{ e.get_full_name|default:e.username }}</div>
+        <div class="ed-emp__pos">{{ e.position_ref.name|default:"Должность не указана" }}</div>
+      </div>
+      {% if e.load %}<span class="ed-count ed-count--muted" title="Документов в работе">{{ e.load }}</span>{% endif %}
+    </a>
+    {% endfor %}
   </div>
-</div>
+  {% else %}
+  <div class="ed-empty"><i class="bi bi-people"></i><b>Никого не нашли</b>Измените запрос.</div>
+  {% endif %}
+</section>
 {% endblock %}

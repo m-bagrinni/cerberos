@@ -58,12 +58,24 @@ class SubnetViewSet(viewsets.ModelViewSet):
         while cols * cols < n:
             cols += 1
         rows = (n + cols - 1) // cols
+        data = IpGridSerializer(ips, many=True).data
+        # Тип устройства «плюс-минус» (ПК, сетевое, принтер, камера …) — см. devtype.py
+        try:
+            from .devtype import classify_many
+            types = classify_many(ips, gateway_ip=subnet.gateway_ip)
+        except Exception:
+            logger.exception("device type classification failed")
+            types = {}
+        for row in data:
+            t = types.get(row["ip"])
+            if t:
+                row.update(t)
         return Response({
             "subnet_id": subnet.pk,
             "cidr": subnet.cidr,
             "cols": cols,
             "rows": rows,
-            "ips": IpGridSerializer(ips, many=True).data,
+            "ips": data,
         })
 
     @action(detail=True, methods=["get"], url_path="stats")
@@ -332,138 +344,248 @@ def _capture_admin_only(view):
 
 
 # ============================================================
-# tcpdump — запуск захвата трафика из интерфейса подсети
+# Захват трафика (tcpdump): интерфейсы, проверка фильтра, снимок, live, pcap
 # ============================================================
+
+def _int_param(data, key: str, default: int) -> int:
+    v = data.get(key)
+    if v in (None, ""):
+        return default
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"«{key}» должно быть числом")
+
+
+def _bool_param(data, key: str, default: bool) -> bool:
+    v = data.get(key)
+    if v is None:
+        return default
+    if isinstance(v, bool):
+        return v
+    return str(v).lower() in ("1", "true", "yes", "on")
+
 
 @_capture_admin_only
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def tcpdump_view(request):
     """
-    Запуск tcpdump.
-
-    Body (JSON):
-        {
-            "bpf": "host 8.8.8.8 and icmp",  # опционально
-            "iface": "any",                   # one of: any, eth0, lo
-            "duration": 10,                   # сек, 1..30
-            "packets": 50                     # 1..500
-        }
+    Разовый снимок трафика.
+    Body: {"bpf": "...", "iface": "enp4s0.50", "duration": 10, "packets": 200, "dedup": true}
     """
     from .tcpdump import TcpdumpError, run_tcpdump
 
-    bpf = (request.data.get("bpf") or "").strip()
-    iface = (request.data.get("iface") or "any").strip()
     try:
-        duration = int(request.data.get("duration") or 10)
-        packets = int(request.data.get("packets") or 50)
-    except (TypeError, ValueError):
-        return Response(
-            {"ok": False, "error": "duration/packets должны быть числами"},
-            status=status.HTTP_400_BAD_REQUEST,
+        duration = _int_param(request.data, "duration", 10)
+        packets = _int_param(request.data, "packets", 200)
+    except ValueError as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        result = run_tcpdump(
+            bpf=request.data.get("bpf") or "",
+            iface=(request.data.get("iface") or "any").strip(),
+            duration=duration, packets=packets,
+            dedup=_bool_param(request.data, "dedup", True),
         )
-
-    try:
-        result = run_tcpdump(bpf=bpf, iface=iface, duration=duration, packets=packets)
     except TcpdumpError as e:
-        return Response(
-            {"ok": False, "error": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.exception("tcpdump failed")
-        return Response(
-            {"ok": False, "error": f"Внутренняя ошибка: {e}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
+        return Response({"ok": False, "error": f"Внутренняя ошибка: {e}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     return Response(result)
 
+
+@_capture_admin_only
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tcpdump_ifaces_view(request):
-    """Интерфейсы хоста через sniffer, с IP."""
-    import subprocess as _sp
-    import re as _re
+    """Интерфейсы хоста: имя, IPv4, VLAN, состояние."""
+    from .tcpdump import list_ifaces
     try:
-        out = ops_client.sniffer_run(["ip", "-o", "-4", "a"], timeout=5)
-        result = []
-        for line in out.stdout.splitlines():
-            m = _re.search(r"^\d+:\s+([^:@]+).*?inet\s+(\d+\.\d+\.\d+\.\d+)/(\d+)", line)
-            if m:
-                name = m.group(1).strip()
-                if name.startswith("veth") or name.startswith("br-"):
-                    continue
-                result.append({"name": name, "ip": m.group(2)})
-        if not result:
-            result = [{"name": "any", "ip": None}]
-        return Response({"ok": True, "ifaces": result})
+        return Response({"ok": True, "ifaces": list_ifaces()})
     except Exception as e:
         return Response({"ok": False, "error": str(e)}, status=500)
 
 
-
+@_capture_admin_only
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tcpdump_subnet_iface_view(request):
-    """Интерфейс хоста, в котором лежит подсеть (через sniffer)."""
+    """Интерфейс хоста, на котором лежит подсеть (точное совпадение, иначе — содержащая сеть)."""
+    import ipaddress as _ip
+    from .tcpdump import list_ifaces
+
     cidr = (request.query_params.get("cidr") or "").strip()
     if not cidr:
         return Response({"ok": False, "error": "cidr is required"}, status=400)
-
-    import subprocess as _sp
-    import re as _re
-    import ipaddress as _ip
-
     try:
         target = _ip.ip_network(cidr, strict=False)
     except ValueError:
         return Response({"ok": False, "error": "invalid cidr"}, status=400)
-
     try:
-        out = ops_client.sniffer_run(["ip", "-o", "-4", "a"], timeout=5)
+        ifaces = list_ifaces()
     except Exception as e:
         return Response({"ok": False, "error": str(e)}, status=500)
 
-    for line in out.stdout.splitlines():
-        m = _re.search(r"^\d+:\s+([^:@]+).*?inet\s+(\d+\.\d+\.\d+\.\d+)/(\d+)", line)
-        if not m:
-            continue
-        name, ip, mask = m.group(1).strip(), m.group(2), int(m.group(3))
-        if name.startswith("veth") or name.startswith("br-"):
-            continue
-        try:
-            net = _ip.ip_network(f"{ip}/{mask}", strict=False)
-        except ValueError:
-            continue
-        if net == target:
-            return Response({"ok": True, "iface": name, "ip": ip})
-
+    best = None
+    for it in ifaces:
+        for c in it.get("cidrs") or []:
+            try:
+                net = _ip.ip_network(c, strict=False)
+            except ValueError:
+                continue
+            if net == target:
+                return Response({"ok": True, "iface": it["name"], "ip": it["ip"], "exact": True})
+            if target.version == net.version and (target.subnet_of(net) or net.subnet_of(target)):
+                best = best or it
+    if best:
+        return Response({"ok": True, "iface": best["name"], "ip": best["ip"], "exact": False})
     return Response({"ok": False, "error": f"Интерфейс для {cidr} не найден"})
 
-# ============================================================
-# tcpdump → pcap + скачивание
-# ============================================================
+
+@_capture_admin_only
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def tcpdump_validate_view(request):
+    """
+    Проверка фильтра: сначала свой разбор (мгновенно), затем компиляция tcpdump (~1 с).
+    Body: {"bpf": "...", "iface": "...", "compile": true}
+    """
+    from . import bpf as bpf_mod
+    from .tcpdump import TcpdumpError, _validate_iface
+
+    try:
+        expr = bpf_mod.validate(request.data.get("bpf") or "")
+    except bpf_mod.BpfError as e:
+        return Response({"ok": True, "valid": False, "error": str(e)})
+    if not _bool_param(request.data, "compile", True):
+        return Response({"ok": True, "valid": True, "bpf": expr})
+    try:
+        iface = _validate_iface((request.data.get("iface") or "any").strip())
+    except TcpdumpError as e:
+        return Response({"ok": True, "valid": False, "error": str(e)})
+    try:
+        err = bpf_mod.check_with_tcpdump(expr, iface)
+    except Exception as e:
+        logger.warning("bpf compile check failed: %s", e)
+        return Response({"ok": True, "valid": True, "bpf": expr, "warning": "tcpdump-проверка недоступна"})
+    if err:
+        return Response({"ok": True, "valid": False, "error": err})
+    return Response({"ok": True, "valid": True, "bpf": expr})
+
+
+@_capture_admin_only
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def capture_live_start_view(request):
+    """
+    Запуск непрерывного захвата.
+    Body: {"bpf", "iface", "duration": сек (≤1800), "max_packets": 0=без лимита, "dedup": true}
+    """
+    from . import capture_live
+    from .tcpdump import TcpdumpError, _validate_bpf, _validate_iface
+
+    try:
+        duration = _int_param(request.data, "duration", capture_live.DEFAULT_DURATION)
+        max_packets = _int_param(request.data, "max_packets", 0)
+        expr = _validate_bpf(request.data.get("bpf") or "")
+        iface = _validate_iface((request.data.get("iface") or "any").strip())
+    except (ValueError, TcpdumpError) as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        info = capture_live.start(
+            request.user.id, iface=iface, bpf=expr, duration=duration,
+            max_packets=max_packets, dedup=_bool_param(request.data, "dedup", True) and iface == "any",
+        )
+    except capture_live.CaptureError as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_409_CONFLICT)
+    except Exception as e:
+        logger.exception("capture start failed")
+        return Response({"ok": False, "error": f"Внутренняя ошибка: {e}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"ok": True, **info})
+
+
+@_capture_admin_only
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def capture_live_poll_view(request, sid: str):
+    """Новые пакеты сессии начиная с ?cursor=N."""
+    from . import capture_live
+    try:
+        cursor = _int_param(request.query_params, "cursor", 0)
+        return Response(capture_live.poll(request.user.id, sid, cursor))
+    except ValueError as e:
+        return Response({"ok": False, "error": str(e)}, status=400)
+    except capture_live.CaptureError as e:
+        return Response({"ok": False, "error": str(e)}, status=404)
+
+
+@_capture_admin_only
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def capture_live_stop_view(request, sid: str):
+    from . import capture_live
+    try:
+        return Response(capture_live.stop(request.user.id, sid))
+    except capture_live.CaptureError as e:
+        return Response({"ok": False, "error": str(e)}, status=404)
+
+
+@_capture_admin_only
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def capture_identify_view(request):
+    """
+    «Кто это?» по MAC и/или IP: производитель, IP, имена, порт коммутатора.
+    ?mac=aa:bb:..&ip=10.0.0.1&ip=…&deep=1&iface=enp4s0.50
+    deep=1 — ещё NetBIOS/SMB и ожидание DHCP-запроса (до ~30 с).
+    """
+    from .identify import identify, normalize_mac
+    from .tcpdump import TcpdumpError, _validate_iface
+
+    raw_mac = (request.query_params.get("mac") or "").strip()
+    mac = normalize_mac(raw_mac) if raw_mac else None
+    if raw_mac and not mac:
+        return Response({"ok": False, "error": "Некорректный MAC"}, status=400)
+    ips = request.query_params.getlist("ip")[:8]
+    if not mac and not ips:
+        return Response({"ok": False, "error": "Нужен mac или ip"}, status=400)
+    deep = _bool_param(request.query_params, "deep", False)
+    iface = "any"
+    if deep:
+        try:
+            iface = _validate_iface((request.query_params.get("iface") or "any").strip())
+        except TcpdumpError as e:
+            return Response({"ok": False, "error": str(e)}, status=400)
+    try:
+        return Response({"ok": True, **identify(mac=mac, ips=ips, deep=deep, iface=iface)})
+    except Exception as e:
+        logger.exception("identify failed")
+        return Response({"ok": False, "error": f"Внутренняя ошибка: {e}"}, status=500)
+
 
 @_capture_admin_only
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def tcpdump_pcap_view(request):
-    """Захват в .pcap (для Wireshark). Body: {bpf, iface, duration, packets}."""
-    from .tcpdump_pcap import run_tcpdump_pcap
+    """Запись в .pcap (для Wireshark). Body: {bpf, iface, duration ≤300, packets ≤200000}."""
     from .tcpdump import TcpdumpError
-
-    bpf = (request.data.get("bpf") or "").strip()
-    iface = (request.data.get("iface") or "any").strip()
-    try:
-        duration = int(request.data.get("duration") or 10)
-        packets = int(request.data.get("packets") or 50)
-    except (TypeError, ValueError):
-        return Response({"ok": False, "error": "duration/packets должны быть числами"},
-                        status=status.HTTP_400_BAD_REQUEST)
+    from .tcpdump_pcap import DEFAULT_DURATION, DEFAULT_PACKETS, run_tcpdump_pcap
 
     try:
-        result = run_tcpdump_pcap(bpf=bpf, iface=iface, duration=duration, packets=packets)
+        duration = _int_param(request.data, "duration", DEFAULT_DURATION)
+        packets = _int_param(request.data, "packets", DEFAULT_PACKETS)
+    except ValueError as e:
+        return Response({"ok": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        result = run_tcpdump_pcap(
+            bpf=request.data.get("bpf") or "",
+            iface=(request.data.get("iface") or "any").strip(),
+            duration=duration, packets=packets,
+        )
     except TcpdumpError as e:
         return Response({"ok": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
@@ -471,7 +593,7 @@ def tcpdump_pcap_view(request):
         return Response({"ok": False, "error": f"Внутренняя ошибка: {e}"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if result.get("ok") and result.get("file_id"):
+    if result.get("file_id"):
         result["download_url"] = f"/api/v1/subnets/tcpdump/download/{result['file_id']}/"
     return Response(result)
 
@@ -481,93 +603,21 @@ def tcpdump_pcap_view(request):
 @permission_classes([IsAuthenticated])
 def tcpdump_download_view(request, file_id: str):
     """Отдаёт .pcap-файл по file_id."""
-    from .tcpdump_pcap import PCAP_DIR
-    from django.http import FileResponse, Http404
     import re as _re
+    from django.http import FileResponse, Http404
+    from .tcpdump_pcap import PCAP_DIR, download_name
 
-    if not _re.match(r"^[a-f0-9]{16}$", file_id):
+    if not _re.fullmatch(r"[a-f0-9]{16}", file_id):
         raise Http404("Некорректный file_id")
     path = PCAP_DIR / f"{file_id}.pcap"
     if not path.exists():
-        raise Http404("Файл не найден (истёк TTL)")
+        raise Http404("Файл не найден (истёк срок хранения — 1 час)")
     return FileResponse(
         open(path, "rb"),
         content_type="application/vnd.tcpdump.pcap",
         as_attachment=True,
-        filename=f"capture_{file_id}.pcap",
+        filename=download_name(file_id),
     )
-
-# ============================================================
-# tcpdump — SSE-стрим в реальном времени
-# ============================================================
-
-# ============================================================
-# tcpdump — SSE-стрим в реальном времени (обычный Django-view)
-# ============================================================
-
-@_capture_admin_only
-def tcpdump_stream_view(request):
-    """
-    SSE-стрим пакетов. Без @api_view (иначе DRF вернёт 406 на text/event-stream).
-    Проверяем аутентификацию вручную.
-    """
-    from django.http import StreamingHttpResponse, JsonResponse
-    from .tcpdump_stream import stream_tcpdump
-
-    if not request.user.is_authenticated:
-        return JsonResponse({"ok": False, "error": "auth required"}, status=401)
-
-    bpf = (request.GET.get("bpf") or "ip").strip()
-    iface = (request.GET.get("iface") or "any").strip()
-    try:
-        duration = int(request.GET.get("duration") or 60)
-    except (TypeError, ValueError):
-        duration = 60
-
-    gen = stream_tcpdump(bpf=bpf, iface=iface, duration=duration)
-    response = StreamingHttpResponse(gen, content_type="text/event-stream")
-    response["Cache-Control"] = "no-cache"
-    response["X-Accel-Buffering"] = "no"
-    return response
-
-# ============================================================
-# tcpdump — polling (обходной путь для daphne + SSE)
-# ============================================================
-
-@_capture_admin_only
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def tcpdump_poll_view(request):
-    """
-    Захват трафика на короткий интервал (polling). Возвращает пакеты.
-    Body: {bpf, iface, duration: 2, packets: 30}
-    """
-    from .tcpdump import run_tcpdump, TcpdumpError
-
-    bpf = (request.data.get("bpf") or "ip").strip()
-    iface = (request.data.get("iface") or "any").strip()
-    try:
-        duration = int(request.data.get("duration") or 2)
-        packets = int(request.data.get("packets") or 30)
-    except (TypeError, ValueError):
-        return Response({"ok": False, "error": "bad params"}, status=400)
-
-    try:
-        result = run_tcpdump(bpf=bpf, iface=iface, duration=duration, packets=packets)
-    except TcpdumpError as e:
-        return Response({"ok": False, "error": str(e)}, status=400)
-    except Exception as e:
-        logger.exception("tcpdump poll failed")
-        return Response({"ok": False, "error": str(e)}, status=500)
-
-    return Response({
-        "ok": result.get("ok"),
-        "packets": result.get("packets", []),
-        "captured": result.get("packets_captured", 0),
-        "bpf": result.get("bpf"),
-        "iface": result.get("iface"),
-        "elapsed": result.get("elapsed"),
-    })
 
 # ============================================================
 # Broadcast storm: данные для UI

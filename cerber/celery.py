@@ -21,6 +21,7 @@ app.conf.task_routes = {
     "monitoring.check_alerts_task":          {"queue": "critical"},
     "subnets.check_ip_alerts":               {"queue": "critical"},
     "alerts.escalate_unacked":               {"queue": "critical"},
+    "alerts.correlate":                      {"queue": "critical"},
 
     # HIGH — traffic_light + ping
     "monitoring.poll_traffic_light":         {"queue": "high"},
@@ -39,6 +40,7 @@ app.conf.task_routes = {
     "monitoring.discover_olencom_nes_task":  {"queue": "low"},
     "subnets.scan_all_subnets":              {"queue": "low"},
     "subnets.scan_subnet_task":              {"queue": "low"},
+    "subnets.fingerprint_subnet_task":       {"queue": "low"},
     "analytics.run_network_analysis":        {"queue": "low"},
 
     # SERVERS — retention метрик (раз в сутки, 03:00)
@@ -50,6 +52,8 @@ app.conf.task_routes = {
     "servers.ping_all":                      {"queue": "high"},
     # Отправка Telegram — быстро и отдельно от опросов
     "accounts.send_telegram_broadcast":      {"queue": "high"},
+    "edocs.notify":                          {"queue": "high"},
+    "edocs.remind_due":                      {"queue": "high"},
 }
 
 app.conf.task_default_queue = "default"
@@ -68,6 +72,17 @@ app.conf.beat_schedule = {
 # Напоминание о Critical, которые никто не взял в работу (apps/alerts/ack.py)
 app.conf.beat_schedule["alerts-escalate-unacked"] = {
     "task": "alerts.escalate_unacked", "schedule": 300.0, "options": {"expires": 280},
+}
+
+# Корреляция алертов: придержанные уведомления и следствия без причины (apps/alerts/correlation.py)
+app.conf.beat_schedule["alerts-correlate"] = {
+    "task": "alerts.correlate", "schedule": 60.0, "options": {"expires": 55},
+}
+# СЭД: утреннее напоминание о сроках (apps/edocs/tasks.py)
+from celery.schedules import crontab  # noqa: E402
+app.conf.beat_schedule["edocs-remind-due"] = {
+    "task": "edocs.remind_due", "schedule": crontab(hour=9, minute=0, day_of_week="mon-fri"),
+    "options": {"expires": 3600},
 }
 
 app.config_from_object("django.conf:settings", namespace="CELERY")

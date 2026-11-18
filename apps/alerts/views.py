@@ -11,12 +11,22 @@ def alerts_list(request):
     """Страница алертов — активные + история."""
     from apps.alerts.models import Alert
 
-    firing = list(
+    all_firing = list(
         Alert.objects
         .filter(state=Alert.STATE_FIRING)
-        .select_related("device", "ne_device", "ne_device__gateway", "metric", "acked_by")
+        .select_related("device", "ne_device", "ne_device__gateway", "ip_address", "metric", "acked_by")
         .order_by("-severity", "-started_at")
     )
+    # Каскады: следствия (suppressed_by) сворачиваются под алерт-причину (apps/alerts/correlation.py)
+    children = {}
+    for a in all_firing:
+        if a.suppressed_by_id:
+            children.setdefault(a.suppressed_by_id, []).append(a)
+    firing = [a for a in all_firing if not a.suppressed_by_id or a.suppressed_by_id not in
+              {x.pk for x in all_firing}]
+    for a in firing:
+        a.cascade = children.get(a.pk, [])
+    suppressed_total = len(all_firing) - len(firing)
     resolved = list(
         Alert.objects
         .filter(state=Alert.STATE_OK)
@@ -32,6 +42,7 @@ def alerts_list(request):
         "resolved": resolved,
         "counts": {
             "firing_total": len(firing),
+            "suppressed_total": suppressed_total,
             "firing_crit": firing_crit,
             "firing_warn": firing_warn,
             "resolved_total": len(resolved),

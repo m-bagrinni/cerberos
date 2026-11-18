@@ -1,508 +1,465 @@
+"""
+Страницы СЭД. Логика переходов — в services.py, здесь только HTTP: разбор формы,
+проверка доступа к документу, выбор шаблона, сообщения пользователю.
+
+Права на раздел проверяет AccessMiddleware (GET — просмотр, POST — изменение,
+/edocs/journal/ — возможность edocs_journal).
+"""
+import csv
+import datetime as dt
+import logging
 import os
-import mimetypes
-from django.shortcuts import render, redirect, get_object_or_404
-from apps.accounts.telegram_notify import send_telegram_message
-from django.conf import settings
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from django.utils import timezone
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
+
+from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.db.models import Q
-from django.http import FileResponse, HttpResponse, JsonResponse
-from django.core.files import File
-from django.template.loader import render_to_string
-from .models import Document, Comment, DocumentRoute
-from .utils import convert_to_pdf
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Subquery
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from . import services as svc
+from .models import Assignment, Attachment, Document
+from .queries import INBOX_FILTERS, filter_label, inbox_qs, pending_counts, pending_qs
+
+logger = logging.getLogger(__name__)
 User = get_user_model()
+PER_PAGE = 25
+
+INLINE_TYPES = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp"}
 
 
-# ── Доступ к документу ─────────────────────────────────────────────────────
-def can_access(user, doc):
-    """Автор, получатель, участник маршрута или суперпользователь."""
-    if user.is_superuser or user.pk in (doc.author_id, doc.recipient_id):
-        return True
-    return doc.routes.filter(Q(sender=user) | Q(recipient=user)).exists()
+# ── Общее для списков ────────────────────────────────────────────────────────
+def _parse_date(s):
+    try:
+        return dt.date.fromisoformat((s or "").strip())
+    except ValueError:
+        return None
 
 
-def _deny():
-    return HttpResponse("У вас нет доступа к этому документу", status=403)
+def _apply_filters(request, qs):
+    """Поиск и фильтры из GET: q, type, status, priority, period (from/to), overdue."""
+    g = request.GET
+    q = (g.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(reg_number__icontains=q) | Q(message__icontains=q)
+                       | Q(author__last_name__icontains=q) | Q(author__username__icontains=q)
+                       | Q(assignments__user__last_name__icontains=q)).distinct()
+    if g.get("type") in dict(Document.TYPE_CHOICES):
+        qs = qs.filter(document_type=g["type"])
+    st = g.get("status")
+    if st == "open":
+        qs = qs.filter(status__in=Document.OPEN_STATUSES)
+    elif st in dict(Document.STATUS_CHOICES):
+        qs = qs.filter(status=st)
+    if g.get("priority") in dict(Document.PRIORITY_CHOICES):
+        qs = qs.filter(priority=g["priority"])
+    if g.get("overdue"):
+        qs = qs.filter(status__in=Document.OPEN_STATUSES, due_date__lt=timezone.localdate())
+    d1, d2 = _parse_date(g.get("from")), _parse_date(g.get("to"))
+    if d1:
+        qs = qs.filter(sent_at__date__gte=d1)
+    if d2:
+        qs = qs.filter(sent_at__date__lte=d2)
+    return qs
 
 
-# Белый список загружаемых файлов. HTML/SVG/JS и прочее, что браузер может
-# исполнить, не принимаем: файлы отдаются с того же домена, что и сайт.
-ALLOWED_UPLOAD_EXT = {
-    ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp",
-    ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".rtf",
-    ".txt", ".csv", ".zip", ".rar", ".7z",
+SORTS = {
+    "new": ("-sent_at", "-created_at"),
+    "old": ("sent_at", "created_at"),
+    "due": (F("due_date").asc(nulls_last=True), "-sent_at"),
+    "upd": ("-updated_at",),
 }
 
 
-def _bad_upload(f):
-    """Текст ошибки, если файл нельзя принять, иначе None."""
-    if not f:
-        return None
-    ext = os.path.splitext(f.name)[1].lower()
-    if ext not in ALLOWED_UPLOAD_EXT:
-        return f"Тип файла «{ext or 'без расширения'}» не разрешён"
-    return None
+def _page(request, qs, default_sort="new"):
+    sort = request.GET.get("sort") if request.GET.get("sort") in SORTS else default_sort
+    qs = qs.order_by(*SORTS[sort])
+    page = Paginator(qs, PER_PAGE).get_page(request.GET.get("page"))
+    params = request.GET.copy()
+    params.pop("page", None)
+    return page, sort, params.urlencode()
 
+
+def _with_people(qs):
+    active = Assignment.objects.exclude(status="forwarded").select_related("user").order_by("role", "id")
+    return (qs.select_related("author", "recipient")
+            .prefetch_related(Prefetch("assignments", queryset=active, to_attr="people"))
+            .annotate(n_files=Count("attachments", filter=Q(attachments__kind="main"), distinct=True)))
+
+
+def _list(request, template, qs, **ctx):
+    qs = _apply_filters(request, qs)
+    page, sort, qstr = _page(request, _with_people(qs), ctx.pop("default_sort", "new"))
+    ctx.update({"page": page, "docs": page.object_list, "sort": sort, "qstr": qstr,
+                "TYPES": Document.TYPE_CHOICES, "PRIORITIES": Document.PRIORITY_CHOICES,
+                "STATUSES": [("open", "В работе (все)")] + Document.STATUS_CHOICES[1:],
+                "today": timezone.localdate()})
+    ctx.setdefault("counts", pending_counts(request.user))
+    return render(request, template, ctx)
+
+
+# ── Списки ───────────────────────────────────────────────────────────────────
 @login_required
 def index(request):
-    from .queries import INBOX_FILTERS, inbox_qs
-    inbox = inbox_qs(request.user).select_related('author').order_by('-created_at')
-    f = request.GET.get('f', '')
-    filter_label = ''
-    if f in INBOX_FILTERS:
-        filter_label, q = INBOX_FILTERS[f]
-        inbox = inbox.filter(q)
-    return render(request, 'edocs/inbox.html', {'documents': inbox, 'filter_label': filter_label})
+    """Входящие. ?f=<ключ> — только ждущие меня (как плитки на главной)."""
+    f = request.GET.get("f", "")
+    label = filter_label(f) if f != "pending" else "Ждут моего действия"
+    qs = pending_qs(request.user, f) if (label or f == "pending") else inbox_qs(request.user)
+    mine = Assignment.objects.filter(document=OuterRef("pk"), user=request.user).exclude(status="forwarded")
+    qs = qs.annotate(my_status=Subquery(mine.values("status")[:1]),
+                     my_read=Subquery(mine.values("is_read")[:1]))
+    counts = pending_counts(request.user)
+    chips = [("", "Все входящие", None), ("pending", "Ждут меня", counts["total"])]
+    chips += [(k, v[0], counts[k]) for k, v in INBOX_FILTERS.items()]
+    chips += [("overdue", "Просрочено", counts["overdue"])]
+    return _list(request, "edocs/inbox.html", qs, f=f, filter_label=label, tab="inbox", chips=chips,
+                 counts=counts)
+
 
 @login_required
 def sent(request):
-    outgoing = Document.objects.filter(author=request.user)
-    return render(request, 'edocs/sent.html', {'documents': outgoing})
+    qs = Document.objects.filter(author=request.user).exclude(status="draft")
+    return _list(request, "edocs/sent.html", qs, tab="sent")
+
 
 @login_required
-def create_document(request):
-    if request.method == 'POST':
-        title = (request.POST.get('title') or '').strip()[:255]
-        # Поле необязательное, а в БД NOT NULL: без текста раньше падало с 500 (IntegrityError)
-        message = (request.POST.get('message') or '').strip()
-        recipient_id = request.POST.get('recipient')
-        document_type = request.POST.get('document_type', 'execution')
-        if document_type not in dict(Document._meta.get_field('document_type').choices or []):
-            document_type = 'execution'
-        file = request.FILES.get('file')
-        err = _bad_upload(file)
-        if err:
-            from django.contrib import messages
-            messages.error(request, err)
-            return redirect('edocs:create')
+def drafts(request):
+    qs = Document.objects.filter(author=request.user, status="draft")
+    return _list(request, "edocs/drafts.html", qs, tab="drafts", default_sort="upd")
 
-        if title and recipient_id:
-            recipient = get_object_or_404(User, pk=recipient_id)
-            
-            doc = Document.objects.create(
-                title=title,
-                message=message,
-                file=file,
-                author=request.user,
-                recipient=recipient,
-                document_type=document_type,
-                status='review' if document_type in ('execution', 'approval') else 'approved'
-            )
-            
-            # Создаем первую запись в маршруте
-            DocumentRoute.objects.create(document=doc, sender=request.user, recipient=recipient)
-            
-
-            
-            # Конвертация в PDF
-            if doc.file:
-                from .utils import convert_to_pdf
-                from django.core.files import File
-                pdf_path = convert_to_pdf(doc.file.path)
-                if pdf_path and pdf_path != doc.file.path:
-                    with open(pdf_path, 'rb') as f:
-                        doc.pdf_file.save(os.path.basename(pdf_path), File(f), save=True)
-                    os.remove(pdf_path)
-            
-            # === Telegram-уведомление получателю (после конвертации) ===
-            if recipient.telegram_id:
-                from apps.accounts.telegram_notify import send_telegram_document
-                
-                caption = (
-                    f"📄 <b>Новый документ в E-Docs</b>\n\n"
-                    f"<b>Тема:</b> {doc.title}\n"
-                    f"<b>От:</b> {request.user.get_full_name() or request.user.username}\n"
-                    f"<b>Дата:</b> {doc.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
-                    f"<a href='{settings.CERBER_WEBAPP_URL}/edocs/document/{doc.id}/'>Открыть в Cerberus</a>"
-                )
-                
-                file_path = None
-                filename = None
-                if doc.pdf_file:
-                    file_path = doc.pdf_file.path
-                    filename = f"{doc.title}.pdf"
-                elif doc.file:
-                    file_path = doc.file.path
-                    filename = os.path.basename(doc.file.name)
-                
-                try:
-                    if file_path:
-                        send_telegram_document(recipient.telegram_id, file_path, caption=caption, filename=filename)
-                    else:
-                        send_telegram_message(recipient.telegram_id, caption)
-                except Exception as e:
-                    print(f"TG_EDOCS_ERROR: {e}")
-                    
-            return redirect('edocs:sent')
-    
-    employees = User.objects.filter(is_active=True).exclude(id=request.user.id)
-    return render(request, 'edocs/create.html', {'employees': employees})
 
 @login_required
-def employees(request):
-    users = User.objects.filter(is_active=True).order_by('username')
-    return render(request, 'edocs/employees.html', {'employees': users})
+def journal(request):
+    """Журнал всех документов + отчёт по исполнительской дисциплине (возможность edocs_journal)."""
+    if not svc.is_supervisor(request.user):
+        return HttpResponse("Нужна возможность «Журнал СЭД»", status=403)
+    qs = Document.objects.exclude(status="draft")
+    author = request.GET.get("author")
+    executor = request.GET.get("executor")
+    if author and author.isdigit():
+        qs = qs.filter(author_id=author)
+    if executor and executor.isdigit():
+        qs = qs.filter(Exists(Assignment.objects.filter(document=OuterRef("pk"), user_id=executor)
+                              .exclude(status="forwarded")))
+    if request.GET.get("export") == "csv":
+        return _journal_csv(_with_people(_apply_filters(request, qs)).order_by("-sent_at"))
+
+    filtered = _apply_filters(request, qs)
+    today = timezone.localdate()
+    stats = filtered.aggregate(
+        total=Count("id"),
+        open=Count("id", filter=Q(status__in=Document.OPEN_STATUSES)),
+        overdue=Count("id", filter=Q(status__in=Document.OPEN_STATUSES, due_date__lt=today)),
+        done=Count("id", filter=Q(status="approved")),
+        rejected=Count("id", filter=Q(status="rejected")),
+        done_late=Count("id", filter=Q(status="approved", completed_at__date__gt=F("due_date"))),
+    )
+    stats["on_time_pct"] = (round(100 * (stats["done"] - stats["done_late"]) / stats["done"])
+                            if stats["done"] else None)
+    report = _discipline(filtered, today)
+    people = User.objects.filter(is_active=True).order_by("last_name", "first_name", "username")
+    return _list(request, "edocs/journal.html", qs, tab="journal", stats=stats, report=report,
+                 people=people, sel_author=author, sel_executor=executor)
+
+
+def _discipline(docs, today):
+    """По каждому исполнителю: назначено, исполнено (в срок / с опозданием), в работе, просрочено."""
+    rows = (Assignment.objects.filter(document__in=docs).exclude(status="forwarded")
+            .values("user_id", "user__last_name", "user__first_name", "user__username")
+            .annotate(
+                total=Count("id"),
+                done=Count("id", filter=Q(status="done")),
+                late=Count("id", filter=Q(status="done", decided_at__date__gt=F("document__due_date"))),
+                rejected=Count("id", filter=Q(status="rejected")),
+                pending=Count("id", filter=Q(status="pending")),
+                overdue=Count("id", filter=Q(status="pending", document__due_date__lt=today)),
+            ).order_by("-overdue", "-pending", "user__last_name"))
+    out = []
+    for r in rows:
+        name = " ".join(x for x in (r["user__last_name"], r["user__first_name"]) if x) or r["user__username"]
+        on_time = r["done"] - r["late"]
+        out.append({**r, "name": name, "on_time": on_time,
+                    "pct": round(100 * on_time / r["done"]) if r["done"] else None})
+    return out
+
+
+def _journal_csv(docs):
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="edocs-journal-{timezone.localdate():%Y%m%d}.csv"'
+    resp.write("﻿")  # BOM — Excel откроет кириллицу
+    w = csv.writer(resp, delimiter=";")
+    w.writerow(["Рег. номер", "Дата регистрации", "Вид", "Приоритет", "Тема", "Автор", "Адресаты",
+                "Срок", "Статус", "Завершён", "Просрочен"])
+    for d in docs:
+        w.writerow([
+            d.number, timezone.localtime(d.sent_at).strftime("%d.%m.%Y %H:%M") if d.sent_at else "",
+            d.get_document_type_display(), d.get_priority_display(), d.title,
+            d.author.short_name,
+            ", ".join(f"{a.user.short_name} ({a.status_label})" for a in d.people),
+            d.due_date.strftime("%d.%m.%Y") if d.due_date else "",
+            d.status_label,
+            timezone.localtime(d.completed_at).strftime("%d.%m.%Y %H:%M") if d.completed_at else "",
+            "да" if d.is_overdue else "",
+        ])
+    return resp
+
+
+# ── Создание / редактирование черновика ──────────────────────────────────────
+def _employees(exclude_ids=()):
+    return (User.objects.filter(is_active=True).exclude(pk__in=list(exclude_ids))
+            .select_related("position_ref").order_by("last_name", "first_name", "username"))
+
 
 @login_required
-@require_POST
-def update_status(request, pk):
-    doc = get_object_or_404(Document, pk=pk)
-    if request.user in [doc.author, doc.recipient] or request.user.is_superuser:
-        new_status = request.POST.get('status')
-        if new_status in dict(Document.STATUS_CHOICES):
-            doc.status = new_status
-            doc.save()
-    return redirect(request.META.get('HTTP_REFERER', 'edocs:index'))
+def create_document(request, pk=None):
+    doc = None
+    if pk is not None:
+        doc = get_object_or_404(Document, pk=pk, author=request.user)
+        if doc.status != "draft":
+            messages.info(request, "Документ уже отправлен — изменить его нельзя.")
+            return redirect("edocs:document_detail", pk=doc.pk)
 
-@login_required
-def view_document(request, pk):
-    """Отдает готовый PDF (или оригинал, если PDF не создан)"""
-    doc = get_object_or_404(Document, pk=pk)
-    if not can_access(request.user, doc):
-        return _deny()
-    
-    # Если есть PDF - отдаем его
-    if doc.pdf_file:
-        response = FileResponse(open(doc.pdf_file.path, 'rb'), content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="{doc.title}.pdf"'
-        response['X-Frame-Options'] = 'SAMEORIGIN'
-        return response
-        
-    # Если PDF нет, но есть оригинал (например, картинка или PDF) - отдаем его
-    if doc.file:
-        ext = os.path.splitext(doc.file.path)[1].lower()
-        if ext in ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp']:
-            content_type, _ = mimetypes.guess_type(doc.file.path)
-            response = FileResponse(open(doc.file.path, 'rb'), content_type=content_type)
-            response['Content-Disposition'] = f'inline; filename="{os.path.basename(doc.file.name)}"'
-            response['X-Frame-Options'] = 'SAMEORIGIN'
-            return response
-            
-    return HttpResponse("Файл не найден или не может быть отображен", status=404)
+    if request.method == "POST":
+        p = request.POST
+        send = p.get("submit") != "draft"
+        try:
+            doc = svc.save_document(
+                request.user, doc=doc, title=p.get("title"), message=p.get("message"),
+                document_type=p.get("document_type", "execution"), priority=p.get("priority", "normal"),
+                due_date=_parse_date(p.get("due_date")), main_id=p.get("main"),
+                co_ids=p.getlist("co"), files=request.FILES.getlist("files"),
+                remove_files=[int(x) for x in p.getlist("remove_file") if x.isdigit()], send=send)
+        except svc.EdocsError as e:
+            messages.error(request, str(e))
+            return render(request, "edocs/create.html", _form_ctx(request, doc, p), status=400)
+        if send:
+            messages.success(request, f"Документ {doc.reg_number} зарегистрирован и направлен.")
+            return redirect("edocs:document_detail", pk=doc.pk)
+        messages.success(request, "Черновик сохранён.")
+        return redirect("edocs:edit", pk=doc.pk)
+    return render(request, "edocs/create.html", _form_ctx(request, doc))
+
+
+def _form_ctx(request, doc, post=None):
+    """Значения формы: из POST (после ошибки), из черновика или по умолчанию (?to=<id>)."""
+    if post is not None:
+        v = {"title": post.get("title", ""), "message": post.get("message", ""),
+             "document_type": post.get("document_type", "execution"), "priority": post.get("priority", "normal"),
+             "due_date": post.get("due_date", ""), "main": post.get("main", ""), "co": post.getlist("co")}
+    elif doc is not None:
+        people = list(doc.assignments.order_by("id"))
+        v = {"title": doc.title, "message": doc.message, "document_type": doc.document_type,
+             "priority": doc.priority, "due_date": doc.due_date.isoformat() if doc.due_date else "",
+             "main": str(doc.recipient_id or ""), "co": [str(a.user_id) for a in people if a.role == "co"]}
+    else:
+        v = {"title": "", "message": "", "document_type": "execution", "priority": "normal",
+             "due_date": "", "main": request.GET.get("to", ""), "co": []}
+    return {"doc": doc, "v": v, "employees": _employees([request.user.pk]), "tab": "create",
+            "TYPES": Document.TYPE_CHOICES, "PRIORITIES": Document.PRIORITY_CHOICES,
+            "files": doc.attachments.filter(kind="main") if doc else [],
+            "today": timezone.localdate(), "max_mb": svc.MAX_FILE_MB,
+            "allowed_ext": ",".join(sorted(svc.ALLOWED_EXT)), "counts": pending_counts(request.user)}
+
+
+# ── Карточка ─────────────────────────────────────────────────────────────────
+def _get_doc(request, pk):
+    doc = get_object_or_404(Document.objects.select_related("author", "recipient"), pk=pk)
+    if not svc.can_access(request.user, doc):
+        raise Http404
+    return doc
+
 
 @login_required
 def document_detail(request, pk):
-    """Детальная страница документа"""
-    doc = get_object_or_404(Document, pk=pk)
-    if not can_access(request.user, doc):
-        return _deny()
+    doc = _get_doc(request, pk)
+    if doc.status == "draft":
+        return redirect("edocs:edit", pk=doc.pk)
+    svc.mark_read(request.user, doc)
+    asg = svc.my_assignment(request.user, doc)
+    can = svc.allowed(request.user, doc, asg)
+    if not request.user.access.can_edit("edocs"):
+        can = svc.Allowed()  # только просмотр — без кнопок действий
 
-    # Отмечаем как прочитанный (если текущий пользователь — получатель)
-    if request.user == doc.recipient and not doc.is_read:
-        doc.is_read = True
-        doc.save(update_fields=['is_read'])
-        
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    action = None
-    
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        
-        # 1. Отправка черновика
-        if action == 'send' and doc.status == 'draft' and request.user == doc.author:
-            recipient_id = request.POST.get('recipient')
-            if recipient_id:
-                recipient = get_object_or_404(User, pk=recipient_id)
-                doc.recipient = recipient
-                doc.status = 'review'
-                doc.save()
-                DocumentRoute.objects.create(
-                    document=doc, sender=request.user, recipient=recipient,
-                    status_at_moment='review', comment='Отправлен в работу'
-                )
-                # Рассылаем обновление по WebSocket
-            channel_layer = get_channel_layer()
-            routes = doc.routes.all().select_related('sender', 'recipient')
-            comments = doc.comments.all().select_related('author')
-            history_html = render_to_string('edocs/_history_partial.html', {
-                'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-            })
-            async_to_sync(channel_layer.group_send)(
-                f'doc_{doc.pk}',
-                {'type': 'history_update', 'html': history_html}
-            )
-            if not is_ajax: return redirect('edocs:document_detail', pk=doc.pk)
-                
-        # 2. Пересылка дальше
-        elif action == 'forward' and request.user == doc.recipient and doc.status in ['review', 'approved']:
-            new_recipient_id = request.POST.get('new_recipient')
-            if new_recipient_id:
-                new_recipient = get_object_or_404(User, pk=new_recipient_id)
-                comment_text = request.POST.get('comment_text', '').strip()
-                
-                DocumentRoute.objects.create(
-                    document=doc, sender=request.user, recipient=new_recipient,
-                    status_at_moment='review', comment=comment_text or 'Переслано'
-                )
-                
-                auto_text = f"Переслано: {new_recipient.username} ({timezone.now().strftime('%d.%m.%Y %H:%M')})"
-                if doc.resolution:
-                    doc.resolution += f"\n{auto_text}"
-                else:
-                    doc.resolution = auto_text
-                    
-                doc.recipient = new_recipient
-                doc.status = 'review'
-                doc.save()
-                # Рассылаем обновление по WebSocket
-            channel_layer = get_channel_layer()
-            routes = doc.routes.all().select_related('sender', 'recipient')
-            comments = doc.comments.all().select_related('author')
-            history_html = render_to_string('edocs/_history_partial.html', {
-                'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-            })
-            async_to_sync(channel_layer.group_send)(
-                f'doc_{doc.pk}',
-                {'type': 'history_update', 'html': history_html}
-            )
-            if not is_ajax: return redirect('edocs:document_detail', pk=doc.pk)
-                
-        # 3. Возврат на доработку (только автор)
-        elif action == 'revision' and request.user == doc.author and doc.status in ['approved', 'rejected']:
-            comment_text = request.POST.get('comment_text', '').strip()
-            
-            DocumentRoute.objects.create(
-                document=doc, sender=request.user, recipient=doc.recipient,
-                status_at_moment='revision', comment=comment_text or 'Возврат на доработку'
-            )
-            
-            doc.status = 'revision'
-            doc.save()
-            # Рассылаем обновление по WebSocket
-            channel_layer = get_channel_layer()
-            routes = doc.routes.all().select_related('sender', 'recipient')
-            comments = doc.comments.all().select_related('author')
-            history_html = render_to_string('edocs/_history_partial.html', {
-                'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-            })
-            async_to_sync(channel_layer.group_send)(
-                f'doc_{doc.pk}',
-                {'type': 'history_update', 'html': history_html}
-            )
-            if not is_ajax: return redirect('edocs:document_detail', pk=doc.pk)
-                
-        # 4. Смена статуса (только получатель) - теперь работает и из revision
-        elif action == 'status' and request.user == doc.recipient and doc.status in ['review', 'revision']:
-            new_status = request.POST.get('status')
-            if new_status in ['approved', 'rejected']:
-                doc.status = new_status
-                comment_text = request.POST.get('comment_text', '').strip()
-                
-                DocumentRoute.objects.create(
-                    document=doc, sender=request.user, recipient=doc.recipient,
-                    status_at_moment=new_status, comment=comment_text
-                )
-                
-                if comment_text:
-                    Comment.objects.create(document=doc, author=request.user, text=comment_text)
-                doc.save()
-                # Рассылаем обновление по WebSocket
-            channel_layer = get_channel_layer()
-            routes = doc.routes.all().select_related('sender', 'recipient')
-            comments = doc.comments.all().select_related('author')
-            history_html = render_to_string('edocs/_history_partial.html', {
-                'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-            })
-            async_to_sync(channel_layer.group_send)(
-                f'doc_{doc.pk}',
-                {'type': 'history_update', 'html': history_html}
-            )
-            if not is_ajax: return redirect('edocs:document_detail', pk=doc.pk)
-                
-        # 5. Комментарий/резолюция
-        else:
-            resolution = request.POST.get('resolution')
-            reply_comment = request.POST.get('reply_comment')
-            reply_file = request.FILES.get('reply_file')
-            comment_text = request.POST.get('comment_text', '').strip()
-            
-            if resolution is not None: doc.resolution = resolution
-            if reply_comment is not None: doc.reply_comment = reply_comment
-            if reply_file:
-                err = _bad_upload(reply_file)
-                if err:
-                    if is_ajax:
-                        return JsonResponse({'ok': False, 'error': err}, status=400)
-                    from django.contrib import messages
-                    messages.error(request, err)
-                    return redirect('edocs:document_detail', pk=doc.pk)
-                doc.reply_file = reply_file
-            
-            if comment_text:
-                Comment.objects.create(document=doc, author=request.user, text=comment_text)
-                
-            doc.save()
-            # Рассылаем обновление по WebSocket
-            channel_layer = get_channel_layer()
-            routes = doc.routes.all().select_related('sender', 'recipient')
-            comments = doc.comments.all().select_related('author')
-            history_html = render_to_string('edocs/_history_partial.html', {
-                'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-            })
-            async_to_sync(channel_layer.group_send)(
-                f'doc_{doc.pk}',
-                {'type': 'history_update', 'html': history_html}
-            )
-            if not is_ajax: return redirect('edocs:document_detail', pk=doc.pk)
+    people = list(doc.assignments.select_related("user", "user__position_ref", "assigned_by", "document")
+                  .prefetch_related("files").order_by("id"))
+    active = [a for a in people if a.status != "forwarded"]
+    main_files = list(doc.attachments.filter(kind="main"))
+    reply_files = [f for a in active for f in a.files.all()]
 
-        # Если AJAX - возвращаем JSON с обновленной историей и статусом
-        if is_ajax:
-            doc.refresh_from_db()
-            routes = doc.routes.all().select_related('sender', 'recipient')
-            comments = doc.comments.all().select_related('author')
-            
-            # Формируем HTML для чата (упрощенно) или отдаем JSON
-            history_html = render_to_string('edocs/_history_partial.html', {
-                'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-            })
-            return JsonResponse({'status': 'ok', 'history_html': history_html, 'doc_status': doc.status})
+    timeline = [{"at": r.created_at, "kind": "event", "obj": r}
+                for r in doc.routes.select_related("sender", "recipient")]
+    timeline += [{"at": c.created_at, "kind": "comment", "obj": c}
+                 for c in doc.comments.select_related("author")]
+    timeline.sort(key=lambda x: x["at"])
 
-    employees = User.objects.filter(is_active=True).exclude(id=request.user.id)
-    comments = doc.comments.all().select_related('author')
-    routes = doc.routes.all().select_related('sender', 'recipient')
-        
-    return render(request, 'edocs/document_detail.html', {
-        'doc': doc, 'employees': employees, 'comments': comments, 'routes': routes
+    busy = {a.user_id for a in active} | {doc.author_id}
+    progress_done = sum(a.status == "done" for a in active)
+    return render(request, "edocs/document_detail.html", {
+        "doc": doc, "asg": asg, "can": can, "people": active, "history_people": people,
+        "main_files": main_files, "reply_files": reply_files,
+        "preview": next((f for f in main_files if f.can_preview), None),
+        "timeline": timeline, "n_comments": sum(t["kind"] == "comment" for t in timeline),
+        "employees": _employees(busy | {request.user.pk}),
+        "progress": {"done": progress_done, "total": len(active),
+                     "pct": round(100 * progress_done / len(active)) if active else 0},
+        "today": timezone.localdate(), "tab": "", "counts": pending_counts(request.user),
+        "max_mb": svc.MAX_FILE_MB, "allowed_ext": ",".join(sorted(svc.ALLOWED_EXT)),
+        "is_supervisor_only": svc.is_supervisor(request.user) and not asg and request.user.pk != doc.author_id,
     })
 
 
-
-
-
-
-
-
-
-
 @login_required
-def view_reply(request, pk):
-    """Просмотр ответного файла (конвертация в PDF)"""
-    doc = get_object_or_404(Document, pk=pk)
-    if not can_access(request.user, doc):
-        return _deny()
-    if not doc.reply_file:
-        return HttpResponse("Ответный файл не прикреплен", status=404)
-        
-    file_path = doc.reply_file.path
-    ext = os.path.splitext(file_path)[1].lower()
-    
-    # Если PDF или картинка - отдаем как есть
-    if ext in ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp']:
-        content_type, _ = mimetypes.guess_type(file_path)
-        response = FileResponse(open(file_path, 'rb'), content_type=content_type)
-        response['Content-Disposition'] = f'inline; filename="{os.path.basename(file_path)}"'
-        response['X-Frame-Options'] = 'SAMEORIGIN'
-        return response
-
-    # Если офисный документ - конвертируем в PDF
-    if ext in ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.rtf']:
-        from .utils import convert_to_pdf
-        pdf_path = convert_to_pdf(file_path)
-        if pdf_path:
-            response = FileResponse(open(pdf_path, 'rb'), content_type='application/pdf')
-            response['Content-Disposition'] = f'inline; filename="{doc.title}_reply.pdf"'
-            response['X-Frame-Options'] = 'SAMEORIGIN'
-            # Удаляем временный PDF (если это не оригинальный файл)
-            if pdf_path != file_path:
-                os.remove(pdf_path)
-            return response
+@require_POST
+def document_action(request, pk):
+    """Все действия с документом. action: send | delete | done | reject | ack | forward | revision | add | comment."""
+    doc = _get_doc(request, pk)
+    p, u = request.POST, request.user
+    action = p.get("action", "")
+    ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ok_msg = ""
+    try:
+        if action == "send":
+            svc.send_draft(u, doc)
+            ok_msg = f"Документ {doc.reg_number or ''} зарегистрирован и направлен."
+        elif action == "delete":
+            svc.delete_draft(u, doc)
+            messages.success(request, "Черновик удалён.")
+            return redirect("edocs:drafts")
+        elif action in ("done", "reject"):
+            svc.decide(u, doc, "done" if action == "done" else "rejected", p.get("report", ""),
+                       request.FILES.getlist("files"))
+            ok_msg = "Решение отправлено автору."
+        elif action == "ack":
+            svc.acknowledge(u, doc)
+            ok_msg = "Отмечено: ознакомлен."
+        elif action == "forward":
+            svc.forward(u, doc, p.get("to"), p.get("comment", ""))
+            ok_msg = "Документ передан."
+        elif action == "revision":
+            svc.return_for_revision(u, doc, p.get("comment", ""), _parse_date(p.get("due_date")))
+            ok_msg = "Документ возвращён на доработку."
+        elif action == "add":
+            svc.add_assignee(u, doc, p.get("to"))
+            ok_msg = "Адресат добавлен."
+        elif action == "comment":
+            svc.add_comment(u, doc, p.get("text", ""))
+            ok_msg = "Комментарий добавлен."
         else:
-            return HttpResponse("Ошибка конвертации ответного файла", status=500)
-            
-    return HttpResponse("Этот формат не поддерживается для просмотра", status=415)
+            raise svc.EdocsError("Неизвестное действие.")
+    except svc.EdocsError as e:
+        if ajax:
+            return JsonResponse({"ok": False, "error": str(e)}, status=400)
+        messages.error(request, str(e))
+        return redirect("edocs:document_detail", pk=doc.pk)
+    if ajax:
+        return JsonResponse({"ok": True, "message": ok_msg})
+    messages.success(request, ok_msg)
+    return redirect("edocs:document_detail", pk=doc.pk)
+
+
+# ── Файлы ────────────────────────────────────────────────────────────────────
+def _get_att(request, att_pk):
+    att = get_object_or_404(Attachment.objects.select_related("document"), pk=att_pk)
+    if not svc.can_access(request.user, att.document):
+        raise Http404
+    return att
 
 
 @login_required
-def get_history(request, pk):
-    """Возвращает только HTML истории (для AJAX-обновления)"""
-    doc = get_object_or_404(Document, pk=pk)
-    if not can_access(request.user, doc):
-        return _deny()
-        
-    routes = doc.routes.all().select_related('sender', 'recipient')
-    comments = doc.comments.all().select_related('author')
-    
-    history_html = render_to_string('edocs/_history_partial.html', {
-        'doc': doc, 'routes': routes, 'comments': comments, 'request': request
-    })
-    return HttpResponse(history_html)
+def attachment_view(request, att_pk):
+    """Просмотр во встроенном окне: PDF/картинка как есть, офис — через PDF (конвертация один раз)."""
+    att = _get_att(request, att_pk)
+    path = svc.ensure_pdf(att)
+    if not path or not os.path.exists(path):
+        return HttpResponse("Этот файл нельзя показать в браузере — скачайте его.", status=415,
+                            content_type="text/plain; charset=utf-8")
+    ext = os.path.splitext(path)[1].lower()
+    name = att.name if ext == att.ext else os.path.splitext(att.name)[0] + ".pdf"
+    resp = FileResponse(open(path, "rb"), content_type=INLINE_TYPES.get(ext, "application/octet-stream"),
+                        filename=name)
+    resp["X-Frame-Options"] = "SAMEORIGIN"
+    resp["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @login_required
-def employee_detail(request, pk):
-    """Профиль сотрудника"""
-    employee = get_object_or_404(User, pk=pk)
-    return render(request, 'edocs/employee_detail.html', {'employee': employee})
+def attachment_download(request, att_pk):
+    """Скачивание оригинала. Всегда attachment: браузер не исполняет файл на домене сайта."""
+    att = _get_att(request, att_pk)
+    try:
+        fh = att.file.open("rb")
+    except FileNotFoundError:
+        raise Http404
+    resp = FileResponse(fh, as_attachment=True, filename=att.name, content_type="application/octet-stream")
+    resp["X-Content-Type-Options"] = "nosniff"
+    return resp
 
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
 
 @login_required
 @require_POST
 def send_document_to_tg(request, pk):
-    """Отправляет файл документа в Telegram текущему пользователю."""
-    doc = get_object_or_404(Document, pk=pk)
-    if not can_access(request.user, doc):
-        return JsonResponse({'ok': False, 'error': 'Нет доступа к документу'}, status=403)
-
+    """Прислать файлы документа себе в Telegram."""
+    doc = _get_doc(request, pk)
     if not request.user.telegram_id:
-        return JsonResponse({'ok': False, 'error': 'У вас не привязан Telegram'})
-    
-    from apps.accounts.telegram_notify import send_telegram_document
-    from django.conf import settings
-    
-    # Выбираем файл: PDF (если есть) или оригинал
-    file_path = None
-    filename = None
-    if doc.pdf_file:
-        file_path = doc.pdf_file.path
-        filename = f"{doc.title}.pdf"
-    elif doc.file:
-        import os
-        file_path = doc.file.path
-        filename = os.path.basename(doc.file.name)
-    
-    if not file_path:
-        return JsonResponse({'ok': False, 'error': 'У документа нет файла'})
-    
-    caption = (
-        f"📄 <b>{doc.title}</b>\n"
-        f"От: {doc.author.get_full_name() or doc.author.username}\n"
-        f"Статус: {doc.get_status_display()}\n"
-        f"<a href='{settings.CERBER_WEBAPP_URL}/edocs/document/{doc.id}/'>Открыть в Cerberus</a>"
-    )
-    
+        return JsonResponse({"ok": False, "error": "У вас не привязан Telegram — профиль → Telegram."})
+    files = list(doc.attachments.filter(kind="main"))
+    from apps.accounts.telegram_notify import send_telegram_document, send_telegram_message
+
+    from .tasks import doc_text
     try:
-        success = send_telegram_document(request.user.telegram_id, file_path, caption=caption, filename=filename)
-        if success:
-            return JsonResponse({'ok': True})
-        else:
-            return JsonResponse({'ok': False, 'error': 'Не удалось отправить файл'})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        send_telegram_message(request.user.telegram_id, doc_text(doc, "📄 <b>Документ</b>",
+                                                                  doc.author.get_full_name() or doc.author.username))
+        sent = 0
+        for att in files[:10]:
+            if att.size <= 49 * 1024 * 1024 and send_telegram_document(
+                    request.user.telegram_id, att.file.path, caption=att.name, filename=att.name):
+                sent += 1
+    except Exception:  # noqa: BLE001
+        logger.exception("edocs send_to_tg %s", doc.pk)
+        return JsonResponse({"ok": False, "error": "Telegram недоступен, попробуйте позже."})
+    return JsonResponse({"ok": True, "message": f"Отправлено в Telegram{f': файлов {sent}' if files else ''}."})
+
+
+# ── Сотрудники ───────────────────────────────────────────────────────────────
+@login_required
+def employees(request):
+    q = (request.GET.get("q") or "").strip()
+    users = _employees()
+    if q:
+        users = users.filter(Q(last_name__icontains=q) | Q(first_name__icontains=q) | Q(username__icontains=q)
+                             | Q(position_ref__name__icontains=q))
+    users = users.annotate(load=Count("edoc_assignments", filter=Q(
+        edoc_assignments__status="pending",
+        edoc_assignments__document__status__in=Document.OPEN_STATUSES)))
+    return render(request, "edocs/employees.html", {"employees": users, "q": q, "tab": "employees",
+                                                    "counts": pending_counts(request.user)})
 
 
 @login_required
-def download_file(request, pk, kind):
-    """
-    Скачивание файла документа (оригинал / PDF / ответ) с проверкой доступа.
-    Всегда attachment: браузер не исполняет файл на домене сайта.
-    Прямой /media/edocs*/ закрыт (cerber/urls.py).
-    """
-    doc = get_object_or_404(Document, pk=pk)
-    if not can_access(request.user, doc):
-        return _deny()
-    f = {"file": doc.file, "pdf": doc.pdf_file, "reply": doc.reply_file}.get(kind)
-    if not f:
-        return HttpResponse("Файл не найден", status=404)
-    resp = FileResponse(f.open("rb"), as_attachment=True,
-                        filename=os.path.basename(f.name),
-                        content_type="application/octet-stream")
-    resp["X-Content-Type-Options"] = "nosniff"
-    return resp
+def employee_detail(request, pk):
+    employee = get_object_or_404(User.objects.select_related("position_ref"), pk=pk)
+    me = request.user
+    # Общая переписка: мои документы ему и его — мне
+    shared = (Document.objects.exclude(status="draft")
+              .filter(Q(author=me, assignments__user=employee) | Q(author=employee, assignments__user=me))
+              .distinct().select_related("author").order_by("-sent_at")[:20])
+    return render(request, "edocs/employee_detail.html", {
+        "employee": employee, "shared": shared, "tab": "employees", "counts": pending_counts(me),
+        "load": Assignment.objects.filter(user=employee, status="pending",
+                                          document__status__in=Document.OPEN_STATUSES).count(),
+    })
+
+
+# ── Совместимость со старыми ссылками ────────────────────────────────────────
+@login_required
+def legacy_view(request, pk):
+    doc = _get_doc(request, pk)
+    att = doc.attachments.filter(kind="main").first()
+    if att is None:
+        raise Http404
+    return redirect(reverse("edocs:file_view", args=[att.pk]))

@@ -134,7 +134,8 @@ def escalate_unacked(now=None) -> int:
     now = now or timezone.now()
     border = now - timedelta(minutes=ESCALATE_AFTER_MIN)
     qs = (Alert.objects.filter(state=Alert.STATE_FIRING, severity__in=ESCALATE_SEVERITIES,
-                               acked_by__isnull=True, escalated_at__isnull=True, started_at__lte=border)
+                               acked_by__isnull=True, escalated_at__isnull=True, started_at__lte=border,
+                               suppressed_by__isnull=True, notify_held_at__isnull=True)
           .select_related("device", "ne_device", "ip_address", "ne_device__gateway"))
     n = 0
     for alert in qs[:50]:

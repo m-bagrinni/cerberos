@@ -1,0 +1,398 @@
+/* ============================================================
+   Захват трафика — панель на странице подсети (static/js/capture.js)
+   Токены темы (theme.css) с запасными значениями для старой темы.
+   ============================================================ */
+.cap, .cap-who, .cap-who-backdrop {
+    --cap-bg: var(--glass-1, rgba(16, 19, 25, 0.75));
+    --cap-bg-2: var(--glass-2, rgba(255, 255, 255, 0.05));
+    --cap-bg-3: var(--glass-3, rgba(255, 255, 255, 0.09));
+    --cap-input: var(--bg-input, rgba(9, 11, 15, 0.85));
+    --cap-border: var(--glass-border, rgba(255, 255, 255, 0.08));
+    --cap-border-2: var(--glass-border-strong, rgba(255, 255, 255, 0.16));
+    --cap-t1: var(--text-1, #e9edf4);
+    --cap-t2: var(--text-2, #a9b3c3);
+    --cap-t3: var(--text-3, #7d889b);
+    --cap-accent: var(--accent, #ff7a1a);
+    --cap-accent-soft: var(--accent-soft, rgba(255, 122, 26, 0.14));
+    --cap-ok: var(--ok, #6fd08c);
+    --cap-warn: var(--warn, #f5c542);
+    --cap-crit: var(--crit, #ff5d6c);
+    --cap-info: var(--info, #5ab8f5);
+    --cap-mono: var(--font-mono, "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace);
+    --cap-r: var(--r-ctrl, 6px);
+    --cap-row-h: 26px;   /* = ROW_H в capture.js */
+}
+.cap {
+    margin: 16px 0;
+    padding: 16px;
+    background: var(--cap-bg);
+    border: 1px solid var(--cap-border);
+    border-radius: var(--r-card, 8px);
+    color: var(--cap-t1);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.cap[hidden] { display: none !important; }
+
+/* ── шапка ─────────────────────────────────────────────── */
+.cap__head { display: flex; align-items: center; gap: 12px; }
+.cap__title { margin: 0; font-size: 15px; font-weight: 600; color: var(--cap-t1); display: flex; align-items: center; gap: 8px; }
+.cap__title i { color: var(--cap-accent); }
+.cap-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; color: var(--cap-t2); background: var(--cap-bg-2); border: 1px solid var(--cap-border);
+    white-space: nowrap;
+}
+.cap-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--cap-t3); }
+.cap-status[data-state="running"] { color: var(--cap-ok); }
+.cap-status[data-state="running"]::before { background: var(--cap-ok); animation: capPulse 1.2s ease-in-out infinite; }
+.cap-status[data-state="starting"]::before, .cap-status[data-state="stopping"]::before { background: var(--cap-warn); }
+.cap-status[data-state="error"] { color: var(--cap-crit); }
+.cap-status[data-state="error"]::before { background: var(--cap-crit); }
+@keyframes capPulse { 50% { opacity: .3; } }
+.cap__head #cap-close { margin-left: auto; }
+
+/* ── поля ──────────────────────────────────────────────── */
+.cap__config { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 12px; align-items: start; }
+.cap-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cap-field > label {
+    font-size: 11px; color: var(--cap-t3); text-transform: uppercase; letter-spacing: .04em;
+    display: flex; align-items: center; gap: 8px;
+}
+.cap-field--sm { width: 150px; }
+.cap input[type="text"], .cap select {
+    width: 100%; height: 32px; padding: 0 10px;
+    background: var(--cap-input); color: var(--cap-t1);
+    border: 1px solid var(--cap-border-2); border-radius: var(--cap-r);
+    font: inherit; outline: none;
+}
+.cap input[type="text"]:focus, .cap select:focus { border-color: var(--cap-accent); box-shadow: 0 0 0 3px var(--cap-accent-soft); }
+.cap select:disabled { opacity: .6; }
+.cap-hint { font-size: 12px; color: var(--cap-t3); min-height: 16px; }
+
+.cap-bpf {
+    display: flex; align-items: center; gap: 0;
+    background: var(--cap-input); border: 1px solid var(--cap-border-2); border-radius: var(--cap-r);
+    padding-left: 10px;
+}
+.cap-bpf > i { color: var(--cap-t3); }
+.cap-bpf input[type="text"] { border: 0; background: transparent; box-shadow: none !important; font-family: var(--cap-mono); font-size: 13px; }
+.cap-bpf:focus-within { border-color: var(--cap-accent); box-shadow: 0 0 0 3px var(--cap-accent-soft); }
+.cap-bpf[data-state="ok"] { border-color: color-mix(in srgb, var(--cap-ok) 55%, transparent); }
+.cap-bpf[data-state="bad"] { border-color: var(--cap-crit); }
+.cap-bpf[data-state="bad"] + .cap-hint { color: var(--cap-crit); }
+.cap-bpf-state { text-transform: none; letter-spacing: 0; font-size: 11px; }
+.cap-bpf-state[data-state="ok"] { color: var(--cap-ok); }
+.cap-bpf-state[data-state="bad"] { color: var(--cap-crit); }
+.cap-bpf-state[data-state="wait"], .cap-bpf-state[data-state="empty"] { color: var(--cap-t3); }
+
+/* ── кнопки ────────────────────────────────────────────── */
+.cap-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 14px;
+    background: var(--cap-bg-2); color: var(--cap-t1);
+    border: 1px solid var(--cap-border-2); border-radius: var(--cap-r);
+    font: inherit; font-weight: 500; cursor: pointer; white-space: nowrap;
+    transition: background .12s, border-color .12s;
+}
+.cap-btn:hover:not(:disabled) { background: var(--cap-bg-3); }
+.cap-btn:disabled { opacity: .5; cursor: default; }
+.cap-btn--primary { background: var(--cap-accent); border-color: transparent; color: #1a0f05; font-weight: 600; }
+.cap-btn--primary:hover:not(:disabled) { background: var(--accent-hover, #ff9442); }
+.cap-btn--danger { background: var(--cap-crit); border-color: transparent; color: #fff; font-weight: 600; }
+.cap-btn--danger:hover:not(:disabled) { filter: brightness(1.1); background: var(--cap-crit); }
+.cap-btn--sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.cap-btn.is-active { border-color: var(--cap-accent); color: var(--cap-accent); }
+.cap-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0;
+    background: transparent; color: var(--cap-t3); border: 0; border-radius: var(--cap-r);
+    cursor: pointer; font-size: 15px;
+}
+.cap-icon-btn:hover { color: var(--cap-t1); background: var(--cap-bg-2); }
+.cap-link {
+    background: none; border: 0; padding: 0; font: inherit; font-size: 12px;
+    color: var(--cap-info); cursor: pointer; text-align: left;
+}
+.cap-link:hover { text-decoration: underline; }
+
+/* ── пресеты ───────────────────────────────────────────── */
+.cap__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.cap-preset {
+    height: 26px; padding: 0 10px;
+    background: var(--cap-bg-2); color: var(--cap-t2);
+    border: 1px solid var(--cap-border); border-radius: 999px;
+    font: inherit; font-size: 12px; cursor: pointer;
+}
+.cap-preset:hover { color: var(--cap-t1); border-color: var(--cap-border-2); }
+.cap-preset.is-active { color: var(--cap-accent); border-color: var(--cap-accent); background: var(--cap-accent-soft); }
+
+/* ── раскрывающиеся блоки ──────────────────────────────── */
+.cap__fold { border: 1px solid var(--cap-border); border-radius: var(--cap-r); background: var(--cap-bg-2); }
+.cap__fold > summary {
+    padding: 8px 12px; cursor: pointer; color: var(--cap-t2); font-size: 12px; user-select: none;
+    list-style: none; display: flex; align-items: center; gap: 8px;
+}
+.cap__fold > summary::-webkit-details-marker { display: none; }
+.cap__fold > summary::after { content: "\203A"; margin-left: auto; transition: transform .15s; font-size: 16px; }
+.cap__fold[open] > summary::after { transform: rotate(90deg); }
+.cap__fold[open] > summary { border-bottom: 1px solid var(--cap-border); color: var(--cap-t1); }
+
+.cap-builder { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; align-items: flex-end; }
+.cap-builder > .cap-field:first-child { flex: 1 1 220px; }
+.cap-builder__checks { display: flex; flex-wrap: wrap; gap: 6px 16px; width: 100%; }
+.cap-builder__out { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; }
+.cap-builder__out code {
+    flex: 1 1 260px; min-height: 32px; display: flex; align-items: center;
+    padding: 0 10px; background: var(--cap-input); border: 1px dashed var(--cap-border-2); border-radius: var(--cap-r);
+    font-family: var(--cap-mono); color: var(--cap-t2); overflow-x: auto; white-space: nowrap;
+}
+.cap-check { display: inline-flex; align-items: center; gap: 6px; color: var(--cap-t2); font-size: 12px; cursor: pointer; }
+.cap-check input { accent-color: var(--cap-accent); }
+
+.cap-help { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 12px; }
+.cap-help h5 { margin: 0 0 8px; font-size: 12px; color: var(--cap-t1); font-weight: 600; }
+.cap-help table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.cap-help td { padding: 3px 0; vertical-align: top; color: var(--cap-t2); }
+.cap-help td:first-child { padding-right: 12px; white-space: nowrap; }
+.cap-help code, .cap-help kbd {
+    font-family: var(--cap-mono); font-size: 11.5px; color: var(--cap-t1);
+    background: var(--cap-input); border: 1px solid var(--cap-border); border-radius: 4px; padding: 1px 5px;
+}
+.cap-help p { margin: 8px 0 0; color: var(--cap-t3); font-size: 12px; line-height: 1.5; }
+
+/* ── запуск ────────────────────────────────────────────── */
+.cap__run { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.cap__run-btns { display: flex; gap: 8px; margin-left: auto; }
+.cap-check--any { height: 32px; display: none; }
+.cap.is-any .cap-check--any, .cap:has(#cap-iface option[value="any"]:checked) .cap-check--any { display: inline-flex; }
+
+.cap-msg {
+    padding: 8px 12px; border-radius: var(--cap-r); font-size: 12px;
+    border: 1px solid var(--cap-border); background: var(--cap-bg-2); color: var(--cap-t2);
+}
+.cap-msg[hidden] { display: none; }
+.cap-msg[data-kind="ok"] { border-color: color-mix(in srgb, var(--cap-ok) 45%, transparent); color: var(--cap-ok); }
+.cap-msg[data-kind="warn"] { border-color: color-mix(in srgb, var(--cap-warn) 45%, transparent); color: var(--cap-warn); }
+.cap-msg[data-kind="crit"] { border-color: color-mix(in srgb, var(--cap-crit) 45%, transparent); color: var(--cap-crit); }
+
+/* ── счётчики ──────────────────────────────────────────── */
+.cap__stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.cap-stat {
+    display: flex; flex-direction: column; gap: 2px; padding: 8px 12px;
+    background: var(--cap-bg-2); border: 1px solid var(--cap-border); border-radius: var(--cap-r); min-width: 0;
+}
+.cap-stat span { font-size: 11px; color: var(--cap-t3); text-transform: uppercase; letter-spacing: .04em; }
+.cap-stat b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── таблица + боковая статистика ──────────────────────── */
+.cap__main { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
+.cap__view { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cap__toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cap-dfilter {
+    flex: 1 1 280px; display: flex; align-items: center; padding-left: 10px;
+    background: var(--cap-input); border: 1px solid var(--cap-border-2); border-radius: var(--cap-r);
+}
+.cap-dfilter i { color: var(--cap-t3); }
+.cap-dfilter input[type="text"] { border: 0; background: transparent; height: 28px; box-shadow: none !important; font-family: var(--cap-mono); font-size: 12px; }
+.cap-dfilter:focus-within { border-color: var(--cap-accent); }
+.cap-dfilter.is-filtered { border-color: var(--cap-info); }
+
+.cap__cats { display: flex; flex-wrap: wrap; gap: 4px; min-height: 0; }
+.cap-cat {
+    height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid currentColor;
+    background: transparent; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.cap-cat span { font-weight: 400; opacity: .8; font-variant-numeric: tabular-nums; }
+.cap-cat.is-off { opacity: .35; text-decoration: line-through; }
+
+.cap-table {
+    border: 1px solid var(--cap-border); border-radius: var(--cap-r);
+    background: var(--cap-input); overflow-x: auto; overflow-y: hidden;
+    font-family: var(--cap-mono); font-size: 12px;
+}
+.cap-table__head, .cap-row {
+    display: grid;
+    grid-template-columns: 58px 94px 72px 0 minmax(150px, 1.1fr) minmax(150px, 1.1fr) 104px 52px minmax(260px, 3fr);
+    column-gap: 10px; padding: 0 10px; min-width: 980px; align-items: center;
+}
+.cap.is-any .cap-table__head, .cap.is-any .cap-row {
+    grid-template-columns: 58px 94px 72px 118px minmax(150px, 1.1fr) minmax(150px, 1.1fr) 104px 52px minmax(260px, 3fr);
+    min-width: 1110px;
+}
+.cap:not(.is-any) .c-if { visibility: hidden; overflow: hidden; }
+.cap-table__head {
+    height: 30px; color: var(--cap-t3); font-family: var(--font, system-ui), sans-serif; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--cap-border);
+    background: var(--cap-bg-2);
+}
+.cap-table__body {
+    position: relative; height: 440px; min-height: 160px; max-height: 80vh;
+    overflow-y: auto; overflow-x: hidden; resize: vertical; outline: none;
+}
+.cap-table__spacer { width: 1px; }
+.cap-table__rows { position: absolute; inset: 0 0 auto 0; }
+.cap-row {
+    position: absolute; left: 0; right: 0; height: var(--cap-row-h);
+    color: var(--cap-t2); cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.cap-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cap-row:hover { background: rgba(255, 255, 255, 0.04); }
+.cap-row.is-selected { background: var(--cap-accent-soft); color: var(--cap-t1); box-shadow: inset 2px 0 0 var(--cap-accent); }
+.cap-row--broadcast .c-dst { color: var(--cap-warn); }
+.cap-row--multicast .c-dst { color: #c39bff; }
+.c-n, .c-l, .c-d { text-align: right; font-variant-numeric: tabular-nums; }
+.c-n { color: var(--cap-t3); }
+.c-t { color: var(--cap-t3); font-variant-numeric: tabular-nums; }
+.c-d { color: var(--cap-t3); font-size: 11px; }
+.c-src, .c-dst { color: var(--cap-t1); }
+.c-i { color: var(--cap-t2); }
+.cap-flags { color: var(--cap-info); }
+.cap-dir { font-style: normal; color: var(--cap-t3); }
+.cap-vlan { font-style: normal; margin-left: 6px; font-size: 10px; color: var(--cap-t3); border: 1px solid var(--cap-border-2); border-radius: 3px; padding: 0 3px; }
+.cap-table__empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--cap-t3); font-family: var(--font, system-ui), sans-serif; font-size: 13px; pointer-events: none;
+}
+.cap-table__empty[hidden] { display: none; }
+.cap-table__foot {
+    padding: 4px 10px; border-top: 1px solid var(--cap-border); color: var(--cap-t3);
+    font-family: var(--font, system-ui), sans-serif; font-size: 11px; position: sticky; left: 0;
+}
+
+/* метки протоколов: цвет по категории */
+.cap-proto { font-weight: 600; }
+.cap-proto--arp { color: #f5c542; }
+.cap-proto--icmp { color: #5ab8f5; }
+.cap-proto--tcp { color: #8fa8ff; }
+.cap-proto--udp { color: #6fd0c4; }
+.cap-proto--dns, .cap-proto--mdns { color: #c39bff; }
+.cap-proto--dhcp { color: #ff9f6b; }
+.cap-proto--snmp { color: #6fd08c; }
+.cap-proto--stp, .cap-proto--lldp { color: #e48ad9; }
+.cap-proto--ssdp, .cap-proto--igmp { color: #b0b8c8; }
+.cap-proto--ntp, .cap-proto--syslog { color: #9fd36f; }
+.cap-proto--ip, .cap-proto--ip6, .cap-proto--other { color: var(--cap-t2); }
+
+/* ── детали пакета ─────────────────────────────────────── */
+.cap-detail {
+    border: 1px solid var(--cap-border-2); border-radius: var(--cap-r); background: var(--cap-bg-2);
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.cap-detail[hidden] { display: none; }
+.cap-detail__head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
+.cap-detail__grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; margin: 0;
+}
+.cap-detail__grid dt, .cap-detail__grid dd { margin: 0; }
+.cap-detail__grid dt { color: var(--cap-t3); font-size: 11px; }
+.cap-detail__grid dd { font-family: var(--cap-mono); font-size: 12px; word-break: break-all; }
+.cap-detail__info {
+    font-family: var(--cap-mono); font-size: 12px; color: var(--cap-t1); white-space: pre-wrap; word-break: break-all;
+    background: var(--cap-input); padding: 8px 10px; border-radius: var(--cap-r);
+}
+.cap-detail__actions { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+
+/* ── боковая статистика ────────────────────────────────── */
+.cap__side {
+    border: 1px solid var(--cap-border); border-radius: var(--cap-r); background: var(--cap-bg-2);
+    display: flex; flex-direction: column; min-width: 0; max-height: 560px;
+}
+.cap-tabs { display: flex; border-bottom: 1px solid var(--cap-border); }
+.cap-tab {
+    flex: 1; height: 32px; background: none; border: 0; border-bottom: 2px solid transparent;
+    color: var(--cap-t3); font: inherit; font-size: 12px; cursor: pointer;
+}
+.cap-tab.is-active { color: var(--cap-t1); border-bottom-color: var(--cap-accent); }
+.cap-side__body { padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.cap-side__empty, .cap-side__more { color: var(--cap-t3); font-size: 12px; padding: 8px 4px; }
+.cap-bar {
+    position: relative; display: flex; justify-content: space-between; gap: 8px;
+    padding: 5px 8px; border: 0; border-radius: 4px; background: transparent; cursor: pointer;
+    font: inherit; font-size: 12px; color: var(--cap-t1); text-align: left; overflow: hidden;
+}
+.cap-bar:hover { background: var(--cap-bg-3); }
+.cap-bar__fill { position: absolute; inset: 0 auto 0 0; background: var(--cap-accent-soft); border-radius: 4px; pointer-events: none; }
+.cap-bar__key { position: relative; font-family: var(--cap-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cap-bar__val { position: relative; color: var(--cap-t3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cap-fill--arp { background: rgba(245, 197, 66, .16); }
+.cap-fill--icmp { background: rgba(90, 184, 245, .16); }
+.cap-fill--snmp { background: rgba(111, 208, 140, .16); }
+.cap-fill--tcp { background: rgba(143, 168, 255, .16); }
+.cap-fill--udp { background: rgba(111, 208, 196, .16); }
+
+.cap-modal-note { margin: 12px 0 0; color: var(--cap-t3, #7d889b); font-size: 12px; line-height: 1.5; }
+
+/* ── адаптив ───────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .cap__main { grid-template-columns: 1fr; }
+    .cap__side { max-height: 320px; }
+}
+@media (max-width: 760px) {
+    .cap { padding: 12px; }
+    .cap__config, .cap-help { grid-template-columns: 1fr; }
+    .cap__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cap__run-btns { margin-left: 0; width: 100%; }
+    .cap__run-btns .cap-btn { flex: 1; justify-content: center; }
+    .cap-field--sm { width: calc(50% - 6px); }
+    .cap-table__body { height: 360px; }
+}
+
+/* ── «Кто это?» — карточка узла (в body, поверх всего) ──── */
+.cap-who-backdrop {
+    position: fixed; inset: 0; z-index: 2147483100; background: rgba(0, 0, 0, .55);
+}
+.cap-who {
+    position: fixed; z-index: 2147483101; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 640px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px);
+    display: flex; flex-direction: column;
+    background: var(--bg-elevated, #1b1f26); color: var(--cap-t1);
+    border: 1px solid var(--cap-border-2); border-radius: var(--r-panel, 10px);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .6); font-size: 13px;
+}
+.cap-who[hidden], .cap-who-backdrop[hidden] { display: none; }
+.cap-who__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; border-bottom: 1px solid var(--cap-border); }
+.cap-who__head h3 { margin: 2px 0 0; font-size: 17px; font-weight: 600; word-break: break-all; }
+.cap-who__eyebrow { font-size: 11px; color: var(--cap-t3); text-transform: uppercase; letter-spacing: .05em; }
+.cap-who__body { padding: 4px 16px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.cap-who__sec { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; }
+.cap-who__sec + .cap-who__sec { border-top: 1px solid var(--cap-border); margin-top: 6px; }
+.cap-who__sec h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: var(--cap-t3); text-transform: uppercase; letter-spacing: .05em; }
+.cap-who__row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 4px 0; line-height: 1.5; }
+.cap-who__row > span { color: var(--cap-t3); font-size: 12px; }
+.cap-who__row code { font-family: var(--cap-mono); font-size: 12.5px; }
+.cap-who__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+.cap-who__stats > div { padding: 6px 10px; background: var(--cap-bg-2); border: 1px solid var(--cap-border); border-radius: var(--cap-r); display: flex; flex-direction: column; }
+.cap-who__stats span { font-size: 11px; color: var(--cap-t3); }
+.cap-who__stats b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.cap-who__stats small { font-size: 11px; color: var(--cap-t3); }
+.cap-who__wait { display: flex; align-items: center; gap: 8px; color: var(--cap-t2); padding: 12px 0; }
+.cap-who__foot { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--cap-border); }
+.cap-who .cap-msg { margin-top: 6px; }
+.cap-muted { color: var(--cap-t3); }
+.cap-ok { color: var(--cap-ok); }
+.cap-bad { color: var(--cap-crit); }
+.cap-warn { color: var(--cap-warn); }
+.cap-badge { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 11px; border: 1px solid currentColor; }
+.cap-badge--warn { color: var(--cap-warn); }
+.cap-badge--info { color: var(--cap-info); }
+.cap-spin {
+    width: 12px; height: 12px; border-radius: 50%; display: inline-block;
+    border: 2px solid var(--cap-border-2); border-top-color: var(--cap-accent); animation: capSpin .8s linear infinite;
+}
+@keyframes capSpin { to { transform: rotate(360deg); } }
+
+/* кликабельные адреса в таблице */
+.cap-row .cap-who-link { cursor: help; }
+.cap-row .cap-who-link:hover { color: var(--cap-accent); text-decoration: underline dotted; text-underline-offset: 3px; }
+.cap-bar__key small { display: block; color: var(--cap-t3); font-size: 10.5px; }
+.cap-bar { align-items: center; }
+.cap-bc { display: block; text-align: right; color: var(--cap-warn); font-size: 10.5px; }
+.cap-side__hint { color: var(--cap-t3); font-size: 11.5px; padding: 0 4px 6px; }
+@media (max-width: 760px) {
+    .cap-who__row { grid-template-columns: 1fr; gap: 0; }
+    .cap-who__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -60,8 +60,10 @@ class Command(BaseCommand):
     # Если IP молчит дольше threshold_sec и is_monitored=True → firing Alert
     IP_RULES = [
         # (severity, silence_seconds, message)
-        ("crit", 120, "IP не отвечает более 2 минут"),
-        ("warn", 60,  "IP не отвечает более 1 минуты"),
+        # Пинг идёт раз в 30 с (+до 8 с на прогон). Порог 60 с срабатывал на ОДНОМ
+        # пропущенном пинге и на гонке «проверка до обновления last_seen» — ложные алерты.
+        ("crit", 150, "IP не отвечает более 2,5 минут"),
+        ("warn", 75,  "IP не отвечает более 1 минуты"),
     ]
 
     def add_arguments(self, parser):

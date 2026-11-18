@@ -1,0 +1,66 @@
+{# Таблица документов. mode: inbox | sent | drafts | journal; docs — страница с prefetch people #}
+{% if docs %}
+<table class="ed-table ed-table--docs">
+  <thead>
+    <tr>
+      <th class="ed-num-col">№ / дата</th>
+      <th>Документ</th>
+      <th class="ed-who-col">{% if mode == 'inbox' %}От кого{% elif mode == 'journal' %}Автор → адресаты{% else %}Адресаты{% endif %}</th>
+      <th class="ed-due-col">Срок</th>
+      <th class="ed-st-col">Статус</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in docs %}
+    {% if mode == 'drafts' %}{% url 'edocs:edit' d.pk as href %}{% else %}{% url 'edocs:document_detail' d.pk as href %}{% endif %}
+    <tr data-href="{{ href }}" class="{% if mode == 'inbox' and d.my_status == 'pending' and not d.my_read %}is-unread{% endif %}">
+      <td class="ed-c-num">
+        <div class="ed-num">{{ d.number }}</div>
+        <div class="ed-sub">{% if d.sent_at %}{{ d.sent_at|date:"d.m.Y H:i" }}{% else %}{{ d.updated_at|date:"d.m.Y H:i" }}{% endif %}</div>
+      </td>
+      <td class="ed-c-doc">
+        <a class="ed-doc__title" href="{{ href }}">{{ d.title }}</a>
+        <div class="ed-doc__meta">
+          <span class="ed-tag ed-tag--{{ d.document_type }}">{{ d.get_document_type_display }}</span>
+          {% if d.priority != 'normal' %}<span class="ed-tag ed-tag--{{ d.priority }}"><i class="bi bi-lightning-charge-fill"></i>{{ d.get_priority_display }}</span>{% endif %}
+          {% if d.n_files %}<span class="ed-tag" title="Файлов: {{ d.n_files }}"><i class="bi bi-paperclip"></i>{{ d.n_files }}</span>{% endif %}
+          {% if mode == 'inbox' and d.my_status == 'pending' and d.is_open %}<span class="ed-tag ed-tag--high">Ждёт меня</span>{% endif %}
+        </div>
+        {% if d.message %}<div class="ed-doc__excerpt">{{ d.message|truncatechars:160 }}</div>{% endif %}
+      </td>
+      <td class="ed-c-who">
+        {% if mode == 'inbox' %}
+          <div class="ed-person">{{ d.author.short_name }}</div>
+        {% else %}
+          {% if mode == 'journal' %}<div class="ed-sub" style="margin:0 0 3px">{{ d.author.short_name }} →</div>{% endif %}
+          <div class="ed-people">
+            {% for a in d.people|slice:":3" %}
+            <div class="ed-person" title="{{ a.status_label }}"><span class="ed-dot ed-dot--{% if a.status == 'pending' and not a.is_read %}unread{% else %}{{ a.status }}{% endif %}"></span>{{ a.user.short_name }}</div>
+            {% empty %}<span class="ed-sub">не выбраны</span>{% endfor %}
+            {% if d.progress.more %}<div class="ed-sub">и ещё {{ d.progress.more }}</div>{% endif %}
+          </div>
+        {% endif %}
+      </td>
+      <td class="ed-c-due">{% include "edocs/_due.html" with d=d %}</td>
+      <td class="ed-c-st">
+        <span class="ed-badge ed-badge--{{ d.status }}">{{ d.status_label }}</span>
+        {% if d.is_open and d.progress.total > 1 %}
+        <div class="ed-progress" title="{{ d.progress.done }} из {{ d.progress.total }}"><span style="width:{{ d.progress.pct }}%"></span></div>
+        <div class="ed-sub">{{ d.progress.done }} из {{ d.progress.total }}</div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% include "edocs/_pager.html" %}
+{% else %}
+<div class="ed-empty">
+  <i class="bi {{ empty_icon|default:'bi-inbox' }}"></i>
+  {% if request.GET.q or request.GET.type or request.GET.status or request.GET.priority or request.GET.overdue or request.GET.from %}
+    <b>Ничего не найдено</b>Попробуйте изменить условия поиска.
+  {% else %}
+    <b>{{ empty_title|default:"Документов нет" }}</b>{{ empty_text }}
+  {% endif %}
+</div>
+{% endif %}

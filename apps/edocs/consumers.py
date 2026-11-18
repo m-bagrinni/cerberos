@@ -1,71 +1,39 @@
 import json
-from channels.generic.websocket import AsyncWebsocketConsumer
+
 from channels.db import database_sync_to_async
-from django.template.loader import render_to_string
-from .models import Document
+from channels.generic.websocket import AsyncWebsocketConsumer
+
 
 class DocumentConsumer(AsyncWebsocketConsumer):
+    """Живая карточка документа: сообщает открытым вкладкам, что документ изменился."""
+
     async def connect(self):
-        self.doc_id = self.scope['url_route']['kwargs']['doc_id']
-        self.room_group_name = f'doc_{self.doc_id}'
-        
-        # Проверяем доступ
-        user = self.scope.get('user')
-        if not user or not user.is_authenticated:
+        self.doc_id = int(self.scope["url_route"]["kwargs"]["doc_id"])
+        user = self.scope.get("user")
+        # WebSocket не проходит через AccessMiddleware — проверяем раздел и документ явно
+        if not user or not user.is_authenticated or not user.access.can_view("edocs"):
             await self.close()
             return
-        # WebSocket не проходит через AccessMiddleware — проверяем право на раздел явно
-        if not user.access.can_view("edocs"):
+        if not await self._can_access(user):
             await self.close()
             return
-            
-        doc = await self.get_document(self.doc_id)
-        if not doc:
-            await self.close()
-            return
-            
-        # Проверка: автор, получатель или участник маршрута
-        if user not in [doc.author, doc.recipient] and not user.is_superuser:
-            is_participant = await self.is_route_participant(self.doc_id, user)
-            if not is_participant:
-                await self.close()
-                return
-        
-        # Добавляем в группу
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        self.room_group_name = f"doc_{self.doc_id}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-    
+
     async def disconnect(self, close_code):
-        if hasattr(self, 'room_group_name'):
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
-    
-    async def receive(self, text_data):
-        """Обработка сообщений от клиента (если нужно)"""
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def receive(self, text_data=None, bytes_data=None):
         pass
-    
-    async def history_update(self, event):
-        """Отправка обновленной истории всем клиентам в группе"""
-        html = event['html']
-        await self.send(text_data=json.dumps({
-            'type': 'history_update',
-            'html': html
-        }))
-    
+
+    async def doc_changed(self, event):
+        await self.send(text_data=json.dumps({"type": "doc_changed"}))
+
     @database_sync_to_async
-    def get_document(self, doc_id):
-        try:
-            return Document.objects.get(pk=doc_id)
-        except Document.DoesNotExist:
-            return None
-    
-    @database_sync_to_async
-    def is_route_participant(self, doc_id, user):
-        from .models import DocumentRoute
-        return DocumentRoute.objects.filter(document_id=doc_id, sender=user).exists() or \
-               DocumentRoute.objects.filter(document_id=doc_id, recipient=user).exists()
+    def _can_access(self, user):
+        from .models import Document
+        from .services import can_access
+        doc = Document.objects.filter(pk=self.doc_id).first()
+        return doc is not None and can_access(user, doc)

@@ -4,16 +4,6 @@
 {% block title %}{{ subnet.cidr }} — Cerberus{% endblock %}
 
 {% block content %}
-{# Inline-фикс модалки: побеждает внешние CSS #}
-<style id="inline-ip-modal-fix">
-.ip-modal-backdrop{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;background:rgba(0,0,0,.72)!important;z-index:2147483000!important;display:block!important;}
-.ip-modal-backdrop[hidden]{display:none!important;}
-.ip-modal{position:fixed!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;width:520px!important;max-width:92vw!important;max-height:88vh!important;background:#181b1f!important;border:1px solid #3d444b!important;border-radius:6px!important;box-shadow:0 30px 90px rgba(0,0,0,.85)!important;z-index:2147483001!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
-.ip-modal[hidden]{display:none!important;}
-.ip-modal__head{padding:16px 20px!important;background:linear-gradient(180deg,#1f2226 0%,#181b1f 100%)!important;border-bottom:1px solid #2c3235!important;display:flex!important;align-items:center!important;justify-content:space-between!important;}
-.ip-modal__body{padding:16px 20px!important;overflow-y:auto!important;flex:1!important;}
-.ip-modal__actions{display:flex!important;gap:8px!important;padding:14px 20px!important;border-top:1px solid #2c3235!important;background:#1f2226!important;flex-wrap:wrap!important;}
-</style>
 <div class="subnet-detail-page" id="main-subnet-content" data-subnet-id="{{ subnet.id }}" data-cidr="{{ subnet.cidr }}">
 
   <div class="subnet-detail__header">
@@ -79,15 +69,20 @@
     <span class="legend-item"><span class="legend-swatch legend-swatch--unknown"></span> неизвестен</span>
   </div>
 
+  <div class="type-legend" id="ip-type-legend"></div>
+
   <div class="subnet-detail__toolbar">
     <input type="text" id="ip-filter" class="subnet-detail__filter"
-           placeholder="Фильтр по IP или hostname...">
+           placeholder="Фильтр по IP, hostname или производителю...">
     <label class="subnet-detail__check">
       <input type="checkbox" id="only-alive"> Только живые
     </label>
     <label class="subnet-detail__check">
       <input type="checkbox" id="only-monitored"> Только мониторинг
     </label>
+    <select id="ip-type-filter" class="subnet-detail__type" title="Тип устройства — определяется автоматически по производителю MAC, имени и данным Cerber">
+      <option value="">Все типы</option>
+    </select>
 
     <div class="grid-size-switch" id="grid-size-switch">
       <button type="button" data-size="normal" class="is-active">◼ норма</button>
@@ -97,42 +92,154 @@
   </div>
 
   
-<!-- ===== Панель tcpdump ===== -->
-<div class="tcpdump-panel" id="tcpdump-panel" data-need-cap="traffic_capture">
-  <div class="tcpdump-panel__header">
-    <h4 class="tcpdump-panel__title">🕵️ Захват трафика (tcpdump)</h4>
-    <button class="tcpdump-panel__close" id="tcpdump-close">&times;</button>
-  </div>
-  <div class="tcpdump-form">
-    <div>
-      <label>BPF-фильтр</label>
-      <input type="text" id="tcpdump-bpf" placeholder="icmp or arp" value="icmp or arp">
+<!-- ===== Захват трафика (логика — static/js/capture.js) ===== -->
+<section class="cap" id="cap-panel" data-need-cap="traffic_capture" hidden aria-label="Захват трафика">
+  <header class="cap__head">
+    <h4 class="cap__title"><i class="bi bi-broadcast-pin"></i> Захват трафика</h4>
+    <span class="cap-status" id="cap-status" data-state="idle">Готов</span>
+    <button type="button" class="cap-icon-btn" id="cap-close" title="Закрыть"><i class="bi bi-x-lg"></i></button>
+  </header>
+
+  <div class="cap__config">
+    <div class="cap-field cap-field--iface">
+      <label for="cap-iface">Интерфейс</label>
+      <select id="cap-iface"><option value="">Загрузка…</option></select>
+      <small class="cap-hint" id="cap-iface-hint"></small>
     </div>
-    <div>
-      <label>Интерфейс</label>
-      <select id="tcpdump-iface">
-        <option value="any">any</option>
-        <option value="eth0">eth0</option>
-        <option value="lo">lo</option>
-      </select>
-    </div>
-    <div>
-      <label>Длительность (сек)</label>
-      <input type="number" id="tcpdump-duration" value="10" min="1" max="30">
-    </div>
-    <div>
-      <label>Пакетов (макс)</label>
-      <input type="number" id="tcpdump-packets" value="50" min="1" max="500">
+    <div class="cap-field cap-field--bpf">
+      <label for="cap-bpf">Фильтр захвата (BPF) <span class="cap-bpf-state" id="cap-bpf-state"></span></label>
+      <div class="cap-bpf" data-state="">
+        <i class="bi bi-funnel"></i>
+        <input id="cap-bpf" type="text" spellcheck="false" autocomplete="off"
+               placeholder="host 10.70.4.10 and not port 22">
+        <button type="button" id="cap-bpf-clear" class="cap-icon-btn" title="Очистить"><i class="bi bi-x"></i></button>
+      </div>
+      <small class="cap-hint" id="cap-bpf-msg"></small>
     </div>
   </div>
-  <div class="tcpdump-actions">
-    <button id="tcpdump-start" class="btn--primary">▶ Запустить</button>
-    <button id="tcpdump-live">🔴 Live</button>
-    <button id="tcpdump-pcap">💾 Скачать .pcap</button>
-    <button id="tcpdump-clear">🗑 Очистить</button>
+
+  <div class="cap__presets" id="cap-presets"></div>
+
+  <details class="cap__fold">
+    <summary><i class="bi bi-sliders"></i> Конструктор фильтра</summary>
+    <div class="cap-builder">
+      <div class="cap-field"><label for="cap-b-host">Хост / сеть / MAC</label><input id="cap-b-host" type="text" placeholder="10.70.4.10 или 10.70.4.0/24" spellcheck="false"></div>
+      <div class="cap-field cap-field--sm"><label for="cap-b-dir">Направление</label>
+        <select id="cap-b-dir"><option value="">любое</option><option value="src">от него</option><option value="dst">к нему</option></select></div>
+      <div class="cap-field cap-field--sm"><label for="cap-b-proto">Протокол</label>
+        <select id="cap-b-proto"><option value="">любой</option><option>tcp</option><option>udp</option><option>icmp</option><option>arp</option><option>ip6</option></select></div>
+      <div class="cap-field cap-field--sm"><label for="cap-b-port">Порт</label><input id="cap-b-port" type="text" placeholder="161 или 1-1024" spellcheck="false"></div>
+      <div class="cap-builder__checks">
+        <label class="cap-check"><input type="checkbox" id="cap-b-subnet"> только эта подсеть</label>
+        <label class="cap-check"><input type="checkbox" id="cap-b-noself"> без трафика сервера Cerber</label>
+        <label class="cap-check"><input type="checkbox" id="cap-b-nossh"> без SSH</label>
+      </div>
+      <div class="cap-builder__out">
+        <code id="cap-b-preview">— (весь трафик)</code>
+        <button type="button" class="cap-btn" id="cap-b-apply">Заменить фильтр</button>
+        <button type="button" class="cap-btn" id="cap-b-and">Добавить через AND</button>
+      </div>
+    </div>
+  </details>
+
+  <details class="cap__fold">
+    <summary><i class="bi bi-question-circle"></i> Шпаргалка по фильтрам</summary>
+    <div class="cap-help">
+      <div>
+        <h5>Фильтр захвата (BPF) — что записывать</h5>
+        <table>
+          <tr><td><code>host 10.70.4.10</code></td><td>трафик узла (в обе стороны)</td></tr>
+          <tr><td><code>src host 10.70.4.10</code></td><td>только от узла</td></tr>
+          <tr><td><code>net 10.70.4.0/24</code></td><td>сеть целиком</td></tr>
+          <tr><td><code>ether host aa:bb:cc:dd:ee:ff</code></td><td>по MAC-адресу</td></tr>
+          <tr><td><code>tcp port 502</code> · <code>udp portrange 161-162</code></td><td>порт / диапазон</td></tr>
+          <tr><td><code>vlan 50 and arp</code></td><td>ARP в VLAN 50 (на родительском интерфейсе)</td></tr>
+          <tr><td><code>(icmp or arp) and not host 10.70.4.5</code></td><td>скобки, and / or / not</td></tr>
+          <tr><td><code>tcp[tcpflags] &amp; tcp-rst != 0</code></td><td>TCP-сбросы</td></tr>
+          <tr><td><code>greater 1000</code> · <code>less 64</code></td><td>по размеру кадра</td></tr>
+        </table>
+        <p>Имена хостов и сервисов (<code>host server1</code>, <code>port http</code>) не поддерживаются — только адреса и номера.
+          <kbd>Enter</kbd> в поле — старт. Пресет с <kbd>Shift</kbd> — добавить через OR, с <kbd>Alt</kbd> — через AND.</p>
+      </div>
+      <div>
+        <h5>Фильтр отображения — что показывать из пойманного</h5>
+        <table>
+          <tr><td><code>10.70.4.10</code></td><td>подстрока в любом поле</td></tr>
+          <tr><td><code>ip:10.70.4.10</code></td><td>точный адрес источника или назначения</td></tr>
+          <tr><td><code>port:161</code> · <code>proto:snmp</code> · <code>vlan:50</code></td><td>порт, протокол, VLAN</td></tr>
+          <tr><td><code>mac:e8:9c</code> · <code>iface:enp4s0.50</code></td><td>часть MAC, интерфейс (на any)</td></tr>
+          <tr><td><code>len&gt;1000</code></td><td>размер кадра</td></tr>
+          <tr><td><code>!proto:arp</code> · <code>-snmp</code></td><td>исключить</td></tr>
+        </table>
+        <p>Условия через пробел объединяются по И. Клик по строке — подробности пакета; ↑/↓ — перемещение.</p>
+      </div>
+    </div>
+  </details>
+
+  <div class="cap__run">
+    <div class="cap-field cap-field--sm"><label for="cap-duration">Остановить через</label><select id="cap-duration"></select></div>
+    <div class="cap-field cap-field--sm"><label for="cap-limit">Лимит пакетов</label><select id="cap-limit"></select></div>
+    <label class="cap-check cap-check--any" title="На any пакет VLAN-подинтерфейса виден и на родительском интерфейсе, а на veth/br-* — внутренний трафик контейнеров Cerber"><input type="checkbox" id="cap-dedup" checked> без дублей и трафика Docker</label>
+    <div class="cap__run-btns">
+      <button type="button" class="cap-btn cap-btn--primary" id="cap-start"><i class="bi bi-play-fill"></i> Старт</button>
+      <button type="button" class="cap-btn cap-btn--danger" id="cap-stop" hidden><i class="bi bi-stop-fill"></i> Стоп</button>
+      <button type="button" class="cap-btn" id="cap-pcap" title="Записать .pcap для Wireshark с этим фильтром (до 5 мин)"><i class="bi bi-download"></i> PCAP</button>
+    </div>
   </div>
-  <div class="tcpdump-log" id="tcpdump-log"></div>
-</div>
+
+  <div class="cap-msg" id="cap-msg" hidden></div>
+
+  <div class="cap__stats">
+    <div class="cap-stat"><span>Пакетов</span><b id="cap-c-count">0</b></div>
+    <div class="cap-stat"><span>Объём</span><b id="cap-c-bytes">—</b></div>
+    <div class="cap-stat"><span>Скорость</span><b id="cap-c-rate">—</b></div>
+    <div class="cap-stat"><span>Время</span><b id="cap-c-time">—</b></div>
+    <div class="cap-stat"><span>Потери</span><b id="cap-c-loss">—</b></div>
+  </div>
+
+  <div class="cap__main">
+    <div class="cap__view">
+      <div class="cap__toolbar">
+        <div class="cap-dfilter">
+          <i class="bi bi-search"></i>
+          <input id="cap-dfilter" type="text" spellcheck="false" autocomplete="off"
+                 placeholder="Фильтр отображения: ip:10.70.4.10 port:161 !proto:arp …">
+        </div>
+        <button type="button" class="cap-btn cap-btn--sm is-active" id="cap-autoscroll" title="Держать прокрутку внизу"><i class="bi bi-arrow-down-square"></i> Автопрокрутка</button>
+        <button type="button" class="cap-btn cap-btn--sm" id="cap-freeze" title="Заморозить таблицу, захват продолжается"><i class="bi bi-pause-fill"></i> Пауза</button>
+        <button type="button" class="cap-btn cap-btn--sm" id="cap-csv" title="Выгрузить показанные пакеты в CSV"><i class="bi bi-filetype-csv"></i> CSV</button>
+        <button type="button" class="cap-btn cap-btn--sm" id="cap-clear" title="Очистить таблицу"><i class="bi bi-trash3"></i></button>
+      </div>
+      <div class="cap__cats" id="cap-cats"></div>
+
+      <div class="cap-table">
+        <div class="cap-table__head">
+          <span class="c-n">№</span><span class="c-t">Время</span><span class="c-d">Δ</span><span class="c-if">Интерфейс</span>
+          <span class="c-src">Источник</span><span class="c-dst">Назначение</span><span class="c-p">Протокол</span>
+          <span class="c-l">Длина</span><span class="c-i">Информация</span>
+        </div>
+        <div class="cap-table__body" id="cap-body" tabindex="0">
+          <div class="cap-table__spacer" id="cap-spacer"></div>
+          <div class="cap-table__rows" id="cap-rows"></div>
+          <div class="cap-table__empty" id="cap-empty">Задайте фильтр и нажмите «Старт»</div>
+        </div>
+        <div class="cap-table__foot" id="cap-shown">0 пакетов</div>
+      </div>
+
+      <div class="cap-detail" id="cap-detail" hidden></div>
+    </div>
+
+    <aside class="cap__side">
+      <div class="cap-tabs">
+        <button type="button" class="cap-tab is-active" data-tab="senders" title="Кто больше всех шлёт — по MAC отправителя">Шумные</button>
+        <button type="button" class="cap-tab" data-tab="proto">Протоколы</button>
+        <button type="button" class="cap-tab" data-tab="hosts">Узлы</button>
+        <button type="button" class="cap-tab" data-tab="pairs">Пары</button>
+      </div>
+      <div class="cap-side__body" id="cap-side-body"></div>
+    </aside>
+  </div>
+</section>
 
 <div class="ip-grid-wrap">
     <div class="ip-grid" id="ip-grid">
@@ -142,18 +249,12 @@
 
 </div>
 
-<!-- Модалка IP -->
-<div class="ip-modal-backdrop" id="ip-modal-backdrop" hidden></div>
-<div class="ip-modal" id="ip-modal" hidden>
-  <div class="ip-modal__head">
-    <h3 id="ip-modal-title">IP</h3>
-    <button class="ip-modal__close" id="ip-modal-close">&times;</button>
-  </div>
-  <div class="ip-modal__body" id="ip-modal-body">
-    Загрузка...
-  </div>
-</div>
+<!-- Карточка IP (наполняет static/js/subnets.js → openIpModal) -->
+<div class="ipm-backdrop" id="ip-modal-backdrop" hidden></div>
+<div class="ipm" id="ip-modal" role="dialog" aria-modal="true" aria-labelledby="ip-modal-title" hidden></div>
 
-<link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=242">
-<script src="{% static 'js/subnets.js' %}?v=243"></script>
+<link rel="stylesheet" href="{% static 'css/subnets.css' %}?v=246">
+<link rel="stylesheet" href="{% static 'css/capture.css' %}?v=2">
+<script src="{% static 'js/subnets.js' %}?v=246"></script>
+<script src="{% static 'js/capture.js' %}?v=2"></script>
 {% endblock %}

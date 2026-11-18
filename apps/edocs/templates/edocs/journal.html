@@ -1,0 +1,63 @@
+{% extends "edocs/base_edocs.html" %}
+{% block ed_title %}Журнал документов{% endblock %}
+
+{% block ed_content %}
+<div class="ed-kpis">
+  <div class="ed-kpi"><div class="ed-kpi__label">Документов</div><div class="ed-kpi__value">{{ stats.total }}</div></div>
+  <div class="ed-kpi"><div class="ed-kpi__label">В работе</div><div class="ed-kpi__value">{{ stats.open }}</div></div>
+  <div class="ed-kpi{% if stats.overdue %} ed-kpi--crit{% endif %}"><div class="ed-kpi__label">Просрочено</div><div class="ed-kpi__value">{{ stats.overdue }}</div></div>
+  <div class="ed-kpi ed-kpi--ok"><div class="ed-kpi__label">Завершено</div><div class="ed-kpi__value">{{ stats.done }}</div></div>
+  <div class="ed-kpi"><div class="ed-kpi__label">Отклонено</div><div class="ed-kpi__value">{{ stats.rejected }}</div></div>
+  <div class="ed-kpi"><div class="ed-kpi__label">Завершено в срок</div><div class="ed-kpi__value">{% if stats.on_time_pct is not None %}{{ stats.on_time_pct }}%{% else %}—{% endif %}</div></div>
+</div>
+
+<section class="ed-panel">
+  <div class="ed-panel__head">
+    <h2 class="ed-panel__title"><i class="bi bi-journal-text"></i> Регистрационный журнал</h2>
+    <div class="ed-panel__aside">
+      <a class="ed-btn ed-btn--sm" href="?{% if qstr %}{{ qstr }}&amp;{% endif %}export=csv"><i class="bi bi-download"></i> CSV</a>
+    </div>
+  </div>
+  {% include "edocs/_filters.html" with mode="journal" %}
+  {% include "edocs/_doc_table.html" with mode="journal" empty_icon="bi-journal" empty_title="Журнал пуст" %}
+</section>
+
+<section class="ed-panel">
+  <div class="ed-panel__head">
+    <h2 class="ed-panel__title"><i class="bi bi-person-check"></i> Исполнительская дисциплина</h2>
+    <div class="ed-panel__aside">по документам с учётом фильтров выше</div>
+  </div>
+  {% if report %}
+  <table class="ed-table ed-table--report">
+    <thead>
+      <tr>
+        <th>Сотрудник</th>
+        <th class="ed-num-cell">Назначено</th>
+        <th class="ed-num-cell">В работе</th>
+        <th class="ed-num-cell">Просрочено</th>
+        <th class="ed-num-cell">Выполнено</th>
+        <th class="ed-num-cell">из них в срок</th>
+        <th class="ed-num-cell">Отклонено</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in report %}
+      <tr>
+        <td><a href="?executor={{ r.user_id }}" class="ed-doc__title">{{ r.name }}</a></td>
+        <td class="ed-num-cell">{{ r.total }}</td>
+        <td class="ed-num-cell">{{ r.pending }}</td>
+        <td class="ed-num-cell">{% if r.overdue %}<span class="ed-due is-overdue"><b>{{ r.overdue }}</b></span>{% else %}0{% endif %}</td>
+        <td class="ed-num-cell">{{ r.done }}</td>
+        <td class="ed-num-cell">
+          {% if r.pct is not None %}<span class="ed-bar"><span style="width:{{ r.pct }}%"></span></span>{{ r.pct }}%{% else %}—{% endif %}
+        </td>
+        <td class="ed-num-cell">{{ r.rejected }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="ed-empty"><i class="bi bi-person-check"></i><b>Нет данных</b>За выбранный период поручений не было.</div>
+  {% endif %}
+</section>
+{% endblock %}

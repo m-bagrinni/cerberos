@@ -130,6 +130,8 @@
 
 <link rel="stylesheet" href="{% static 'css/subnets.css' %}?v={% now 'U' %}">
 <script src="{% static 'js/subnets.js' %}?v={% now 'U' %}"></script>
+<link rel="stylesheet" href="{% static 'css/capture.css' %}?v=2">
+<script src="{% static 'js/capture.js' %}?v=2"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -171,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     document.body.appendChild(newScript);
                 }
+                document.dispatchEvent(new CustomEvent('cerber:subnet-loaded', { detail: { subnetId } }));
             } else {
                 panel.innerHTML = `<div style="padding: 20px; color: #f2495c;">Ошибка загрузки контента</div>`;
             }
@@ -187,8 +190,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Автооткрытие первой
-    const first = document.querySelector('.tree-subnet');
+    // Автооткрытие: ?subnet=<id> (ссылки из алертов), иначе первая подсеть
+    const wanted = new URLSearchParams(location.search).get('subnet');
+    const first = (wanted && document.querySelector(`.tree-subnet[data-id="${CSS.escape(wanted)}"]`))
+        || document.querySelector('.tree-subnet');
     if (first) setTimeout(() => first.click(), 100);
 });
 </script>

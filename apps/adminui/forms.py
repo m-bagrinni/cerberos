@@ -53,7 +53,7 @@ class DeviceForm(forms.ModelForm):
         fields = [
             "name", "ip", "category", "snmp_version", "snmp_community",
             "snmp_port", "vendor", "profile", "profile_override",
-            "ne_id", "ne_gateway_ip",
+            "ne_id", "ne_gateway_ip", "uplink", "uplink_ne",
         ]
         widgets = {
             "name": forms.TextInput(attrs={"class": "aui-input", "placeholder": "ag.LAZ"}),
@@ -67,6 +67,8 @@ class DeviceForm(forms.ModelForm):
             "profile_override": forms.Select(attrs={"class": "aui-input"}),
             "ne_id": forms.NumberInput(attrs={"class": "aui-input", "placeholder": "—"}),
             "ne_gateway_ip": forms.TextInput(attrs={"class": "aui-input mono", "placeholder": "—"}),
+            "uplink": forms.Select(attrs={"class": "aui-input"}),
+            "uplink_ne": forms.Select(attrs={"class": "aui-input"}),
         }
         labels = {
             "name": "Имя",
@@ -80,7 +82,42 @@ class DeviceForm(forms.ModelForm):
             "profile_override": "Профиль (override)",
             "ne_id": "NE ID",
             "ne_gateway_ip": "NE Gateway IP",
+            "uplink": "Вышестоящее устройство",
+            "uplink_ne": "…или вышестоящий NE",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Себя и тех, кто ниже по полному графу (в т.ч. через оптику), выбрать нельзя — получится цикл
+        from apps.alerts.correlation import build_graph
+        from apps.devices.models import NeDevice
+        below = set()
+        if self.instance and self.instance.pk:
+            below = build_graph().below(f"d{self.instance.pk}") | {f"d{self.instance.pk}"}
+        self.fields["uplink"].queryset = Device.objects.order_by("name").exclude(
+            pk__in=[int(x[1:]) for x in below if x[0] == "d"])
+        self.fields["uplink"].empty_label = "— нет —"
+        self.fields["uplink"].label_from_instance = lambda d: f"{d.name} · {d.ip}"
+        self.fields["uplink_ne"].queryset = NeDevice.objects.order_by("ne_id").exclude(
+            pk__in=[int(x[1:]) for x in below if x[0] == "n"])
+        self.fields["uplink_ne"].empty_label = "— нет —"
+        self.fields["uplink_ne"].label_from_instance = lambda n: f"NE-{n.ne_id} {n.display_name}"
+        self.fields["uplink"].help_text = "Через какое устройство это доступно. Не задано — по оптическим линиям."
+        self.fields["uplink_ne"].help_text = "Если устройство подключено через LAN-порт мультиплексора."
+
+    def clean(self):
+        from apps.alerts.correlation import cycles_with
+        data = super().clean()
+        up, up_ne = data.get("uplink"), data.get("uplink_ne")
+        if up and up_ne:
+            self.add_error("uplink_ne", "Укажите что-то одно: устройство или NE")
+            return data
+        if self.instance and self.instance.pk:
+            node = f"d{up.pk}" if up else (f"n{up_ne.pk}" if up_ne else None)
+            if node and self.instance.pk in cycles_with({self.instance.pk: node}):
+                self.add_error("uplink" if up else "uplink_ne",
+                               "Получается цикл: выбранное само зависит от этого устройства")
+        return data
 
     def clean_ip(self):
         ip = self.cleaned_data["ip"]
@@ -262,7 +299,7 @@ class SubnetForm(forms.ModelForm):
         model = Subnet
         fields = [
             "cidr", "name", "description", "gateway_ip",
-            "vlan_id", "is_active", "scan_interval_min",
+            "vlan_id", "is_active", "scan_interval_min", "uplink",
         ]
         widgets = {
             "cidr": forms.TextInput(attrs={"class": "aui-input mono", "placeholder": "172.16.101.0/24"}),
@@ -272,6 +309,7 @@ class SubnetForm(forms.ModelForm):
             "vlan_id": forms.NumberInput(attrs={"class": "aui-input", "min": 1, "max": 4094}),
             "is_active": forms.CheckboxInput(attrs={"class": "aui-checkbox"}),
             "scan_interval_min": forms.NumberInput(attrs={"class": "aui-input", "min": 1, "max": 1440}),
+            "uplink": forms.Select(attrs={"class": "aui-input"}),
         }
         labels = {
             "cidr": "CIDR",
@@ -281,7 +319,14 @@ class SubnetForm(forms.ModelForm):
             "vlan_id": "VLAN ID",
             "is_active": "Активна",
             "scan_interval_min": "Интервал скана (мин)",
+            "uplink": "Вышестоящее устройство",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["uplink"].queryset = Device.objects.order_by("name")
+        self.fields["uplink"].empty_label = "— не задано —"
+        self.fields["uplink"].label_from_instance = lambda d: f"{d.name} · {d.ip}"
 
 
 # ============================================================

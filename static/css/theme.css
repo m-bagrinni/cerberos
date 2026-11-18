@@ -186,6 +186,8 @@ body.theme-glass::after {
 /* Ссылки-кнопки: цвет текста как у кнопок, а не у ссылок */
 .theme-glass a.btn--primary, .theme-glass a.btn--primary:hover { color: #1a0f05; text-decoration: none; }
 .theme-glass a.btn--secondary, .theme-glass a.btn--danger { text-decoration: none; }
+/* СЭД: ссылка-кнопка — тёмный текст на оранжевом (иначе цвет ссылки сливается с фоном) */
+.theme-glass a.edocs-btn, .theme-glass a.edocs-btn:hover { color: #1a0f05; text-decoration: none; }
 .theme-glass :focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
 .theme-glass [hidden] { display: none !important; }
 
@@ -707,26 +709,18 @@ body.auth-page.theme-glass { background: transparent !important; color: var(--te
 
 /* Кнопки карточки: одна система вместо инлайн-цветов */
 .theme-glass .subnet-detail-page .btn,
-.theme-glass .tcpdump-actions button,
-.theme-glass .grid-size-switch button,
-.theme-glass .ip-modal__actions .btn {
+.theme-glass .grid-size-switch button {
     display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
     font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
     color: var(--text-1); background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
     transition: background .15s, border-color .15s, color .15s;
 }
 .theme-glass .subnet-detail-page .btn:hover,
-.theme-glass .tcpdump-actions button:hover,
-.theme-glass .grid-size-switch button:hover,
-.theme-glass .ip-modal__actions .btn:hover { background: var(--glass-3); border-color: var(--glass-border-strong); }
-.theme-glass .subnet-detail-page .btn:disabled, .theme-glass .tcpdump-actions button:disabled { opacity: .55; cursor: default; }
-.theme-glass .subnet-detail-page .btn--primary,
-.theme-glass .tcpdump-actions .btn--primary { color: #1a0f05; background: var(--accent); border-color: transparent; font-weight: 600; }
-.theme-glass .subnet-detail-page .btn--primary:hover,
-.theme-glass .tcpdump-actions .btn--primary:hover { background: var(--accent-hover); }
+.theme-glass .grid-size-switch button:hover { background: var(--glass-3); border-color: var(--glass-border-strong); }
+.theme-glass .subnet-detail-page .btn:disabled { opacity: .55; cursor: default; }
+.theme-glass .subnet-detail-page .btn--primary { color: #1a0f05; background: var(--accent); border-color: transparent; font-weight: 600; }
+.theme-glass .subnet-detail-page .btn--primary:hover { background: var(--accent-hover); }
 .theme-glass #subnet-toggle-auto.btn--primary { color: var(--ok); background: var(--ok-soft); border-color: transparent; font-weight: 500; }
-.theme-glass .ip-modal__actions .btn--ok { color: var(--ok); border-color: var(--ok-soft); }
-.theme-glass .ip-modal__actions .btn--crit { color: var(--crit); border-color: var(--crit-soft); }
 
 /* Сводка */
 .theme-glass .subnet-detail__summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
@@ -750,17 +744,13 @@ body.auth-page.theme-glass { background: transparent !important; color: var(--te
 .theme-glass .legend-swatch--unknown   { background: transparent;      border-color: var(--glass-border); border-style: dashed; }
 
 .theme-glass .subnet-detail__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
-.theme-glass .subnet-detail__filter,
-.theme-glass .tcpdump-form input,
-.theme-glass .tcpdump-form select {
+.theme-glass .subnet-detail__filter {
     height: 32px; padding: 0 10px; box-sizing: border-box; font: inherit; font-size: 13px;
     color: var(--text-1); background: var(--bg-input); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
 }
 .theme-glass .subnet-detail__filter { width: 260px; max-width: 100%; }
 .theme-glass .subnet-detail__filter::placeholder { color: var(--text-3); }
-.theme-glass .subnet-detail__filter:focus,
-.theme-glass .tcpdump-form input:focus,
-.theme-glass .tcpdump-form select:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.theme-glass .subnet-detail__filter:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
 .theme-glass .subnet-detail__check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; }
 .theme-glass .subnet-detail__check input { accent-color: var(--accent); margin: 0; }
 .theme-glass .grid-size-switch { display: inline-flex; margin-left: auto; }
@@ -768,26 +758,6 @@ body.auth-page.theme-glass { background: transparent !important; color: var(--te
 .theme-glass .grid-size-switch button:first-child { border-radius: var(--r-ctrl) 0 0 var(--r-ctrl); margin-left: 0; }
 .theme-glass .grid-size-switch button:last-child { border-radius: 0 var(--r-ctrl) var(--r-ctrl) 0; }
 .theme-glass .grid-size-switch button.is-active { color: var(--text-1); background: var(--glass-3); border-color: var(--glass-border-strong); position: relative; }
-
-/* tcpdump: скрыта, пока не нажата «Захват трафика» (класс .is-open ставит glass.js) */
-.theme-glass .tcpdump-panel { display: none; padding: 16px; background: var(--glass-2-sheen); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
-.theme-glass .tcpdump-panel.is-open { display: block; }
-.theme-glass .tcpdump-panel__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.theme-glass .tcpdump-panel__title { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-1); }
-.theme-glass .tcpdump-panel__close { background: none; border: 0; padding: 0 4px; font-size: 20px; line-height: 1; color: var(--text-3); cursor: pointer; }
-.theme-glass .tcpdump-panel__close:hover { color: var(--text-1); }
-.theme-glass .tcpdump-form { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(110px, 1fr)); gap: 12px; margin-bottom: 12px; }
-.theme-glass .tcpdump-form > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.theme-glass .tcpdump-form label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); }
-.theme-glass .tcpdump-form input, .theme-glass .tcpdump-form select { width: 100%; }
-.theme-glass #tcpdump-bpf { font-family: var(--font-mono); }
-.theme-glass .tcpdump-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.theme-glass .tcpdump-log {
-    max-height: 320px; overflow: auto; padding: 10px 12px; white-space: pre-wrap; word-break: break-all;
-    font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--text-2);
-    background: var(--bg-input); border: 1px solid var(--glass-border); border-radius: var(--r-ctrl);
-}
-.theme-glass .tcpdump-log:empty::before { content: "Лог пуст — запустите захват"; color: var(--text-3); }
 
 /* Сетка IP. Размер ячейки и колонки задаёт subnets.js (--cell-px, grid-template-columns) */
 .theme-glass .ip-grid-wrap { padding: 16px; overflow-x: auto; background: rgba(0, 0, 0, .18); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
@@ -828,21 +798,6 @@ body.auth-page.theme-glass { background: transparent !important; color: var(--te
 .theme-glass .ip-cell__tooltip .t-reserved { color: var(--warn); }
 
 /* Модалка IP (в т.ч. перебивает инлайн-фикс из subnet_detail.html) */
-.theme-glass .ip-modal-backdrop { background: rgba(0, 0, 0, .6) !important; backdrop-filter: blur(2px); }
-.theme-glass .ip-modal { background: var(--bg-panel) !important; border: 1px solid var(--glass-border-strong) !important; border-radius: var(--r-panel) !important; box-shadow: var(--shadow-panel) !important; color: var(--text-1); }
-.theme-glass .ip-modal__head { background: transparent !important; border-bottom: 1px solid var(--glass-border) !important; }
-.theme-glass .ip-modal__head h3 { margin: 0; font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--text-1); }
-.theme-glass .ip-modal__close { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--text-3); cursor: pointer; }
-.theme-glass .ip-modal__close:hover { color: var(--text-1); }
-.theme-glass .ip-modal__body { font-size: 13px; color: var(--text-2); }
-.theme-glass .ip-modal__row { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--glass-border); }
-.theme-glass .ip-modal__row:last-of-type { border-bottom: 0; }
-.theme-glass .ip-modal__row-label { color: var(--text-3); }
-.theme-glass .ip-modal__row-value { color: var(--text-1); text-align: right; font-variant-numeric: tabular-nums; }
-.theme-glass .ip-modal__chart { margin-top: 14px; padding: 10px; background: var(--glass-2); border: 1px solid var(--glass-border); border-radius: var(--r-card); }
-.theme-glass .ip-modal__chart-title { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: var(--text-3); }
-.theme-glass .ip-modal__no-chart { padding: 16px; text-align: center; color: var(--text-3); }
-.theme-glass .ip-modal__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding: 0 !important; border: 0 !important; background: none !important; }
 
 /* Окно «Добавить подсеть» (subnets_list.html) — раньше стилизовалось только в glass.css */
 .theme-glass .subnet-modal { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }

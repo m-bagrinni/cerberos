@@ -1,29 +1,20 @@
 """
-Захват трафика в .pcap через sniffer-контейнер (для скачивания и Wireshark).
+Захват трафика в .pcap через sniffer-контейнер (для Wireshark).
 
-Файлы пишутся в общий volume /tmp/cerber_pcap (pcap_data),
-доступный и в web, и в sniffer. TTL — 1 час.
+Файлы пишутся в общий volume /tmp/cerber_pcap (pcap_data), доступный и web,
+и sniffer. TTL — 1 час (удаляет cerber-ops фиксированной командой).
 """
 from __future__ import annotations
 
 import logging
-import re
-import shutil
 import subprocess
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .tcpdump import (
-    DEFAULT_DURATION,
-    DEFAULT_PACKETS,
-    MAX_DURATION,
-    MAX_PACKETS,
-    TcpdumpError,
-    _validate_bpf,
-    _validate_iface,
-)
+from .tcpdump import _validate_bpf, _validate_iface, clean_stderr, parse_summary
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +22,15 @@ PCAP_DIR = Path("/tmp/cerber_pcap")
 PCAP_DIR.mkdir(parents=True, exist_ok=True)
 TTL_SECONDS = 3600
 
-SNIFFER_CONTAINER = "cerber-sniffer"
+MAX_DURATION = 300
+DEFAULT_DURATION = 30
+MAX_PACKETS = 200_000
+DEFAULT_PACKETS = 10_000
+PCAP_HEADER = 24
 
 
 def _cleanup_old_files() -> None:
-    """
-    Удаляет pcap-файлы старше часа. Файлы создаёт root внутри sniffer —
-    web (uid 1000) удалить их не может, поэтому удаление тоже через cerber-ops.
-    Команда фиксированная (TTL = 60 мин) — так её пропускает белый список ops.
-    """
+    """Файлы создаёт root внутри sniffer — удаляем тоже через cerber-ops (фиксированная команда)."""
     from apps.core import ops_client
     try:
         ops_client.sniffer_run(
@@ -47,19 +38,32 @@ def _cleanup_old_files() -> None:
         )
     except Exception as e:  # очистка не должна ломать захват
         logger.warning("pcap cleanup failed: %s", e)
+    # .meta пишет сам web — их удаляем здесь
+    cutoff = time.time() - TTL_SECONDS
+    for meta in PCAP_DIR.glob("*.meta"):
+        try:
+            if meta.stat().st_mtime < cutoff:
+                meta.unlink()
+        except OSError:
+            pass
+
+
+def download_name(file_id: str) -> str:
+    """Имя для скачивания: capture_<iface>_<время>.pcap (метаданные — в .meta рядом)."""
+    meta = PCAP_DIR / f"{file_id}.meta"
+    try:
+        return meta.read_text().strip() or f"capture_{file_id}.pcap"
+    except OSError:
+        return f"capture_{file_id}.pcap"
 
 
 def run_tcpdump_pcap(
-    bpf: str = "ip",
+    bpf: str = "",
     iface: str = "any",
     duration: int = DEFAULT_DURATION,
     packets: int = DEFAULT_PACKETS,
 ) -> dict[str, Any]:
-    """
-    Захватывает трафик в .pcap через sniffer-контейнер.
-    Возвращает dict с file_id, file_size, packets_captured, download_url.
-    """
-
+    """Пишет трафик в .pcap до `duration` секунд или `packets` пакетов."""
     _cleanup_old_files()
 
     bpf = _validate_bpf(bpf)
@@ -69,81 +73,57 @@ def run_tcpdump_pcap(
 
     file_id = uuid.uuid4().hex[:16]
     pcap_path = PCAP_DIR / f"{file_id}.pcap"
+    remote_path = f"/tmp/cerber_pcap/{file_id}.pcap"   # тот же volume внутри sniffer
 
-    # Файл пишется ВНУТРИ sniffer (в общий volume /tmp/cerber_pcap)
-    remote_path = f"/tmp/cerber_pcap/{file_id}.pcap"
-
-    cmd = [
-        "tcpdump",
-        "-nn", "-U",
-        "-i", iface,
-        "-w", remote_path,
-    ]
-    if packets:
-        cmd.extend(["-c", str(packets)])
-    cmd.append(bpf)
-
-    # Гарантированно убиваем через duration секунд
+    cmd = ["tcpdump", "-nn", "-U", "-i", iface, "-w", remote_path, "-c", str(packets)]
+    if bpf:
+        cmd.append(bpf)
     wrapped = ["timeout", f"{duration}s"] + cmd
 
+    from apps.core import ops_client
     started = time.monotonic()
     try:
-        from apps.core import ops_client
-        proc = ops_client.sniffer_run(wrapped, timeout=duration + 3)
-        stdout = proc.stdout or ""
-        stderr = proc.stderr or ""
-        timed_out = (proc.returncode == 124)
-    except subprocess.TimeoutExpired as e:
-        elapsed = time.monotonic() - started
+        proc = ops_client.sniffer_run(wrapped, timeout=duration + 5)
+    except subprocess.TimeoutExpired:
         return {
-            "ok": False,
-            "file_id": None,
-            "bpf": bpf, "iface": iface,
-            "duration": duration, "packets_requested": packets,
-            "packets_captured": 0, "file_size": 0,
-            "error": "timeout(1) не завершил tcpdump",
-            "elapsed": round(elapsed, 2),
-            "timed_out": True,
+            "ok": False, "file_id": None, "bpf": bpf, "iface": iface,
+            "duration": duration, "packets_requested": packets, "packets_captured": 0,
+            "file_size": 0, "error": "tcpdump не завершился вовремя",
+            "elapsed": round(time.monotonic() - started, 2), "timed_out": True,
         }
-
     elapsed = time.monotonic() - started
 
-    # Считаем пакеты из stderr
-    captured = 0
-    m = re.search(r"(\d+)\s+packets?\s+captured", stderr)
-    if m:
-        captured = int(m.group(1))
-
-    # Фильтр WARNING
-    if stderr:
-        stderr = "\n".join(
-            line for line in stderr.splitlines()
-            if "doesn't support promiscuous mode" not in line
-            and "Promiscuous mode not supported" not in line
-        ).strip()
-
-    started_ok = "listening on" in stderr or "listening on" in stdout
+    summary = parse_summary(proc.stderr)
+    errors = clean_stderr(proc.stderr)
+    started_ok = "listening on" in (proc.stderr or "")
     file_size = pcap_path.stat().st_size if pcap_path.exists() else 0
-    has_packets = file_size > 24  # pcap-заголовок = 24 байта
-
-    ok = has_packets or (started_ok and not timed_out) or started_ok
+    has_packets = file_size > PCAP_HEADER
 
     err_msg = None
-    if not ok and not started_ok:
-        err_msg = stderr or f"tcpdump завершился с кодом {proc.returncode}"
-    elif file_size <= 24:
-        err_msg = "Пакетов не поймано (pcap содержит только заголовок)"
+    if not started_ok:
+        err_msg = errors or f"tcpdump завершился с кодом {proc.returncode}"
+    elif not has_packets:
+        err_msg = "Пакетов не поймано — файл пустой"
+
+    if has_packets:
+        safe_iface = iface.replace("/", "_")
+        name = f"capture_{safe_iface}_{datetime.now():%Y%m%d_%H%M%S}.pcap"
+        try:
+            (PCAP_DIR / f"{file_id}.meta").write_text(name)
+        except OSError:
+            pass  # имя по умолчанию тоже годится
 
     return {
-        "ok": ok,
+        "ok": started_ok and has_packets,
         "file_id": file_id if has_packets else None,
         "bpf": bpf,
         "iface": iface,
         "duration": duration,
         "packets_requested": packets,
-        "packets_captured": captured,
+        "packets_captured": summary["captured"] or 0,
+        "kernel_dropped": summary["kernel_dropped"],
         "file_size": file_size,
         "error": err_msg,
         "elapsed": round(elapsed, 2),
-        "timed_out": timed_out,
+        "timed_out": proc.returncode == 124,
     }

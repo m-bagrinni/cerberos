@@ -8,7 +8,8 @@ def alert_counts(request):
     Используется в base.html для бейджа в sidebar.
     """
     try:
-        firing = Alert.objects.filter(state=Alert.STATE_FIRING)
+        # Следствия каскадов (suppressed_by) не считаем — они свёрнуты под причину
+        firing = Alert.objects.filter(state=Alert.STATE_FIRING, suppressed_by__isnull=True)
         total = firing.count()
         crit = firing.filter(severity=Alert.SEVERITY_CRIT).count()
         warn = firing.filter(severity=Alert.SEVERITY_WARN).count()

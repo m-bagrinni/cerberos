@@ -89,8 +89,6 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: #4a525a; }
 
-
-
 /* --- Контейнер --- */
 .c-container {
     max-width: 1280px;
@@ -279,7 +277,6 @@ body {
     height: 300px;
     width: 100%;
 }
-
 
 /* ============================================================
    Dashboard — master-detail layout
@@ -756,7 +753,6 @@ body {
     color: #10b981 !important;
 }
 
-
 /* ============================================================
    Grafana-style — override компонентов
    ============================================================ */
@@ -1132,7 +1128,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     color: var(--primary-hover);
 }
 
-
 /* ============================================================
    Tab 1 «Устройства» — grid плиток с группами
    ============================================================ */
@@ -1195,7 +1190,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .device-group--ok   .device-group__title { color: var(--ok); }
 .device-group--unknown .device-group__title { color: var(--text-muted); }
 
-
 /* --- Сетка плиток --- */
 .device-grid {
     display: grid;
@@ -1208,7 +1202,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
         grid-template-columns: 1fr;
     }
 }
-
 
 /* --- Плитка устройства --- */
 .device-card {
@@ -1363,7 +1356,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .device-card__ports-total {
     color: var(--text-muted);
 }
-
 
 /* ============================================================
    Модальное окно устройства
@@ -1569,7 +1561,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
 }
-
 
 /* ============================================================
    Секции внутри модалки
@@ -1784,7 +1775,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     height: 100% !important;
 }
 
-
 /* ============================================================
    SFP/DDM — плитки (вкладка DDM в модалке)
    ============================================================ */
@@ -1908,7 +1898,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     font-size: 11px;
 }
 
-
 /* --- VLAN-бейджи в плитке интерфейса --- */
 
 .iface-card__vlans {
@@ -1957,7 +1946,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     color: #5794f2;
     border-color: rgba(87, 148, 242, 0.3);
 }
-
 
 /* ============================================================
    Tab 1 «Устройства» — grid плиток с группами
@@ -2073,7 +2061,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .device-card__ports i { color: var(--text-disabled); }
 .device-card__ports-up { color: var(--ok); font-weight: 600; }
 .device-card__ports-total { color: var(--text-muted); }
-
 
 /* ============================================================
    Модальное окно устройства
@@ -2272,7 +2259,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .modal-chart__body { position: relative; height: 180px; padding: 10px; }
 .modal-chart__body canvas { width: 100% !important; height: 100% !important; }
 
-
 /* ============================================================
    Interfaces — плитки (вкладка «Интерфейсы» в модалке)
    ============================================================ */
@@ -2380,7 +2366,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     border-color: rgba(87,148,242,0.3);
 }
 
-
 /* ============================================================
    SFP/DDM — плитки (вкладка DDM в модалке)
    ============================================================ */
@@ -2452,7 +2437,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     padding-top: 6px; margin-top: 2px;
 }
 .sfp-card__footer i { font-size: 11px; }
-
 
 /* ============================================================
    Metric cards (вкладка «Обзор» в модалке)
@@ -2557,7 +2541,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     white-space: nowrap;
 }
 
-
 /* --- Легенда под графиком группы --- */
 
 .modal-chart__legend {
@@ -2600,7 +2583,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .modal-chart--flash .modal-chart__body {
     height: 220px;
 }
-
 
 /* ============================================================
    Tab 2 «Метрики» — фильтры + сетка графиков
@@ -2768,7 +2750,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     background: var(--text-disabled);
 }
 
-
 /* ============================================================
    Раскрытие графика трафика в карточке порта
    ============================================================ */
@@ -2881,7 +2862,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     height: 10px;
     border-radius: 2px;
 }
-
 
 /* ============================================================
    App layout — sidebar + main
@@ -3042,7 +3022,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     }
 }
 
-
 /* ============================================================
    Tab 3 «SFP/DDM» — группы по устройству
    ============================================================ */
@@ -3119,7 +3098,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     cursor: pointer;
     accent-color: var(--primary);
 }
-
 
 /* ============================================================
    Алерты
@@ -3302,7 +3280,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     margin: 0;
     font-size: 15px;
 }
-
 
 /* ============================================================
    Мультиплексоры: карточки NE + модалки
@@ -3550,7 +3527,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .ne-sfp-card__row b,
 .ne-lan-card__row b { color: var(--text-strong); font-weight: 500; }
 
-
 /* ============================================================
    NE modal: вкладки + графики
    ============================================================ */
@@ -3645,7 +3621,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     color: var(--text-muted);
 }
 
-
 /* ============================================================
    Мультиплексоры: вкладки + метрики
    ============================================================ */
@@ -3690,7 +3665,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
 .mux-metrics-grid .ne-chart-card__canvas {
     height: 170px;
 }
-
 
 /* ============================================================
    Мультиплексоры v2: компактные карточки + аккуратные графики
@@ -3874,7 +3848,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     min-height: 280px;
 }
 
-
 /* ============================================================
    Карточка NE v3: компактный SFP + LAN
    ============================================================ */
@@ -4015,7 +3988,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     letter-spacing: 0.3px;
 }
 
-
 /* --- NE в карточке алерта --- */
 .alert-card__device-line {
     display: flex;
@@ -4055,7 +4027,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     border-bottom-color: var(--primary);
 }
 
-
 /* --- График трафика LAN --- */
 .ne-range-traffic,
 .ne-traffic-mode {
@@ -4082,7 +4053,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     height: 320px;
 }
 
-
 /* --- Drag & drop карточек NE --- */
 .device-grid {
     position: relative;
@@ -4105,7 +4075,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     cursor: grabbing;
 }
 
-
 /* --- Кнопка «Опросить» --- */
 .ne-poll-btn {
     display: inline-flex;
@@ -4117,7 +4086,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     opacity: 0.7;
     cursor: wait;
 }
-
 
 /* ============================================================
    Мультиплексоры — сводная панель
@@ -4541,7 +4509,6 @@ a.c-navbar__link[href="/admin/"] { color: var(--text); }
     width: 100% !important;
     height: 100% !important;
 }
-
 
 /* ============================================================
    Vendor tabs (фильтр по вендору на /local/)

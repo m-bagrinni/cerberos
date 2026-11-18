@@ -172,27 +172,37 @@ def _webapp_url_for(alert) -> str | None:
 
 
 def _alert_text(alert) -> str:
+    """Уведомление о новом алерте — в стиле экранов бота (apps/accounts/bot)."""
+    from apps.accounts.bot.screens.common import alert_target, alert_unit, metric_label, show_value
+    from apps.accounts.bot.ui import RULE, SEV_ICON, SEV_LABEL, num
     sev = (alert.severity or "").lower()
-    icon = {"crit": "🚨", "warn": "⚠️"}.get(sev, "•")
-    sev_label = {"crit": "CRIT", "warn": "WARN"}.get(sev, (alert.severity or "").upper())
-
-    target = escape(_alert_target(alert))
-    metric = escape(alert.metric_key or "")
-    started = timezone.localtime(alert.started_at).strftime("%d.%m.%Y %H:%M") if alert.started_at else "—"
-    unit = _unit(alert)
-
+    unit = alert_unit(alert)
+    started = timezone.localtime(alert.started_at).strftime("%d.%m %H:%M") if alert.started_at else "—"
     lines = [
-        f"{icon} <b>Cerberus · {escape(sev_label)}</b>",
-        "━━━━━━━━━━━━━━━━━━",
-        f"🎯 <b>{target}</b>",
-        "",
-        f"📊 <code>{metric}</code>",
-        f"📈 Значение: <b>{_fmt_num(alert.value)}{unit}</b>"
-        + (f"  (порог {_fmt_num(alert.threshold)}{unit})" if alert.threshold is not None else ""),
-        f"🕒 {started}",
+        f"{SEV_ICON.get(sev, '•')} <b>{escape(SEV_LABEL.get(sev, sev.upper()))}</b> · {escape(metric_label(alert))}",
+        RULE,
+        f"🎯 <b>{escape(alert_target(alert))}</b>",
     ]
+    if show_value(alert):
+        line = f"📈 {num(alert.value, unit, 2)}"
+        if alert.threshold is not None:
+            line += f" · порог {num(alert.threshold, unit, 2)}"
+        lines.append(line)
+    lines.append(f"🕒 {started}  <code>{escape(alert.metric_key or '')}</code>")
     if alert.message:
-        lines += ["", escape(alert.message)]
+        lines.append(f"💬 {escape(alert.message)}")
+    try:
+        from apps.alerts.correlation import dependents_of, is_cause
+        if is_cause(alert):
+            dep = dependents_of(alert)
+            parts = [f"{dep['devices']} устр."] if dep["devices"] else []
+            parts += [f"{dep['ne']} NE"] if dep["ne"] else []
+            parts += [f"{dep['links']} лин."] if dep["links"] else []
+            parts += [f"{dep['subnets']} подсет."] if dep["subnets"] else []
+            if parts:
+                lines.append(f"⛓ За ним: {', '.join(parts)} — их алерты свёрнуты сюда, отдельно не придут")
+    except Exception:  # noqa: BLE001
+        logger.exception("dependents %s", alert.pk)
     return "\n".join(lines)
 
 
@@ -220,6 +230,8 @@ def _reply_markup(alert) -> dict | None:
     if getattr(alert, "pk", None) and getattr(alert, "state", "firing") == "firing" \
             and not getattr(alert, "acked_by_id", None):
         rows.append([{"text": "✋ Взять в работу", "callback_data": f"ack:{alert.pk}"}])
+    if getattr(alert, "pk", None):
+        rows.append([{"text": "📋 Подробнее", "callback_data": f"al.C:{alert.pk}"}])
     url = _webapp_url_for(alert)
     if url:
         rows.append([{"text": "🔗 Открыть в Cerberus", "url": url}])
@@ -359,6 +371,11 @@ def notify_alert_created(alert) -> int:
     if alert is None:
         logger.warning("notify_alert_created: alert is None — пропускаем")
         return 0
+    # Каскад: следствие недоступности вышестоящего — без уведомления (apps/alerts/correlation.py)
+    from apps.alerts.correlation import gate
+    if not gate(alert):
+        logger.info("notify_alert_created alert=%s: подавлено/придержано корреляцией", getattr(alert, "id", "?"))
+        return 0
     text = _alert_text(alert)
     kb = _reply_markup(alert)
     sent = _dispatch(text, kb, f"alert_created:{getattr(alert, 'id', '?')}", _alert_meta(alert, "alert"))
@@ -370,6 +387,9 @@ def notify_alert_resolved(alert) -> int:
     if alert is None:
         logger.warning("notify_alert_resolved: alert is None — пропускаем")
         return 0
+    from apps.alerts.correlation import should_announce_resolve
+    if not should_announce_resolve(alert):
+        return 0   # об открытии не сообщали (подавлен / придержан) — и о закрытии молчим
     text = _resolved_text(alert)
     sent = _dispatch(text, None, f"alert_resolved:{getattr(alert, 'id', '?')}", _alert_meta(alert, "resolved"))
     logger.info("notify_alert_resolved alert=%s sent=%s", getattr(alert, "id", "?"), sent)
@@ -391,6 +411,28 @@ def _broadcast_target(event) -> str:
     return s
 
 
+def _storm_sources(event, limit: int = 3) -> list[str]:
+    """Строки «кто шлёт»: MAC (+ IP из таблицы адресов подсети, если известен) и число пакетов."""
+    macs = [m for m in (getattr(event, "top_macs", None) or []) if m.get("mac")][:limit]
+    if not macs:
+        return []
+    ips = {}
+    try:
+        from apps.subnets.models import IpAddress
+        qs = IpAddress.objects.filter(subnet_id=event.subnet_id).exclude(mac="")
+        ips = {(a.mac or "").lower().replace("-", ":"): a.ip for a in qs}
+    except Exception:
+        logger.exception("storm sources: IP lookup failed")
+    out = ["", "📡 <b>Источник:</b>"]
+    for m in macs:
+        mac = str(m["mac"]).lower()
+        ip = ips.get(mac)
+        out.append(f"• <code>{escape(mac)}</code>" + (f" · {escape(str(ip))}" if ip else "") +
+                   f" · {m.get('count', 0)} пакетов")
+    out.append("")
+    return out
+
+
 def _broadcast_text(event) -> str:
     sev = (event.severity or "").lower()
     label = {"crit": "CRIT", "warn": "WARN"}.get(sev, sev.upper())
@@ -399,15 +441,26 @@ def _broadcast_text(event) -> str:
     pps_now = event.bcast_per_sec_peak or 0.0
     pct_peak = event.bcast_pct_peak or 0.0
     pps_peak = event.bcast_per_sec_peak or 0.0
+    is_mcast = not (pct_peak or pps_peak)
+    kind = "MULTICAST STORM" if is_mcast else "BROADCAST STORM"
     lines = [
-        f"🌩 <b>Cerberus · BROADCAST STORM · {escape(label)}</b>",
+        f"🌩 <b>Cerberus · {kind} · {escape(label)}</b>",
         "━━━━━━━━━━━━━━━━━━",
         f"🎯 <b>{escape(_broadcast_target(event))}</b>",
         "",
-        f"📊 Сейчас: <b>{pct_now:.2f}%</b> · <b>{int(pps_now)} pps</b> · всего {event.total_now}",
-        f"📈 Пик: <b>{pct_peak:.2f}%</b> · <b>{int(pps_peak)} pps</b>",
-        f"🕒 {started}",
     ]
+    if is_mcast:
+        lines += [
+            f"📊 Multicast сейчас: <b>{(event.mcast_pct_now or 0):.1f}%</b> трафика",
+            f"📈 Пик multicast: <b>{(event.mcast_pct_peak or 0):.1f}%</b>",
+        ]
+    else:
+        lines += [
+            f"📊 Сейчас: <b>{pct_now:.2f}%</b> · <b>{int(pps_now)} pps</b> · всего {event.total_now}",
+            f"📈 Пик: <b>{pct_peak:.2f}%</b> · <b>{int(pps_peak)} pps</b>",
+        ]
+    lines += _storm_sources(event)
+    lines.append(f"🕒 {started}")
     if event.reason:
         lines += ["", escape(event.reason)]
     return "\n".join(lines)

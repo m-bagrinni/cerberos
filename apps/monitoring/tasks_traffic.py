@@ -12,6 +12,8 @@ from apps.monitoring.locks import singleton
 
 logger = logging.getLogger(__name__)
 
+STORM_CONFIRM = 2  # замеров подряд (интервал beat 30 с) до создания события
+
 
 @shared_task(queue="traffic", soft_time_limit=90, time_limit=110)
 @singleton(ttl=120, key=lambda subnet_id, duration=10: subnet_id)
@@ -60,6 +62,16 @@ def poll_broadcast_rate(subnet_id: int, duration: int = 10):
 
     # Проверка storm + обновление/создание события
     storm = detect_storm(metrics)
+    # Гистерезис: одиночный всплеск (чаще всего одно устройство на ~30 с) — не шторм.
+    # Новое событие создаём после STORM_CONFIRM тиков подряд; уже открытое — обновляем сразу.
+    from django.core.cache import cache
+    _ck = f"storm_ticks_{subnet_id}"
+    if storm:
+        ticks = (cache.get(_ck) or 0) + 1
+        cache.set(_ck, ticks, timeout=120)
+    else:
+        ticks = 0
+        cache.delete(_ck)
     active = BroadcastStormEvent.objects.filter(
         subnet=subnet, state=BroadcastStormEvent.STATE_FIRING,
     ).first()
@@ -88,6 +100,8 @@ def poll_broadcast_rate(subnet_id: int, duration: int = 10):
                 "top_macs", "reason", "updated_at",
             ])
             updated = True
+        elif ticks < STORM_CONFIRM:
+            pass  # ждём подтверждения следующим замером
         else:
             new_event = BroadcastStormEvent.objects.create(
                 subnet=subnet,

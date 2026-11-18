@@ -1,192 +1,188 @@
 """
-Запуск tcpdump из веб-интерфейса подсети.
+Захват трафика из веб-интерфейса: общие проверки и разовый снимок.
 
 Безопасность:
-- BPF-фильтр собирается ТОЛЬКО из разрешённых токенов (icmp/tcp/udp/port/host/and/or/not + IP + число).
-- Интерфейс — фиксированный ("any" или "eth0"), без произвольных имён из запроса.
-- Жёсткий таймаут и лимит пакетов (tcpdump -c N + subprocess timeout).
-- subprocess без shell=True, аргументы — списком.
+- BPF проверяется apps.subnets.bpf (белый список слов/символов, без имён хостов),
+  затем ещё раз белым списком cerber-ops.
+- Интерфейс — только из реального списка интерфейсов хоста (или any).
+- Жёсткие лимиты по времени и числу пакетов; subprocess без shell.
 """
-
 from __future__ import annotations
 
-import ipaddress
 import logging
 import re
-import shutil
-import signal
 import subprocess
 import time
 from typing import Any
 
+from . import bpf as bpf_mod
+from .tcpdump_parser import Deduplicator, parse_tcpdump_output
+
 logger = logging.getLogger(__name__)
 
-from .tcpdump_parser import parse_tcpdump_output
-
-MAX_DURATION = 30
+MAX_DURATION = 60
 DEFAULT_DURATION = 10
 
-MAX_PACKETS = 500
-DEFAULT_PACKETS = 50
+MAX_PACKETS = 5000
+DEFAULT_PACKETS = 200
 
-# Разрешённые интерфейсы (никаких "any" снаружи — фиксируем)
-ALLOWED_IFACES = {"any", "eth0", "lo"}
+MAX_OUTPUT = 2 * 1024 * 1024
 
-# Токены, которые можно собрать в BPF (простая грамматика для UI)
-_TOKEN_RE = re.compile(
-    r"^(icmp|icmp6|tcp|udp|arp|ip|ip6|port|host|net|src|dst|and|or|not|"
-    r"broadcast|multicast|ether|vlan|"
-    r"\d{1,5}|"
-    r"[0-9a-fA-F:./]{1,50})$"
-)
+# Интерфейсы, которые не показываем: транзитные veth и docker-бриджи
+_HIDDEN_IFACE = re.compile(r"^(veth|br-|docker)")
 
 
 class TcpdumpError(Exception):
-    """Ошибка валидации / запуска tcpdump."""
+    """Ошибка валидации / запуска tcpdump (текст — для пользователя)."""
 
 
 def _validate_bpf(bpf: str) -> str:
-    """
-    Принимает простой BPF из UI (например "host 8.8.8.8 and icmp").
-    Разрешаем только белый список токенов через пробел.
-    """
-    bpf = (bpf or "").strip()
-    if not bpf:
-        return "ip"
-    if len(bpf) > 200:
-        raise TcpdumpError("BPF-фильтр слишком длинный (макс. 200 символов)")
+    try:
+        return bpf_mod.validate(bpf)
+    except bpf_mod.BpfError as e:
+        raise TcpdumpError(f"Фильтр: {e}") from e
 
-    # Запрещаем shell-метасимволы и всё, что не в whitelist
-    tokens = bpf.split()
-    for t in tokens:
-        low = t.lower()
-        if not _TOKEN_RE.match(low):
-            raise TcpdumpError(f"Недопустимый токен в BPF: {t!r}")
 
-    # Если в фильтре есть "host <ip>" — проверим, что это валидный IP
-    for i, t in enumerate(tokens[:-1]):
-        if t.lower() in ("host", "net"):
-            ip_candidate = tokens[i + 1]
-            try:
-                ipaddress.ip_network(ip_candidate, strict=False)
-            except ValueError as e:
-                raise TcpdumpError(f"Некорректный IP/сеть в BPF: {ip_candidate!r}") from e
-    return " ".join(tokens)
+def list_ifaces() -> list[dict[str, Any]]:
+    """
+    Интерфейсы хоста (через sniffer) с IPv4-адресами и признаком VLAN.
+    Кэш 30 с — список нужен на каждом запуске для проверки.
+    """
+    from django.core.cache import cache
+    cached = cache.get("capture:ifaces")
+    if cached is not None:
+        return cached
+
+    from apps.core import ops_client
+    links = ops_client.sniffer_run(["ip", "-o", "link"], timeout=5).stdout
+    addrs = ops_client.sniffer_run(["ip", "-o", "-4", "a"], timeout=5).stdout
+
+    ips: dict[str, list[str]] = {}
+    for line in addrs.splitlines():
+        m = re.search(r"^\d+:\s+([^:@\s]+).*?inet\s+(\d+\.\d+\.\d+\.\d+/\d+)", line)
+        if m:
+            ips.setdefault(m.group(1), []).append(m.group(2))
+
+    result = []
+    for line in links.splitlines():
+        m = re.match(r"^\d+:\s+([^:@]+)(?:@(\S+?))?:\s+<([^>]*)>", line)
+        if not m:
+            continue
+        name, parent, flags = m.group(1).strip(), m.group(2), m.group(3).split(",")
+        if _HIDDEN_IFACE.match(name):
+            continue
+        vlan = None
+        vm = re.search(r"\.(\d+)$", name)
+        if vm and parent:
+            vlan = int(vm.group(1))
+        result.append({
+            "name": name,
+            "ip": (ips.get(name) or [None])[0].split("/")[0] if ips.get(name) else None,
+            "cidrs": ips.get(name, []),
+            "up": "UP" in flags,
+            "vlan": vlan,
+            "parent": parent if parent and parent != "NONE" else None,
+        })
+    cache.set("capture:ifaces", result, 30)
+    return result
 
 
 def _get_ifaces() -> list[str]:
-    """Возвращает интерфейсы хоста (через sniffer-контейнер)."""
     try:
-        from apps.core import ops_client
-        out = ops_client.sniffer_run(["ip", "-o", "link"], timeout=5)
-    except Exception:
+        return [i["name"] for i in list_ifaces()]
+    except Exception as e:
+        logger.warning("iface list failed: %s", e)
         return []
-    names = re.findall(r"^\d+:\s+([^:@]+)", out.stdout, flags=re.M)
-    # veth — транзитные, не показываем
-    names = [n.strip() for n in names if not n.startswith("veth")]
-    return names
 
 
 def _validate_iface(iface: str) -> str:
     iface = (iface or "any").strip()
-    allowed = _get_ifaces()
-    if not allowed:
-        raise TcpdumpError("Не удалось получить список интерфейсов")
     if iface == "any":
         return "any"
+    allowed = _get_ifaces()
+    if not allowed:
+        raise TcpdumpError("Не удалось получить список интерфейсов (sniffer недоступен?)")
     if iface not in allowed:
-        raise TcpdumpError(
-            f"Интерфейс '{iface}' не найден. Доступны: any, {', '.join(sorted(allowed))}"
-        )
+        raise TcpdumpError(f"Интерфейс «{iface}» не найден. Доступны: any, {', '.join(sorted(allowed))}")
     return iface
 
 
+def parse_summary(stderr: str) -> dict[str, int | None]:
+    """'N packets captured / received by filter / dropped by kernel' из stderr tcpdump."""
+    out: dict[str, int | None] = {"captured": None, "received": None, "kernel_dropped": None}
+    for key, pat in (("captured", r"(\d+) packets? captured"),
+                     ("received", r"(\d+) packets? received by filter"),
+                     ("kernel_dropped", r"(\d+) packets? dropped by kernel")):
+        m = re.search(pat, stderr or "")
+        if m:
+            out[key] = int(m.group(1))
+    return out
+
+
+def clean_stderr(stderr: str) -> str:
+    """Убирает из stderr шум (promiscuous, verbose, listening, итоги)."""
+    keep = []
+    for line in (stderr or "").splitlines():
+        low = line.lower()
+        if not line.strip() or "promiscuous" in low or "verbose output" in low \
+                or "listening on" in low or re.match(r"^\d+ packets? ", line):
+            continue
+        keep.append(line.replace("tcpdump: ", "", 1))
+    return "\n".join(keep).strip()
+
+
 def run_tcpdump(
-    bpf: str = "ip",
+    bpf: str = "",
     iface: str = "any",
     duration: int = DEFAULT_DURATION,
     packets: int = DEFAULT_PACKETS,
+    dedup: bool = True,
 ) -> dict[str, Any]:
-    """
-    Запускает tcpdump через `timeout(1)`, парсит captured.
-
-    Ключевые улучшения:
-    - Оборачиваем tcpdump в `timeout Ns` — гарантированный kill через N секунд.
-    - captured: из "N packets captured" (stderr) ИЛИ по timestamp-строкам stdout.
-    - ok=True, если tcpdump стартовал (даже при 0 пакетов).
-    - Убраны `-c N` и `--immediate-mode` (лимит по времени строже, а -c мешает реагировать на сигнал).
-    """
+    """Разовый снимок: слушает до `duration` секунд или до `packets` пакетов."""
     bpf = _validate_bpf(bpf)
     iface = _validate_iface(iface)
-
     duration = max(1, min(int(duration), MAX_DURATION))
     packets = max(1, min(int(packets), MAX_PACKETS))
 
-    cmd = [
-        "tcpdump",
-        "-nn", "-tttt", "-U", "-l",  "-A", "-e",
-        "-i", iface,
-        bpf,
-    ]
-
-    # Гарантированное завершение через `duration` секунд (SIGTERM от timeout(1)
-    # внутри sniffer). Выполняет cerber-ops — у web нет docker.sock.
+    cmd = ["tcpdump", "-nn", "-tttt", "-e", "-l", "-c", str(packets), "-i", iface]
+    if bpf:
+        cmd.append(bpf)
     wrapped = ["timeout", f"{duration}s"] + cmd
 
     from apps.core import ops_client
     started = time.monotonic()
     try:
         proc = ops_client.sniffer_run(wrapped, timeout=duration + 3)
-        stdout = proc.stdout or ""
-        stderr = proc.stderr or ""
-        timed_out = (proc.returncode == 124)
-    except subprocess.TimeoutExpired as e:
-        elapsed = time.monotonic() - started
-        stdout = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
-        stderr = e.stderr.decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
+    except subprocess.TimeoutExpired:
         return {
-            "ok": False,
-            "bpf": bpf, "iface": iface,
-            "duration": duration, "packets_requested": packets,
-            "packets_captured": 0,
-            "output": stdout[:1024],
-            "error": "timeout(1) не завершил tcpdump — авария",
-            "elapsed": round(elapsed, 2),
-            "truncated": False,
+            "ok": False, "bpf": bpf, "iface": iface, "duration": duration,
+            "packets_requested": packets, "packets_captured": 0, "packets": [],
+            "error": "tcpdump не завершился вовремя", "elapsed": round(time.monotonic() - started, 2),
             "timed_out": True,
         }
-
     elapsed = time.monotonic() - started
-
-    # captured: сначала пробуем summary из stderr, потом счётчик timestamp-строк
-    captured = 0
-    m = re.search(r"(\d+)\s+packets?\s+captured", stderr)
-    if m:
-        captured = int(m.group(1))
-    else:
-        captured = len(re.findall(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.", stdout, flags=re.M))
-
-    # Фильтруем безвредные WARNING (promiscuous mode на виртуальных интерфейсах)
-    if stderr:
-        stderr = "\n".join(
-            line for line in stderr.splitlines()
-            if "doesn't support promiscuous mode" not in line
-            and "Promiscuous mode not supported" not in line
-        ).strip()
-
-    started_ok = ("listening on" in stderr) or ("listening on" in stdout)
-    ok = captured > 0 or started_ok
-
-    MAX_OUTPUT = 96 * 1024
+    stdout = proc.stdout or ""
     truncated = len(stdout) > MAX_OUTPUT
     if truncated:
-        stdout = stdout[:MAX_OUTPUT] + "\n... (вывод обрезан)"
+        stdout = stdout[:MAX_OUTPUT].rsplit("\n", 1)[0]
 
+    summary = parse_summary(proc.stderr)
+    errors = clean_stderr(proc.stderr)
+    started_ok = "listening on" in (proc.stderr or "")
+
+    parsed = parse_tcpdump_output(stdout)
+    dup = Deduplicator() if (dedup and iface == "any") else None
+    if dup:
+        parsed = dup.filter(parsed)
+    for n, p in enumerate(parsed, 1):
+        p["n"] = n
+
+    ok = started_ok or bool(parsed)
     err_msg = None
     if not ok:
-        err_msg = stderr or f"tcpdump завершился с кодом {proc.returncode}"
-    elif captured == 0:
-        err_msg = "Пакетов не поймано за отведённое время"
+        err_msg = errors or f"tcpdump завершился с кодом {proc.returncode}"
+    elif not parsed:
+        err_msg = "За отведённое время пакетов не поймано"
 
     return {
         "ok": ok,
@@ -194,13 +190,12 @@ def run_tcpdump(
         "iface": iface,
         "duration": duration,
         "packets_requested": packets,
-        "packets_captured": captured,
-        "output": stdout,
-        "packets": parse_tcpdump_output(stdout),
+        "packets_captured": summary["captured"] if summary["captured"] is not None else len(parsed),
+        "kernel_dropped": summary["kernel_dropped"],
+        "dup_dropped": dup.dropped if dup else 0,
+        "packets": parsed,
         "error": err_msg,
         "elapsed": round(elapsed, 2),
         "truncated": truncated,
-        "timed_out": timed_out,
+        "timed_out": proc.returncode == 124,
     }
-
-

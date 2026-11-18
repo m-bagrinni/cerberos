@@ -76,7 +76,7 @@
   </style>
     <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body class="auth-page{% if ui_theme_glass %} theme-glass{% endif %}">
+<body class="auth-page{% if ui_theme_glass %} theme-glass{% endif %}" data-auth="{% if request.user.is_authenticated %}1{% else %}0{% endif %}">
   <div class="auth-card">
     <div class="auth-card__logo"><i class="bi bi-shield-lock-fill"></i></div>
     <h1 class="auth-card__title">{% block auth_title %}Cerberus{% endblock %}</h1>
@@ -95,7 +95,7 @@
     <div class="auth-footer">{% block auth_footer %}{% endblock %}</div>
   </div>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="{% static 'js/telegram-webapp-auth.js' %}?v=12"></script>
+  <script src="{% static 'js/telegram-webapp-auth.js' %}?v=20261117"></script>
     <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
 </body>
 </html>

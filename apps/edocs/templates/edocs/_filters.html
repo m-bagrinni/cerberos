@@ -1,0 +1,47 @@
+{# Поиск и фильтры списка. mode: inbox | sent | drafts | journal #}
+<form class="ed-filters" method="get" data-ed-autosubmit role="search">
+  {% if f %}<input type="hidden" name="f" value="{{ f }}">{% endif %}
+  <div class="ed-search">
+    <i class="bi bi-search"></i>
+    <input class="ed-input" type="search" name="q" value="{{ request.GET.q }}" placeholder="Номер, тема, автор, исполнитель…" aria-label="Поиск">
+  </div>
+  <select name="type" class="ed-select" aria-label="Вид">
+    <option value="">Все виды</option>
+    {% for k, l in TYPES %}<option value="{{ k }}"{% if request.GET.type == k %} selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  {% if mode != 'drafts' %}
+  <select name="status" class="ed-select" aria-label="Статус">
+    <option value="">Любой статус</option>
+    {% for k, l in STATUSES %}<option value="{{ k }}"{% if request.GET.status == k %} selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <select name="priority" class="ed-select" aria-label="Приоритет">
+    <option value="">Любой приоритет</option>
+    {% for k, l in PRIORITIES %}<option value="{{ k }}"{% if request.GET.priority == k %} selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  {% if mode == 'journal' %}
+  <select name="author" class="ed-select" aria-label="Автор">
+    <option value="">Любой автор</option>
+    {% for u in people %}<option value="{{ u.pk }}"{% if sel_author == u.pk|stringformat:"d" %} selected{% endif %}>{{ u.short_name }}</option>{% endfor %}
+  </select>
+  <select name="executor" class="ed-select" aria-label="Исполнитель">
+    <option value="">Любой исполнитель</option>
+    {% for u in people %}<option value="{{ u.pk }}"{% if sel_executor == u.pk|stringformat:"d" %} selected{% endif %}>{{ u.short_name }}</option>{% endfor %}
+  </select>
+  <input class="ed-input" type="date" name="from" value="{{ request.GET.from }}" aria-label="Зарегистрирован с" title="Зарегистрирован с">
+  <input class="ed-input" type="date" name="to" value="{{ request.GET.to }}" aria-label="по" title="по">
+  {% endif %}
+  {% if mode != 'drafts' %}
+  <label class="ed-check"><input type="checkbox" name="overdue" value="1"{% if request.GET.overdue %} checked{% endif %}> Просроченные</label>
+  {% endif %}
+  <select name="sort" class="ed-select" aria-label="Сортировка">
+    <option value="new"{% if sort == 'new' %} selected{% endif %}>Сначала новые</option>
+    <option value="old"{% if sort == 'old' %} selected{% endif %}>Сначала старые</option>
+    <option value="due"{% if sort == 'due' %} selected{% endif %}>По сроку</option>
+    <option value="upd"{% if sort == 'upd' %} selected{% endif %}>По изменению</option>
+  </select>
+  <noscript><button class="ed-btn ed-btn--sm" type="submit">Найти</button></noscript>
+  {% if request.GET.q or request.GET.type or request.GET.status or request.GET.priority or request.GET.overdue or request.GET.from or request.GET.to or request.GET.author or request.GET.executor %}
+  <a class="ed-btn ed-btn--ghost ed-btn--sm" href="?{% if f %}f={{ f }}{% endif %}"><i class="bi bi-x"></i> Сбросить</a>
+  {% endif %}
+</form>

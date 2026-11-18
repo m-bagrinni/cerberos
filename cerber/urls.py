@@ -149,8 +149,8 @@ urlpatterns = [
 from django.urls import re_path  # noqa: E402
 from django.views.static import serve as _media_serve  # noqa: E402
 
-# Вложения E-Docs напрямую НЕ отдаются: только через edocs:download_file /
-# view_document с проверкой участника документа. Здесь — аватарки и прочее.
+# Вложения E-Docs напрямую НЕ отдаются: только через edocs:file_view / file_download
+# с проверкой участника документа. Здесь — аватарки и прочее.
 _MEDIA_PRIVATE_PREFIXES = ("edocs/", "edocs_pdf/", "edocs_reply/")
 
 

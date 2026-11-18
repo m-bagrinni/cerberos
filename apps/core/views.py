@@ -26,7 +26,7 @@ def home(request):
     from apps.core.models import Announcement, Module
     from apps.devices.models import Device
     from apps.edocs.models import Comment
-    from apps.edocs.queries import INBOX_FILTERS, PENDING_Q, inbox_qs, pending_counts
+    from apps.edocs.queries import INBOX_FILTERS, pending_counts, pending_qs, unread_qs
 
     user = request.user
     now = timezone.localtime()
@@ -57,7 +57,11 @@ def home(request):
         {"key": key, "label": label, "count": counts[key]}
         for key, (label, _q) in INBOX_FILTERS.items()
     ]
-    pending_list = (inbox_qs(user).filter(PENDING_Q).select_related("author")
+    from django.db.models import Exists, OuterRef
+
+    from apps.edocs.models import Assignment
+    unread_mine = Assignment.objects.filter(document=OuterRef("pk"), user=user, status="pending", is_read=False)
+    pending_list = (pending_qs(user).annotate(is_read=~Exists(unread_mine)).select_related("author")
                     .order_by("-updated_at")[:6])
 
     # ── Мои отправленные: где сейчас документ ──
@@ -66,15 +70,16 @@ def home(request):
 
     # ── Новые комментарии к моим документам (7 дней) ──
     comments_list = (Comment.objects
-                     .filter(Q(document__author=user) | Q(document__recipient=user))
+                     .filter(Q(document__author=user) | Q(document__assignments__user=user))
+                     .distinct()
                      .exclude(author=user)
                      .filter(created_at__gte=now - timedelta(days=7))
                      .select_related("author", "document").order_by("-created_at")[:5])
 
     # ── Колокольчик: непрочитанные ──
-    unread_qs = Document.objects.filter(recipient=user, is_read=False).exclude(status="draft")
-    unread_docs = unread_qs.count()
-    unread_docs_list = unread_qs.select_related("author").order_by("-created_at")[:5]
+    unread = unread_qs(user)
+    unread_docs = unread.count()
+    unread_docs_list = unread.select_related("author").order_by("-created_at")[:5]
 
     # ── Сотрудники, сгруппированные по должности ──
     users_list = (User.objects.filter(is_active=True)

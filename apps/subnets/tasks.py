@@ -137,6 +137,9 @@ def scan_subnet_task(self, subnet_id: int):
         duration_ms, updated_alive, updated_lost,
     )
 
+    # Отпечатки живых узлов (TTL, NetBIOS) — для определения типа устройства
+    fingerprint_subnet_task.delay(subnet.pk)
+
     return {
         "ok": True,
         "cidr": subnet.cidr,
@@ -144,6 +147,16 @@ def scan_subnet_task(self, subnet_id: int):
         "total": result.hosts_total,
         "duration_ms": duration_ms,
     }
+
+
+@shared_task(name="subnets.fingerprint_subnet_task")
+def fingerprint_subnet_task(subnet_id: int, force: bool = False):
+    """TTL + NetBIOS для живых IP подсети (не чаще раза в 6 ч на IP). См. fingerprint.py."""
+    from .fingerprint import fingerprint_ips
+    ips = list(IpAddress.objects.filter(subnet_id=subnet_id, is_alive=True))
+    n = fingerprint_ips(ips, force=force)
+    logger.info("fingerprint_subnet_task: subnet=%s, обновлено %d", subnet_id, n)
+    return {"subnet": subnet_id, "updated": n}
 
 
 def _finish_scan_error(scan: SubnetScan, subnet: Subnet, error: str):
@@ -283,3 +296,20 @@ def check_ip_alerts():
     from django.core.management import call_command
     call_command("check_alerts")
     return {"ok": True}
+
+
+# ─────────────────────────────────────────────────────────────
+# Автоопределение hostname / MAC для живых IP
+# ─────────────────────────────────────────────────────────────
+
+@shared_task(name="subnets.resolve_hostnames", soft_time_limit=600, time_limit=660)
+def resolve_hostnames():
+    """Beat-задача: заполняет пустые hostname/MAC (AD → DNS → SNMP → SMB/NetBIOS, ARP для MAC)."""
+    from apps.monitoring.locks import single_run
+    from .hostnames import resolve_all
+    with single_run("subnets.resolve_hostnames", 700) as ok:
+        if not ok:
+            return {"skipped": "already running"}
+        stats = resolve_all()
+        logger.info("resolve_hostnames: %s", stats)
+        return stats

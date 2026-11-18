@@ -1,0 +1,236 @@
+{% extends "adminui/base_admin.html" %}
+
+{% block admin_title %}Зависимости сети{% endblock %}
+
+{% block admin_actions %}
+<button type="submit" form="deps-form" class="btn--primary"><i class="bi bi-check-lg"></i> Сохранить</button>
+{% endblock %}
+
+{% block admin_content %}
+<style>
+  .deps-lead { color: var(--text-muted, #8e8e8e); margin: 0 0 12px; line-height: 1.55; max-width: 960px; }
+  .deps-stats { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin: 4px 0 14px; color: var(--text-muted, #8e8e8e); font-size: 13px; }
+  .deps-stats b { color: var(--text-strong, #fff); }
+  .deps-hub { width: auto; height: 30px; display: inline-block; margin-left: 4px; }
+  .deps-tools { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .deps-filter { max-width: 300px; }
+  .deps-bulk { display: inline-flex; gap: 8px; align-items: center; color: var(--text-muted, #8e8e8e); font-size: 13px; flex-wrap: wrap; }
+  .deps-bulk select.aui-input { width: 240px; height: 32px; }
+  .deps-name { display: flex; align-items: center; gap: 6px; }
+  .deps-name .mono { color: var(--text-muted, #8e8e8e); font-size: 12px; }
+  .deps-tree { color: var(--text-muted, #8e8e8e); }
+  .deps-path { font-size: 12px; color: var(--text-muted, #8e8e8e); max-width: 440px; }
+  .deps-auto { font-size: 11px; color: var(--info, #5ab8f5); margin-top: 2px; }
+  .deps-hint { font-size: 11.5px; color: var(--warn, #f5c542); margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .deps-hint .btn--sm { padding: 1px 8px; font-size: 11px; }
+  .deps-below, .deps-root { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+  .deps-below { background: rgba(90, 184, 245, .14); color: var(--info, #5ab8f5); }
+  .deps-root { background: rgba(255, 122, 26, .14); color: var(--accent, #ff7a1a); }
+  .data-table select.aui-input { min-width: 260px; height: 32px; }
+  .data-table tr.is-changed td { background: rgba(255, 122, 26, .08); }
+  .deps-hub.is-changed { outline: 2px solid var(--accent, #ff7a1a); }
+</style>
+
+<p class="deps-lead">
+  Когда пропадает связь с узлом — устройство недоступно, NE недоступен, обрыв или нет питания на оптической
+  линии, — придёт <b>одно</b> уведомление с числом зависимых. Алерты всего, что за ним, свернутся под него без
+  отдельных уведомлений и эскалации. Если после восстановления что-то так и не поднялось — придёт отдельное уведомление.
+</p>
+<p class="deps-lead">
+  <b>Цепочки по оптике вычисляются сами</b> из линий (Станции → Линии) от центра мониторинга. Вручную — только то,
+  чего нет в линиях: за каким коммутатором или <b>за каким NE мультиплексора</b> стоит устройство (подключение
+  через LAN-порт Olencom), и за каким устройством подсеть. Ручное значение важнее вычисленного.
+</p>
+
+<form method="post" id="deps-form">
+  {% csrf_token %}
+  <div class="deps-stats">
+    <span>Центр мониторинга:
+      <select class="aui-input deps-hub" name="hub" data-initial="{{ hub_explicit|default:'' }}">
+        <option value="">авто{% if not hub_explicit and hub_names %} ({{ hub_names|join:", " }}){% endif %}</option>
+        {% for st in stations %}<option value="{{ st.pk }}"{% if st.pk == hub_explicit %} selected{% endif %}>{{ st.name }}</option>{% endfor %}
+      </select>
+    </span>
+    <span>Устройств: <b>{{ rows|length }}</b></span>
+    <span>Связаны с сетью: <b>{{ n_linked }}</b></span>
+    <span>Корней: <b>{{ n_roots }}</b></span>
+    <span>NE: <b>{{ nes|length }}</b></span>
+  </div>
+
+  <div class="deps-tools">
+    <input class="aui-input deps-filter" type="search" placeholder="Фильтр по имени или IP…" data-deps-filter>
+    <span class="deps-bulk">
+      Всем без вышестоящего (видимым) назначить
+      <select class="aui-input" data-deps-bulk>
+        <option value="">— выберите —</option>
+        <optgroup label="Устройства">{% for o in devices %}<option value="d{{ o.pk }}">{{ o.name }} · {{ o.ip }}</option>{% endfor %}</optgroup>
+        <optgroup label="NE мультиплексоров">{% for v, l in ne_options %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</optgroup>
+      </select>
+      <button type="button" class="btn--secondary btn--sm" data-deps-bulk-apply>Применить</button>
+    </span>
+    {% if n_hints %}
+    <button type="button" class="btn--secondary btn--sm" data-deps-hints-all><i class="bi bi-magic"></i> Применить все подсказки ({{ n_hints }})</button>
+    {% endif %}
+  </div>
+
+  {# Список вариантов один на всю страницу; в каждой строке JS копирует его, убирая себя и нижестоящих #}
+  <template id="deps-options">
+    <option value="">— нет / по линиям —</option>
+    <optgroup label="Устройства">{% for o in devices %}<option value="d{{ o.pk }}">{{ o.name }} · {{ o.ip }}</option>{% endfor %}</optgroup>
+    <optgroup label="NE мультиплексоров">{% for v, l in ne_options %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</optgroup>
+  </template>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel__header"><h2 class="panel__title">Устройства</h2></div>
+    <div class="panel__body panel__body--flush">
+      <table class="data-table">
+        <thead><tr><th>Устройство</th><th>Вышестоящее (вручную)</th><th>Путь до центра</th><th>За ним</th></tr></thead>
+        <tbody>
+          {% for d in rows %}
+          <tr data-deps-row data-q="{{ d.name|lower }} {{ d.ip }}">
+            <td>
+              <div class="deps-name" style="padding-left:{% widthratio d.level 1 14 %}px">
+                {% if d.level %}<span class="deps-tree">└</span>{% endif %}
+                <a href="{% url 'adminui:device_detail' d.pk %}">{{ d.name }}</a>
+                <span class="mono">{{ d.ip }}</span>
+                {% if not d.path %}{% if d.below.d or d.below.n %}<span class="deps-root">корень</span>{% endif %}{% endif %}
+              </div>
+              {% if d.category %}<div class="deps-path">{{ d.category.name }}</div>{% endif %}
+            </td>
+            <td>
+              <select class="aui-input" name="dev_{{ d.pk }}" data-initial="{{ d.manual }}"
+                      data-exclude="{{ d.excluded|join:' ' }}"><option value="{{ d.manual }}" selected>…</option></select>
+              {% if d.ne_hint %}<div class="deps-hint"><i class="bi bi-lightbulb"></i> На станции стоит <b>{{ d.ne_hint.1 }}</b>
+                <button type="button" class="btn--secondary btn--sm" data-deps-use="{{ d.pk }}" data-deps-value="{{ d.ne_hint.0 }}">За этот NE</button></div>{% endif %}
+              {% if d.link_hint %}<div class="deps-hint"><i class="bi bi-exclamation-triangle"></i> По оптическим линиям — через <b>{{ d.link_hint.1 }}</b>
+                <button type="button" class="btn--secondary btn--sm" data-deps-use="{{ d.pk }}" data-deps-value="{{ d.link_hint.0 }}">Как по линиям</button></div>{% endif %}
+            </td>
+            <td class="deps-path">
+              {% if d.path %}{{ d.path }}{% else %}<span class="c-muted">— корень —</span>{% endif %}
+              {% if d.auto_via %}<div class="deps-auto"><i class="bi bi-bezier2"></i> по линии {{ d.auto_via }}</div>{% endif %}
+            </td>
+            <td>
+              {% if d.below.d %}<span class="deps-below">{{ d.below.d }} устр.</span>{% endif %}
+              {% if d.below.n %}<span class="deps-below">{{ d.below.n }} NE</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel__header">
+      <h2 class="panel__title">NE мультиплексоров — по оптическим линиям</h2>
+      <a href="{% url 'adminui:links' %}" class="btn--secondary btn--sm"><i class="bi bi-bezier2"></i> Линии</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <table class="data-table">
+        <thead><tr><th>NE</th><th>Доступен через</th><th>Путь до центра</th><th>За ним</th></tr></thead>
+        <tbody>
+          {% for n in nes %}
+          <tr data-deps-row data-q="ne-{{ n.ne_id }} {{ n.display_name|lower }}">
+            <td><div class="deps-name" style="padding-left:{% widthratio n.depth 1 14 %}px">{% if n.depth %}<span class="deps-tree">└</span>{% endif %}<b>NE-{{ n.ne_id }}</b> {{ n.display_name }}</div></td>
+            <td>{% if n.via %}<i class="bi bi-bezier2"></i> {{ n.via }}{% else %}шлюз {{ n.gateway.name }} <span class="deps-root">головной</span>{% endif %}</td>
+            <td class="deps-path">{{ n.path|default:"—" }}</td>
+            <td>
+              {% if n.n_below %}<span class="deps-below">{{ n.n_below }} NE</span>{% endif %}
+              {% if n.d_below %}<span class="deps-below">{{ n.d_below }} устр.</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:var(--text-muted)">NE нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__header"><h2 class="panel__title">Подсети (пинг-алерты IP)</h2></div>
+    <div class="panel__body panel__body--flush">
+      <table class="data-table">
+        <thead><tr><th>Подсеть</th><th>Название</th><th>Вышестоящее устройство</th></tr></thead>
+        <tbody>
+          {% for s in subnets %}
+          <tr data-deps-row data-q="{{ s.cidr }} {{ s.name|lower }}">
+            <td class="mono">{{ s.cidr }}</td>
+            <td>{{ s.name|default:"—" }}</td>
+            <td>
+              <select class="aui-input" name="sub_{{ s.pk }}" data-initial="{{ s.uplink_id|default:'' }}">
+                <option value="">— не задано —</option>
+                {% for o in devices %}<option value="{{ o.pk }}"{% if o.pk == s.uplink_id %} selected{% endif %}>{{ o.name }} · {{ o.ip }}</option>{% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="color:var(--text-muted)">Подсетей нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="aui-form__actions">
+    <button type="submit" class="btn--primary"><i class="bi bi-check-lg"></i> Сохранить</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  const form = document.getElementById("deps-form");
+  const tpl = document.getElementById("deps-options");
+  // Варианты вышестоящего: общий список минус само устройство и всё, что ниже него (иначе цикл)
+  form.querySelectorAll('select[name^="dev_"]').forEach((s) => {
+    const own = new Set((s.dataset.exclude || "").split(" ").filter(Boolean));
+    s.innerHTML = "";
+    s.appendChild(tpl.content.cloneNode(true));
+    s.querySelectorAll("option").forEach((o) => { if (own.has(o.value)) o.remove(); });
+    s.value = s.dataset.initial;
+  });
+
+  const rows = Array.from(document.querySelectorAll("[data-deps-row]"));
+  const f = document.querySelector("[data-deps-filter]");
+  f.addEventListener("input", () => {
+    const q = f.value.trim().toLowerCase();
+    rows.forEach((r) => { r.hidden = q && !r.dataset.q.includes(q); });
+  });
+  f.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+
+  const mark = (s) => (s.closest("tr") || s).classList.toggle("is-changed", s.value !== s.dataset.initial);
+  form.querySelectorAll("select[data-initial]").forEach((s) => s.addEventListener("change", () => mark(s)));
+
+  const use = (b) => {
+    const s = form.querySelector(`select[name="dev_${b.dataset.depsUse}"]`);
+    if (!s || !s.querySelector(`option[value="${b.dataset.depsValue}"]`)) return false;
+    s.value = b.dataset.depsValue; mark(s);
+    b.closest(".deps-hint").style.opacity = ".5";
+    return true;
+  };
+  document.querySelectorAll("[data-deps-use]").forEach((b) => b.addEventListener("click", () => use(b)));
+  const all = document.querySelector("[data-deps-hints-all]");
+  if (all) all.addEventListener("click", () => {
+    let n = 0;
+    document.querySelectorAll("[data-deps-use]").forEach((b) => { if (use(b)) n += 1; });
+    alert(`Применено подсказок: ${n}. Проверьте и нажмите «Сохранить».`);
+  });
+
+  document.querySelector("[data-deps-bulk-apply]").addEventListener("click", () => {
+    const v = document.querySelector("[data-deps-bulk]").value;
+    if (!v) return;
+    let n = 0;
+    form.querySelectorAll('select[name^="dev_"]').forEach((s) => {
+      if (s.closest("tr").hidden || s.value || !s.querySelector(`option[value="${v}"]`)) return;
+      s.value = v; mark(s); n += 1;
+    });
+    alert(n ? `Назначено: ${n}. Проверьте и нажмите «Сохранить».` : "Подходящих устройств нет.");
+  });
+
+  window.addEventListener("beforeunload", (e) => {
+    if (document.querySelector(".is-changed") && !form.dataset.sent) e.preventDefault();
+  });
+  form.addEventListener("submit", () => { form.dataset.sent = "1"; });
+})();
+</script>
+{% endblock %}

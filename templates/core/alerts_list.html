@@ -3,6 +3,22 @@
 
 {% block title %}Алерты — Cerberus{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+<style>
+  /* Каскады (apps/alerts/correlation.py) */
+  .alert-card__cascade { margin-top: 8px; font-size: 12px; border: 1px solid var(--border, rgba(255,255,255,.08)); border-radius: 6px; }
+  .alert-card__cascade summary { cursor: pointer; padding: 6px 8px; color: var(--info, #5ab8f5); list-style: none; display: flex; gap: 6px; align-items: center; }
+  .alert-card__cascade summary::-webkit-details-marker { display: none; }
+  .alert-card__cascade[open] summary { border-bottom: 1px solid var(--border, rgba(255,255,255,.08)); }
+  .alert-card__cascade ul { list-style: none; margin: 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+  .alert-card__cascade li { display: flex; gap: 6px; align-items: baseline; }
+  .alert-card__cascade-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn, #f5c542); flex: none; transform: translateY(-1px); }
+  .alert-card__cascade-dot--crit, .alert-card__cascade-dot--power { background: var(--crit, #ff5d6c); }
+  .alert-card__held { margin-top: 8px; font-size: 12px; color: var(--warn, #f5c542); display: flex; gap: 6px; align-items: center; }
+</style>
+{% endblock %}
+
 {% block content %}
 
 {% include "alerts/storm_tab.html" %}
@@ -42,7 +58,7 @@
     <div class="alerts-section__title" style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <span class="device-group__dot device-group__dot--crit"></span>
-            Активные ({{ counts.firing_total }})
+            Активные ({{ counts.firing_total }}){% if counts.suppressed_total %} <span class="c-muted" style="font-weight:400;font-size:13px" title="Следствия недоступности вышестоящих устройств — свёрнуты в карточки причин">+ {{ counts.suppressed_total }} свёрнуто</span>{% endif %}
         </div>
         {% if acc.e.alerts %}
         <button id="clear-alerts-btn" class="btn--secondary btn--sm" style="padding: 4px 12px; font-size: 12px;">
@@ -112,6 +128,25 @@
             <div class="alert-card__message c-muted" style="font-size: 12px; background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px;">
                 {{ a.message }}
             </div>
+            {% if a.cascade %}
+            <details class="alert-card__cascade">
+                <summary><i class="bi bi-diagram-2"></i> Свёрнуто следствий: {{ a.cascade|length }} — без отдельных уведомлений</summary>
+                <ul>
+                    {% for c in a.cascade %}
+                    <li>
+                        <span class="alert-card__cascade-dot alert-card__cascade-dot--{{ c.severity }}"></span>
+                        {% if c.ne_device %}NE-{{ c.ne_device.ne_id }} {{ c.ne_device.display_name }}{% elif c.ip_address %}IP {{ c.ip_address.ip }}{% elif c.device %}{{ c.device.name }}{% endif %}
+                        <span class="c-muted">· {{ c.message|truncatechars:70 }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+            {% endif %}
+            {% if a.notify_held_at %}
+            <div class="alert-card__held" title="Выше по цепочке устройство не отвечает на пинг — ждём, не оно ли причина (до 3 минут)">
+                <i class="bi bi-hourglass-split"></i> Уведомление придержано: проверяем вышестоящее
+            </div>
+            {% endif %}
             <footer class="alert-card__ack">
                 {% if a.acked_by %}
                     <span class="alert-card__ack-who"><i class="bi bi-person-check"></i> В работе: {% firstof a.acked_by.get_full_name a.acked_by.username %} · {{ a.acked_at|date:"H:i" }}</span>
