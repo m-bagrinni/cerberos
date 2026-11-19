@@ -1,85 +1,137 @@
 # Продакшн-override.
-# Запуск: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Запуск: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
-# Отличия от base:
-#   - web: gunicorn, без volume-а кода, entrypoint.prod.sh
-#   - worker, beat: без volume-а кода
-#   - nginx: reverse proxy
-#   - postgres/redis: НЕ публикуются наружу
-#   - порты 80/443 публикует только nginx
+# Состав тот же, что в docker-compose.dev.yml, отличия:
+#   - код в образе (без volume-а), DJANGO_ENV=prod;
+#   - web: Daphne (ASGI — нужен для WebSocket СЭД), миграции и collectstatic в entrypoint.prod.sh;
+#   - наружу публикует только nginx (80/443); postgres/redis/web — только внутри docker-сети;
+#   - /media/ отдаёт Django (проверка входа и прав на вложения СЭД), nginx — только /static/.
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  image: cerber-app:prod
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DJANGO_ENV: prod
+    MIBDIRS: /app/mibs/active:/app/mibs/standard:/usr/share/snmp/mibs:/var/lib/mibs/ietf
+  volumes:
+    - media:/app/media
+    - ./mibs:/app/mibs:ro          # mibs/ не попадает в образ (.dockerignore)
+    - /var/lib/mibs:/var/lib/mibs:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
 
 services:
   postgres:
-    # В проде порты НЕ публикуются
+    command: postgres -c max_connections=300
     ports: !reset []
 
   redis:
     ports: !reset []
 
   web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      DJANGO_ENV: prod
+    <<: *app
     entrypoint: ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.prod.sh"]
-    command: >
-      gunicorn cerber.wsgi:application
-        --bind 0.0.0.0:8000
-        --workers 3
-        --threads 2
-        --timeout 120
-        --access-logfile -
-        --error-logfile -
-        --log-level info
-    volumes:
-      - static:/app/staticfiles
-      - media:/app/media
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    command: daphne -b 0.0.0.0 -p 8000 --proxy-headers cerber.asgi:application
+    ports: !reset []
     expose:
       - "8000"
+    volumes:
+      - media:/app/media
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+      - static:/app/staticfiles
+      - pcap_data:/tmp/cerber_pcap
 
-  worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      DJANGO_ENV: prod
-    command: >
-      celery -A cerber worker
-        -l info
-        --concurrency=4
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  worker_critical:
+    <<: *app
+    command: celery -A cerber worker -l info --concurrency=4 -Q critical
+
+  worker_high:
+    <<: *app
+    command: celery -A cerber worker -l info --concurrency=2 -Q high
+
+  worker_main:
+    <<: *app
+    command: celery -A cerber worker -l info --concurrency=2 -Q default
+
+  worker_low:
+    <<: *app
+    command: celery -A cerber worker -l info --concurrency=1 -Q low
+
+  worker_traffic:
+    <<: *app
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - media:/app/media
+      - ./mibs:/app/mibs:ro
+      - /var/lib/mibs:/var/lib/mibs:ro
+      - pcap_data:/tmp/cerber_pcap
+    command: celery -A cerber worker -l info --concurrency=1 -Q traffic
 
   beat:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    restart: unless-stopped
-    env_file: .env
+    <<: *app
+    command: celery -A cerber beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  telegram_bot:
+    <<: *app
+    command: python manage.py run_telegram_bot
+
+  # Единственный контейнер с docker.sock (см. ops/agent.py и docker-compose.dev.yml).
+  ops:
+    image: cerber-app:prod
+    pull_policy: never
+    container_name: cerber-ops
+    group_add:
+      - "${DOCKER_GID:-138}"      # группа docker хоста — доступ к сокету
+    user: "${CUID:-1000}:${CGID:-1000}"
+    entrypoint: ["/usr/bin/tini", "--"]
+    command: ["python", "/ops/agent.py"]
+    working_dir: /ops
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
-      DJANGO_ENV: prod
-    command: >
-      celery -A cerber beat
-        -l info
-        --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      OPS_TOKEN: ${OPS_TOKEN}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./ops:/ops:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - web
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9100/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # tcpdump для детектора штормов; команды — только через ops (белый список).
+  sniffer:
+    image: nicolaka/netshoot:latest
+    container_name: cerber-sniffer
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    pid: host
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+    command: ["sleep", "infinity"]
+    volumes:
+      - pcap_data:/tmp/cerber_pcap
 
   nginx:
     image: nginx:1.27-alpine
@@ -90,7 +142,6 @@ services:
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - static:/var/www/static:ro
-      - media:/var/www/media:ro
       # - ./docker/certs:/etc/nginx/certs:ro
     depends_on:
       - web
@@ -98,3 +149,4 @@ services:
 volumes:
   static:
   media:
+  pcap_data:

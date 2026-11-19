@@ -236,7 +236,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cerber-cloudflared
     restart: unless-stopped
-    command: tunnel --url http://172.18.0.8:8000 --no-autoupdate
+    command: tunnel --url http://web:8000 --no-autoupdate
     depends_on:
       - web
     networks:
