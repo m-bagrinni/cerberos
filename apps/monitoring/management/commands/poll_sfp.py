@@ -56,6 +56,7 @@ T_RXOPT   = 9
 OID_3120_BASE = "1.3.6.1.4.1.171.12.72.2.1.1.1"
 
 # === DGS-3630 (DLINKSW-DDM-MIB, .171.14.72.1.4.1) ===
+OID_3630_CFG_STATE =    "1.3.6.1.4.1.171.14.72.1.2.1.1.1"   # dDdmIfCfgState: 1 вкл, 2 выкл
 OID_3630_TEMP =         "1.3.6.1.4.1.171.14.72.1.4.1.1.1"
 OID_3630_TEMP_STATE =   "1.3.6.1.4.1.171.14.72.1.4.1.1.2"
 OID_3630_VOLTAGE =      "1.3.6.1.4.1.171.14.72.1.4.1.1.7"
@@ -117,7 +118,16 @@ class Command(BaseCommand):
         if d["modules"]:
             self.stdout.write("  формат: DGS-3630 DLINKSW-DDM-MIB (.171.14.72)")
         else:
-            self.stdout.write("  DDM не найден ни в одном формате")
+            # DGS-3630: таблица настроек есть, а измерений нет — DDM выключен на портах
+            # (dDdmIfCfgState: 1 — включён, 2 — выключен). Так было на ac.01.ukjd-old.
+            off = [oid.rsplit(".", 1)[-1] for oid, v in await client.walk(OID_3630_CFG_STATE)
+                   if self._int(v) == 2]
+            if off:
+                msg = f"DDM выключен на коммутаторе (порты if_index {', '.join(off)}) — включите мониторинг SFP"
+                self.stdout.write("  " + msg)
+                log.warning("poll_sfp %s (%s): %s", device.name, device.ip, msg)
+            else:
+                self.stdout.write("  DDM не найден ни в одном формате")
         return d
 
     # ----------------------------------------------------------------

@@ -1,92 +1,81 @@
 {% extends "adminui/base_admin.html" %}
 
+{% block header_class %} adminui-header--compact{% endblock %}
 {% block admin_title %}Алерт #{{ alert.pk }}{% endblock %}
 
-{% block admin_actions %}
-<a href="{% url 'adminui:alerts' %}" class="btn--secondary">
-  <i class="bi bi-arrow-left"></i> К списку
-</a>
-{% endblock %}
 
 {% block admin_content %}
-
-<section class="panel">
-  <div class="panel__body">
-    <div class="device-header">
-      <div>
-        <h2 class="device-header__name">
-          {% if alert.severity == "crit" %}
-            <span class="badge badge--crit">CRIT</span>
-          {% elif alert.severity == "warn" %}
-            <span class="badge badge--warn">WARN</span>
-          {% endif %}
-          {{ alert.metric_key }}
-        </h2>
-        <div class="device-header__meta">
-          {% if alert.state == "firing" %}
-            <span style="color:var(--crit)">● firing</span>
-          {% else %}
-            <span class="text-muted">○ ok</span>
-          {% endif %}
-          <span>·</span>
-          <span>Начало: {{ alert.started_at|date:"d.m.Y H:i:s" }}</span>
-          {% if alert.resolved_at %}
-            <span>·</span>
-            <span>Разрешён: {{ alert.resolved_at|date:"d.m.Y H:i:s" }}</span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="device-header__details">
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Объект</span>
-        <span class="device-detail-item__value">
-          {% if alert.device %}
-            <a href="{% url 'adminui:device_detail' alert.device.pk %}" style="color:var(--primary)">
-              {{ alert.device.name }}
-            </a>
-            <span class="text-muted mono" style="font-size:11px">({{ alert.device.ip }})</span>
-          {% elif alert.ne_device %}
-            <a href="{% url 'adminui:ne_detail' alert.ne_device.pk %}" style="color:var(--primary)">
-              {{ alert.ne_device.name }} (NE {{ alert.ne_device.ne_id }})
-            </a>
-          {% elif alert.ip_address %}
-            <span class="mono">{{ alert.ip_address.ip }}</span>
-          {% else %}—{% endif %}
-        </span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Значение</span>
-        <span class="device-detail-item__value mono">{{ alert.value|default:"—" }}</span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Порог</span>
-        <span class="device-detail-item__value mono">{{ alert.threshold|default:"—" }}</span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Длительность</span>
-        <span class="device-detail-item__value">
-          {% if alert.state == "firing" %}
-            {{ alert.started_at|timesince }}
-          {% else %}
-            {% if alert.resolved_at %}
-              {{ alert.started_at|timesince:alert.resolved_at }}
-            {% else %}—{% endif %}
-          {% endif %}
-        </span>
-      </div>
+<div class="aui-hero">
+  <div class="aui-hero__icon{% if alert.state != 'firing' %} aui-hero__icon--ok{% elif alert.severity == 'warn' %} aui-hero__icon--warn{% else %} aui-hero__icon--crit{% endif %}">
+    <i class="bi {% if alert.state != 'firing' %}bi-check2-circle{% elif alert.severity == 'power' %}bi-lightning{% else %}bi-exclamation-octagon{% endif %}"></i>
+  </div>
+  <div class="aui-hero__main">
+    <h2 class="aui-hero__title">
+      {% if alert.device %}{{ alert.device.name }}{% elif alert.ne_device %}{{ alert.ne_device.name }}{% elif alert.ip_address %}{{ alert.ip_address.ip }}{% else %}Алерт #{{ alert.pk }}{% endif %}
+      <span class="badge badge--{{ alert.severity }}">{{ alert.get_severity_display }}</span>
+      {% if alert.state == "firing" %}<span class="aui-status aui-status--crit">активен</span>{% else %}<span class="aui-status aui-status--ok">закрыт</span>{% endif %}
+    </h2>
+    <div class="aui-hero__meta">
+      <span class="aui-chip aui-chip--mono"><i class="bi bi-activity"></i>{{ alert.metric_key }}</span>
+      {% if alert.device %}<a class="aui-chip" href="{% url 'adminui:device_detail' alert.device.pk %}"><i class="bi bi-hdd-network"></i>{{ alert.device.ip }}</a>{% endif %}
+      {% if alert.ne_device %}<a class="aui-chip" href="{% url 'adminui:ne_detail' alert.ne_device.pk %}"><i class="bi bi-router"></i>NE {{ alert.ne_device.ne_id }}</a>{% endif %}
+      {% if alert.suppressed_by_id %}<a class="aui-chip" href="{% url 'adminui:alert_detail' alert.suppressed_by_id %}" title="Уведомления не отправлялись — причина выше по сети"><i class="bi bi-link-45deg"></i>свёрнут под #{{ alert.suppressed_by_id }}</a>{% endif %}
     </div>
   </div>
-</section>
-
-<section class="panel" style="margin-top:16px">
-  <div class="panel__header">
-    <h2 class="panel__title">Сообщение</h2>
+  <div class="aui-hero__actions">
+    {% if alert.state == "firing" %}
+<button type="button" class="btn--primary" id="btn-resolve" data-url="{% url 'adminui:alert_resolve' alert.pk %}"><i class="bi bi-check2-circle"></i> Закрыть</button>
+{% endif %}
   </div>
-  <div class="panel__body">
-    <pre style="white-space:pre-wrap;font-family:monospace;font-size:12px;color:var(--text);margin:0">{{ alert.message }}</pre>
+  <div class="aui-hero__facts">
+    <div class="aui-fact"><span class="aui-fact__label">Значение</span><span class="aui-fact__value mono">{{ alert.value|default_if_none:"—" }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Порог</span><span class="aui-fact__value mono">{{ alert.threshold|default_if_none:"—" }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Начало</span><span class="aui-fact__value">{{ alert.started_at|date:"d.m.Y H:i:s" }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Длительность</span><span class="aui-fact__value">{% if alert.state == "firing" %}{{ alert.started_at|timesince }}{% elif alert.resolved_at %}{{ alert.started_at|timesince:alert.resolved_at }}{% else %}—{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">В работе</span><span class="aui-fact__value">{% if alert.acked_by %}{{ alert.acked_by.get_full_name|default:alert.acked_by.username }}{% if alert.acked_at %} <span class="text-muted text-sm">с {{ alert.acked_at|date:"H:i d.m" }}</span>{% endif %}{% else %}<span class="text-muted">никто</span>{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Закрыт</span><span class="aui-fact__value">{% if alert.resolved_at %}{{ alert.resolved_at|date:"d.m.Y H:i" }} · {% if alert.resolved_by %}{{ alert.resolved_by.get_full_name|default:alert.resolved_by.username }}{% else %}автоматически{% endif %}{% else %}—{% endif %}</span></div>
   </div>
-</section>
+</div>
 
+<div class="adminui-grid-2">
+  <section class="panel">
+    <div class="panel__header"><h2 class="panel__title"><i class="bi bi-chat-left-text"></i> Сообщение</h2></div>
+    <div class="panel__body"><pre class="aui-pre">{{ alert.message|default:"—" }}</pre></div>
+  </section>
+  <section class="panel">
+    <div class="panel__header"><h2 class="panel__title"><i class="bi bi-journal-check"></i> Что сделано</h2></div>
+    <div class="panel__body">
+      {% if alert.resolution %}<pre class="aui-pre">{{ alert.resolution }}</pre>
+      {% elif alert.state == "firing" %}
+      <div class="aui-form__field">
+        <label class="aui-form__label" for="resolve-note">Комментарий при закрытии (необязательно)</label>
+        <textarea id="resolve-note" class="aui-input" rows="3" placeholder="Например: перезагрузили коммутатор, заменили SFP…"></textarea>
+      </div>
+      {% else %}<p class="text-muted mt-0">Комментария нет.</p>{% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const btn = document.getElementById('btn-resolve');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const note = (document.getElementById('resolve-note') || {}).value || '';
+    try {
+      const r = await fetch(btn.dataset.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': Cerber.csrfToken() },
+        body: JSON.stringify({ note }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d.ok) { Cerber.toast('Алерт закрыт', 'success'); setTimeout(() => location.reload(), 700); }
+      else { Cerber.toast(d.error || ('HTTP ' + r.status), 'error', 6000); btn.disabled = false; }
+    } catch (e) { Cerber.toast('Ошибка сети: ' + e.message, 'error'); btn.disabled = false; }
+  });
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,5 @@
+{% load adminui_tags %}{% aui_pending_users as n_pending %}
+<nav class="aui-tabs">
+  <a href="{% url 'adminui:users' %}" class="aui-tab{% if tab == 'all' %} is-active{% endif %}"><i class="bi bi-people"></i> Все пользователи</a>
+  <a href="{% url 'adminui:users_pending' %}" class="aui-tab{% if tab == 'pending' %} is-active{% endif %}"><i class="bi bi-hourglass-split"></i> Ожидают подтверждения{% if n_pending %} <em>{{ n_pending }}</em>{% endif %}</a>
+</nav>

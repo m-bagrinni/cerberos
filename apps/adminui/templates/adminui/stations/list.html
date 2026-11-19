@@ -3,37 +3,37 @@
 
 {% block admin_title %}Станции{% endblock %}
 {% block admin_actions %}
-<a href="{% url 'adminui:station_create' %}" class="btn--secondary"><i class="bi bi-plus-lg"></i> Добавить станцию</a>
+<a href="{% url 'adminui:station_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Добавить станцию</a>
 {% endblock %}
 
 {% block admin_content %}
 <div class="panel">
-  <div class="panel__header"><h2 class="panel__title">Станции ({{ stations|length }})</h2></div>
+  <div class="panel__header"><h2 class="panel__title">Станции <span class="text-muted">{{ paginator.count }}</span></h2></div>
   <div class="panel__body panel__body--flush">
-    <form method="get" style="padding: 16px; display: flex; gap: 12px; border-bottom: 1px solid var(--border);">
-      <input type="text" name="q" placeholder="Поиск..." value="{{ q }}" class="input">
-      <button type="submit" class="btn--secondary">Фильтр</button>
+    <form method="get" class="aui-toolbar">
+      <div class="aui-search"><i class="bi bi-search"></i><input type="search" name="q" placeholder="Название станции…" value="{{ q }}" class="aui-input"></div>
+      <button type="submit" class="btn--secondary"><i class="bi bi-search"></i> Найти</button>
+      {% if q %}<a href="?" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>{% endif %}
     </form>
     {% if stations %}
     <table class="data-table">
-      <thead><tr><th>ID</th><th>Название</th><th>Slug</th><th>Широта</th><th>Долгота</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Название</th><th>Slug</th><th>Координаты</th><th class="col-actions"></th></tr></thead>
       <tbody>
         {% for s in stations %}
-        <tr>
-          <td>{{ s.id }}</td>
-          <td>{{ s.name }}</td>
-          <td>{{ s.slug }}</td>
-          <td>{{ s.latitude|floatformat:5 }}</td>
-          <td>{{ s.longitude|floatformat:5 }}</td>
-          <td>
-            <a href="{% url 'adminui:station_update' s.pk %}" class="btn--icon"><i class="bi bi-pencil"></i></a>
-            <a href="{% url 'adminui:station_delete' s.pk %}" class="btn--icon btn--danger"><i class="bi bi-trash"></i></a>
-          </td>
+        <tr data-href="{% url 'adminui:station_update' s.pk %}">
+          <td class="text-muted mono">{{ s.id }}</td>
+          <td><a href="{% url 'adminui:station_update' s.pk %}" class="aui-link">{{ s.name }}</a></td>
+          <td class="mono text-muted text-sm">{{ s.slug }}</td>
+          <td class="mono text-sm">{% if s.latitude %}{{ s.latitude|floatformat:5 }}, {{ s.longitude|floatformat:5 }}{% else %}<span class="text-muted">не заданы</span>{% endif %}</td>
+          <td class="col-actions"><div class="aui-row-actions">
+            <a href="{% url 'adminui:station_update' s.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:station_delete' s.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
+          </div></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    {% else %}<div class="empty-state">Нет станций</div>{% endif %}
+    {% else %}<div class="empty-state"><i class="bi bi-geo-alt"></i><p>{% if q %}Ничего не найдено{% else %}Станций пока нет{% endif %}</p></div>{% endif %}
   </div>
 </div>
 {% endblock %}

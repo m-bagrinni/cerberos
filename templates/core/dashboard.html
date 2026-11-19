@@ -17,8 +17,8 @@
     <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
 
     <!-- Тема: ui_theme из cookie (apps/core/context_processors.py) — «стекло» = theme.css, «классика» = glass.css -->
-    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116m">
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2">{# раскладка /local/ — для обеих тем #}
+    <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261118t">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=4">{# раскладка /local/ — для обеих тем #}
     {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/stations.css' %}"><link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
     <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
     <script src="{% static 'js/core.js' %}?v=2"></script>
@@ -173,5 +173,8 @@
 <script src="{% static 'js/context-menu.js' %}?v=20261116k"></script>
 <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
 <script src="{% static 'js/dashboard.js' %}?v=20261115b"></script>
+{{ tree_menu|json_script:"tree-menu-data" }}
+<script src="{% static 'js/tree-menu.js' %}?v=1"></script>
+<script src="{% static 'js/tree-drag.js' %}?v=1"></script>
 </body>
 </html>

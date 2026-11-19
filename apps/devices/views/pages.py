@@ -340,6 +340,9 @@ def discovery_detail(request, pk):
     })
 
 
+UNCATEGORIZED = "_none"   # служебный ключ группы «Без категории» в дереве /local/
+
+
 def dashboard(request):
     """
     Tab 1 «Устройства» — дерево слева (категории → подкатегории → устройства) + детали справа.
@@ -363,6 +366,13 @@ def dashboard(request):
         "vendors": state["vendors"],
         "categories": state["categories"],
         "subcategories": subcategories,
+        # Для контекстного меню дерева (static/js/tree-menu.js): куда можно переместить
+        "tree_menu": {
+            "categories": [{"slug": c.slug, "name": c.name, "icon": c.icon or "bi-folder"}
+                           for c in state["categories"]],
+            "subcategories": [{"slug": s.slug, "name": s.name, "category": s.category.slug}
+                              for s in subcategories],
+        },
     }
     return render(request, "core/dashboard.html", context)
 
@@ -412,14 +422,29 @@ def _build_tree():
     devices = _tree_devices()
     _apply_lamps(devices)
 
+    from apps.devices.models import DeviceSubcategory
+
     categories = list(DeviceCategory.objects.filter(is_active=True).order_by("sort_order", "name"))
     tree = {
         cat.slug: {"label": cat.name, "icon": cat.icon, "devices": [], "subcategories": {}}
         for cat in categories
     }
+    # Пустые подкатегории тоже показываем — иначе только что созданная (меню «Создать
+    # подкатегорию») не видна, и в неё нельзя переместить устройство.
+    for sub in (DeviceSubcategory.objects.filter(is_active=True, category__slug__in=tree.keys())
+                .select_related("category")):
+        tree[sub.category.slug]["subcategories"][sub.slug] = {
+            "label": sub.name, "slug": sub.slug, "devices": [], "sort_order": sub.sort_order,
+        }
 
     for d in devices:
         if not d.category or d.category.slug not in tree:
+            # Без категории (или категория скрыта/удалена) — раньше такие устройства
+            # пропадали из дерева совсем.
+            cat_data = tree.setdefault(UNCATEGORIZED, {
+                "label": "Без категории", "icon": "bi-question-square", "devices": [], "subcategories": {},
+            })
+            cat_data["devices"].append(d)
             continue
         cat_data = tree[d.category.slug]
         if d.subcategory:

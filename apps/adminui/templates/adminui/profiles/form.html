@@ -1,75 +1,34 @@
-{% extends "adminui/base_admin.html" %}
-{% load static %}
+{% extends "adminui/form_base.html" %}
+{% block admin_title %}{% if profile %}{{ profile.name }}{% else %}Новый профиль SNMP{% endif %}{% endblock %}
 
-{% block admin_title %}{{ form_title }}{% endblock %}
+{% block form_body %}
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-diagram-3"></i> Профиль</h2>
+    <p class="aui-fs__desc">Набор метрик для моделей одного вендора. Дочерний профиль наследует метрики родителя и может их дополнить. Чем выше приоритет — тем раньше профиль проверяется при автоподборе.</p>
+  </header>
+  <div class="aui-fields aui-fs__body">
+    {% include "adminui/_field.html" with field=form.name %}
+    {% include "adminui/_field.html" with field=form.slug %}
+    {% include "adminui/_field.html" with field=form.vendor %}
+    {% include "adminui/_field.html" with field=form.parent %}
+    {% include "adminui/_field.html" with field=form.device_category %}
+    {% include "adminui/_field.html" with field=form.priority %}
+  </div>
+</section>
 
-{% block admin_actions %}
-<a href="{% if profile %}{% url 'adminui:profile_detail' profile.pk %}{% else %}{% url 'adminui:profiles' %}{% endif %}"
-   class="btn--secondary">
-  <i class="bi bi-x-lg"></i> Отмена
-</a>
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-magic"></i> Автоподбор</h2>
+    <p class="aui-fs__desc">По каким признакам новое устройство получит этот профиль: префиксы sysObjectID (по одному в строке) и регулярные выражения для sysDescr и модели.</p>
+  </header>
+  <div class="aui-fields aui-fs__body">
+    {% include "adminui/_field.html" with field=form.match_sysobject_prefixes wide=1 %}
+    {% include "adminui/_field.html" with field=form.match_sysdescr_regex %}
+    {% include "adminui/_field.html" with field=form.match_model_regex %}
+  </div>
+</section>
 {% endblock %}
 
-{% block admin_content %}
-
-<form method="post" class="aui-form">
-  {% csrf_token %}
-
-  {% if form.non_field_errors %}
-  <div class="aui-form__errors">
-    {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
-  </div>
-  {% endif %}
-
-  <div class="aui-form__grid">
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">Основное</h2>
-      </div>
-      <div class="panel__body">
-        {% for field in form %}
-          {% if field.name in "vendor,parent,slug,name,priority,device_category" %}
-          <div class="aui-form__field">
-            <label class="aui-form__label" for="{{ field.id_for_label }}">
-              {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
-            </label>
-            {{ field }}
-            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">Match-правила (для автоопределения)</h2>
-      </div>
-      <div class="panel__body">
-        {% for field in form %}
-          {% if field.name in "match_sysobject_prefixes,match_sysdescr_regex,match_model_regex" %}
-          <div class="aui-form__field">
-            <label class="aui-form__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-  </div>
-
-  <div class="aui-form__actions">
-    <button type="submit" class="btn--primary">
-      <i class="bi bi-check-lg"></i> {{ form_submit }}
-    </button>
-    <a href="{% url 'adminui:profiles' %}" class="btn--secondary">Отмена</a>
-    {% if profile %}
-    <a href="{% url 'adminui:profile_delete' profile.pk %}" class="btn--danger" style="margin-left:auto">
-      <i class="bi bi-trash"></i> Удалить
-    </a>
-    {% endif %}
-  </div>
-</form>
-
-{% endblock %}
+{% block cancel_url %}{% if profile %}{% url 'adminui:profile_detail' profile.pk %}{% else %}{% url 'adminui:profiles' %}{% endif %}{% endblock %}
+{% block delete_link %}{% if profile %}<a href="{% url 'adminui:profile_delete' profile.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}

@@ -3,6 +3,8 @@ import logging
 
 from celery import shared_task
 from django.core.management import call_command
+from datetime import timedelta as _timedelta
+
 from django.utils import timezone
 
 from apps.devices.models import Device
@@ -15,7 +17,11 @@ log = logging.getLogger(__name__)
 FAST = dict(soft_time_limit=240, time_limit=270)
 FAST_LOCK = 300
 DEVICE_PING_FAILS = 4  # при интервале 30 с ≈ 2 минуты тишины (ICMP + SNMP)
+SFP_STALE = _timedelta(minutes=45)   # poll_sfp раз в 15 мин: 3 пропуска — данные устарели
 NE_CONFIRM_FAILS = 2  # подряд проваленных циклов до аварии «нет питания/связи»
+NE_CONFIRM_OKS = 3    # подряд удачных циклов до «восстановилось» после аварии. Раньше хватало одного
+                      # ответа: полуживой NE (отвечает раз в 3–4 мин) закрывал и переоткрывал алерт
+                      # по кругу, и «восстановлено» уходило в Telegram при каждом обороте.
 
 
 def _fanout(task, ip, expires):
@@ -76,7 +82,9 @@ def poll_device_task(self, ip: str):
 def poll_interfaces_all():
     """Ставит в очередь задачи на опрос интерфейсов всех активных устройств."""
     log.info("poll_interfaces_all: запуск")
-    devices = Device.objects.exclude(status=Device.STATUS_UNREACHABLE)
+    # Olencom (PDH-мультиплексоры) ifTable не отдают — только таймауты в логе; их опрашивает NE-часть
+    devices = (Device.objects.exclude(status=Device.STATUS_UNREACHABLE)
+               .exclude(vendor__name__icontains="olencom"))
 
     for device in devices:
         _fanout(poll_interfaces_task, device.ip, expires=290)
@@ -277,6 +285,76 @@ def _sfp_state_for_ne(ne_device, port_num, link=None, side=None):
     return {"link_up": link_up, "rx_dbm": rx_val}
 
 
+def _port_interface(device, port_num):
+    """
+    Интерфейс коммутатора по номеру порта из OpticalLink.
+
+    Номер — это «N» из gi1/0/N (или if_index на D-Link, где они совпадают). У стека Eltex
+    на «/3» оканчиваются 16 интерфейсов: gi1/0/3, te1/0/3, gi2/0/3… Раньше брался первый
+    попавшийся без сортировки — и DDM линии мог читаться с пустого te/gi2… (линия ЛАЗ–УКЖД).
+    Порядок: есть SFP-модуль → первый юнит (…1/0/N) → совпадает if_index → меньший if_index.
+    """
+    import re
+    from django.db.models import Q
+    from apps.monitoring.models import Interface, SfpModule
+
+    cands = list(Interface.objects.filter(device=device)
+                 .filter(Q(if_index=port_num) | Q(name__endswith=f"/{port_num}")))
+    if not cands:
+        return None
+    with_sfp = set(SfpModule.objects.filter(interface__in=cands).values_list("interface_id", flat=True))
+    unit1 = re.compile(rf"^\D*1/0/{port_num}$")
+    cands.sort(key=lambda i: (i.id not in with_sfp, not unit1.match(i.name or ""),
+                              i.if_index != port_num, i.if_index))
+    return cands[0]
+
+
+def link_port_choices(device, exclude_link_id=None) -> list[dict]:
+    """
+    Порты коммутатора для выбора в линии (форма линии в админке).
+
+    Номер — тот же, что хранит OpticalLink.port_*_num, а интерфейс для него — тот же, что потом
+    читает линия (_port_interface): что выбрали в списке, с того DDM и берётся. Порты других
+    юнитов стека (gi2/0/N…) номером линии не адресуются — их не показываем.
+    """
+    import re
+    from apps.monitoring.models import Interface, SfpModule
+    from apps.stations.models import OpticalLink
+
+    nums = set()
+    for i in Interface.objects.filter(device=device, if_type__in=Interface.PHYSICAL_IF_TYPES):
+        parts = [int(x) for x in re.findall(r"\d+", i.name or "")]
+        if not parts:
+            nums.add(i.if_index)
+        elif len(parts) == 1 or parts[0] == 1:      # «24», «1/24», «eth1/0/24» — первый юнит
+            nums.add(parts[-1])
+    used = {}
+    for l in (OpticalLink.objects.exclude(pk=exclude_link_id)
+              .filter(models_q_device(device)).select_related("station_a", "station_b")):
+        for side in ("a", "b"):
+            if getattr(l, f"device_{side}_id") == device.id:
+                used[getattr(l, f"port_{side}_num")] = l.label or f"{l.station_a} – {l.station_b}"
+
+    out = []
+    for n in sorted(nums):
+        iface = _port_interface(device, n)
+        if iface is None:
+            continue
+        sfp = SfpModule.objects.filter(interface=iface).first()
+        out.append({
+            "num": n, "name": iface.name, "alias": iface.alias or "",
+            "up": iface.oper_status == 1, "admin_up": iface.admin_status == 1,
+            "speed": iface.speed_mbps, "sfp": sfp is not None,
+            "rx": sfp.rx_power_dbm if sfp else None, "used_by": used.get(n),
+        })
+    return out
+
+
+def models_q_device(device):
+    from django.db.models import Q
+    return Q(device_a=device) | Q(device_b=device)
+
+
 def _end_state(link, side):
     """side = 'a' | 'b'. Возвращает dict {link_up, rx_dbm}."""
     ne = getattr(link, f"ne_{side}", None)
@@ -289,40 +367,36 @@ def _end_state(link, side):
             return {"link_up": None, "rx_dbm": None}
         return _sfp_state_for_ne(ne, port_num, link=link, side=side)
     
-    # Device (D-Link/Eltex) — берём DDM из SfpModule
+    # Device (D-Link/Eltex): DDM — из SfpModule (poll_sfp, раз в 15 мин), состояние порта —
+    # link_<side>_up, который каждую минуту обновляет poll_device_links (ifOperStatus).
     if device is not None:
-        from apps.monitoring.models import Interface, SfpModule
-        # Ищем Interface по device и port_num (это if_index или номер порта?)
-        # port_num для Device — это if_index (например, 62 для порта 14)
-        # Но в OpticalLink port_a_num может быть номером порта (14), а не if_index
-        # Нужно найти Interface по имени (gi1/0/14) или по if_index (62)
-        iface = None
-        # Сначала пробуем найти по if_index = port_num
-        iface = Interface.objects.filter(device=device, if_index=port_num).first()
-        if not iface:
-            # Пробуем найти по имени (например, "gi1/0/14")
-            iface = Interface.objects.filter(device=device, name__endswith=f"/{port_num}").first()
-        
-        if iface:
-            sfp = SfpModule.objects.filter(interface=iface).first()
-            if sfp:
-                # Преобразуем rx_state в True/False/None
-                rx_state = sfp.rx_state
-                if rx_state == "ok":
-                    link_up = True
-                elif rx_state in ("down", "fail", "no_signal"):
-                    link_up = False
-                else:
-                    link_up = None
-                return {
-                    "link_up": link_up,
-                    "rx_dbm": sfp.rx_power_dbm,
-                    "tx_dbm": sfp.tx_power_dbm,
-                    "temp_c": sfp.temperature_c,
-                    "bias_ma": sfp.bias_current_ma,
-                    "volt_v": sfp.voltage_v,
-                }
-    
+        from apps.monitoring.models import SfpModule
+        port_up = getattr(link, f"link_{side}_up", None)
+        iface = _port_interface(device, port_num)
+        sfp = SfpModule.objects.filter(interface=iface).first() if iface else None
+        if sfp and sfp.updated_at and timezone.now() - sfp.updated_at > SFP_STALE:
+            # Коммутатор перестал отдавать DDM (выключили, сменили трансивер) — старые значения
+            # не выдаём за текущие: у «Пост ДЦ» месяц показывались цифры от 23.10.
+            sfp = None
+        if sfp:
+            rx_state = sfp.rx_state
+            if rx_state == "ok":
+                link_up = True
+            elif rx_state in ("down", "fail", "no_signal"):
+                link_up = False
+            else:
+                link_up = port_up
+            return {
+                "link_up": link_up, "ddm": True,
+                "rx_dbm": sfp.rx_power_dbm,
+                "tx_dbm": sfp.tx_power_dbm,
+                "temp_c": sfp.temperature_c,
+                "bias_ma": sfp.bias_current_ma,
+                "volt_v": sfp.voltage_v,
+            }
+        # DDM нет (трансивер без DDM / DDM выключен) — статус по состоянию порта
+        return {"link_up": port_up, "rx_dbm": None, "ddm": False}
+
     return {"link_up": None, "rx_dbm": None}
 
 
@@ -386,6 +460,31 @@ def _calc_link_status(state_a, state_b):
     # Не хватает данных
 
 
+_DDM_FIELDS = (("rx_dbm", "rx_{}_dbm"), ("tx_dbm", "tx_{}_dbm"), ("temp_c", "temp_{}_c"),
+               ("bias_ma", "bias_{}_ma"), ("volt_v", "volt_{}_v"), ("link_up", "link_{}_up"))
+
+
+def _apply_end_states(link, sa, sb) -> list[str]:
+    """
+    Переносит DDM концов в поля линии. None не затирает прежнее (SNMP у NE капризный),
+    НО если конец-коммутатор явно без DDM (ddm=False) — поля DDM очищаются: показывать
+    устаревшие цифры хуже, чем «нет данных». Возвращает изменённые поля.
+    """
+    changed = []
+    for side, st in (("a", sa), ("b", sb)):
+        for key, tmpl in _DDM_FIELDS:
+            val = st.get(key)
+            field = tmpl.format(side)
+            if val is None and key != "link_up" and st.get("ddm") is False:
+                if getattr(link, field) is not None:
+                    setattr(link, field, None)
+                    changed.append(field)
+            elif val is not None and getattr(link, field) != val:
+                setattr(link, field, val)
+                changed.append(field)
+    return changed
+
+
 def poll_one_optical_link(link_id):
     """Обновляет OpticalLink (rx_a/b, link_a/b_up, link_status) из MetricValue."""
     from apps.stations.models import OpticalLink
@@ -412,30 +511,7 @@ def poll_one_optical_link(link_id):
         status = "power"
 
     # Не перезаписывать None-значения (сохраняем кэш)
-    if sa["rx_dbm"] is not None:
-        link.rx_a_dbm = sa["rx_dbm"]
-    if sb["rx_dbm"] is not None:
-        link.rx_b_dbm = sb["rx_dbm"]
-    if sa.get("tx_dbm") is not None:
-        link.tx_a_dbm = sa["tx_dbm"]
-    if sb.get("tx_dbm") is not None:
-        link.tx_b_dbm = sb["tx_dbm"]
-    if sa.get("temp_c") is not None:
-        link.temp_a_c = sa["temp_c"]
-    if sb.get("temp_c") is not None:
-        link.temp_b_c = sb["temp_c"]
-    if sa.get("bias_ma") is not None:
-        link.bias_a_ma = sa["bias_ma"]
-    if sb.get("bias_ma") is not None:
-        link.bias_b_ma = sb["bias_ma"]
-    if sa.get("volt_v") is not None:
-        link.volt_a_v = sa["volt_v"]
-    if sb.get("volt_v") is not None:
-        link.volt_b_v = sb["volt_v"]
-    if sa["link_up"] is not None:
-        link.link_a_up = sa["link_up"]
-    if sb["link_up"] is not None:
-        link.link_b_up = sb["link_up"]
+    _apply_end_states(link, sa, sb)
     link.link_status = status
     link.updated_at = timezone.now()
     link.save(update_fields=[
@@ -621,7 +697,16 @@ def poll_optical_links_fast():
         fails = cache.get_many([f"ne_fail_count_{nid}" for nid in ne_ids])
     except Exception:
         fails = {}
+    try:
+        effective = cache.get_many([f"ne_alive_eff_{nid}" for nid in ne_ids])
+    except Exception:
+        effective = {}
     for nid in ne_ids:
+        eff = effective.get(f"ne_alive_eff_{nid}")
+        if eff is not None:
+            # подтверждённое poll_ne_availability_fast (гистерезис в обе стороны)
+            ne_alive[nid] = bool(eff)
+            continue
         v = cached.get(f"ne_alive_raw_{nid}")
         if v is not None:
             alive = bool(v)
@@ -793,6 +878,15 @@ def poll_optical_links_fast():
             if rows:
                 MetricValue.objects.bulk_create(rows)
         
+        # DDM в поля линии. Раньше их обновлял только poll_optical_links, которого нет в расписании:
+        # у новых линий DDM не появлялся вовсе, а _save_ddm писал в историю застывшие значения.
+        try:
+            ddm_changed = _apply_end_states(l, _end_state(l, "a"), _end_state(l, "b"))
+            if ddm_changed:
+                OpticalLink.objects.filter(pk=l.id).update(**{f: getattr(l, f) for f in ddm_changed})
+        except Exception as e:  # noqa: BLE001 — DDM не должен ломать статус линий
+            log.warning(f"[link {l.id}] DDM: {e}")
+
         _save_ddm(l, 'a')
         _save_ddm(l, 'b')
 
@@ -861,13 +955,30 @@ def poll_ne_availability_fast():
     for ne in nes:
         is_alive = results.get(ne.id, False)
         cache_key = f"ne_fail_count_{ne.id}"
-        # Сырой результат этого цикла — для poll_optical_links_fast (живёт ~2 интервала)
+        ok_key = f"ne_ok_count_{ne.id}"
+        eff_key = f"ne_alive_eff_{ne.id}"
+        # Сырой результат этого цикла (живёт ~2 интервала)
         cache.set(f"ne_alive_raw_{ne.id}", 1 if is_alive else 0, timeout=150)
 
+        # Подтверждённая доступность с гистерезисом в обе стороны — её берёт poll_optical_links_fast:
+        # «мёртв» после NE_CONFIRM_FAILS провалов подряд, «снова жив» после NE_CONFIRM_OKS ответов подряд.
+        prev_eff = cache.get(eff_key)
+        if prev_eff is None:
+            prev_eff = ne.status != "unreachable"
         if is_alive:
-            # Сброс счётчика + status ok
+            oks = (cache.get(ok_key) or 0) + 1
+            cache.set(ok_key, oks, timeout=600)
+            eff = bool(prev_eff) or oks >= NE_CONFIRM_OKS
+        else:
+            cache.delete(ok_key)
+            eff = bool(prev_eff) and (cache.get(cache_key) or 0) + 1 < NE_CONFIRM_FAILS
+        cache.set(eff_key, 1 if eff else 0, timeout=600)
+
+        if is_alive:
+            # Сброс счётчика; статус ok — сразу, если NE и не считался недоступным,
+            # иначе только после подтверждения (NE_CONFIRM_OKS)
             cache.delete(cache_key)
-            new_status = "ok"
+            new_status = "ok" if (ne.status != "unreachable" or eff) else ne.status
         else:
             # Инкремент счётчика; unreachable после 3 подряд неудач
             fail_count = (cache.get(cache_key) or 0) + 1
@@ -1127,8 +1238,8 @@ def cleanup_old_metric_values():
 @singleton(ttl=FAST_LOCK)
 def poll_device_links_task():
     """
-    Опрос портов для линий с device_a/device_b (D-Link/Eltex).
-    Обновляет link_status, link_a_up, link_b_up, rx_a_dbm, rx_b_dbm.
+    Состояние портов коммутаторов на концах линий (ifOperStatus) → link_a_up / link_b_up.
+    Статус линии и алерты ведёт только poll_optical_links_fast (см. команду poll_device_links).
     """
     from django.core.management import call_command
     call_command('poll_device_links')
@@ -1313,10 +1424,10 @@ def _save_arp(device, arp_data):
 @shared_task(name="monitoring.poll_fdb", soft_time_limit=800, time_limit=850)
 @singleton(ttl=900)
 def poll_fdb():
-    """Собирает FDB-таблицы с устройств (D-Link, Eltex) через SNMP."""
+    """Собирает FDB-таблицы с коммутаторов через SNMP (расписание — cerber/celery.py)."""
     from apps.devices.models import Device
     import asyncio
-    
+
     devices = Device.objects.exclude(vendor__name__icontains='Olencom')
     for dev in devices:
         if not dev.snmp_community:
@@ -1324,72 +1435,82 @@ def poll_fdb():
         try:
             asyncio.run(_poll_fdb_device(dev))
         except Exception as e:
+            # При ошибке/таймауте старые записи устройства не трогаем
             logger.warning(f"poll_fdb {dev.name} ({dev.ip}): {e}")
+
+
+# Q-BRIDGE-MIB dot1qTpFdbPort: .<fdbId>.<6 байт MAC> = порт моста. fdbId на D-Link/Eltex = VLAN.
+# Старая BRIDGE-MIB dot1dTpFdbPort на коммутаторах с VLAN отдаёт только VLAN 1 (или ничего) —
+# абонентских MAC в ней нет, из-за этого узлы приписывались агрегации, а не коммутатору доступа.
+OID_DOT1Q_FDB_PORT = "1.3.6.1.2.1.17.7.1.2.2.1.2"
+OID_DOT1D_FDB_PORT = "1.3.6.1.2.1.17.4.3.1.2"
+OID_DOT1D_BASE_PORT_IFINDEX = "1.3.6.1.2.1.17.1.4.1.2"
+
+
+def parse_fdb_rows(rows, with_vlan: bool) -> dict[tuple, int]:
+    """[(oid, port)] → {(vlan|None, 'AA:BB:..'): bridge_port}; порт 0 (CPU/статика) пропускаем."""
+    out = {}
+    for oid, port_val in rows:
+        parts = oid.split('.')
+        try:
+            port = int(port_val)
+            mac = ':'.join(f'{int(p):02X}' for p in parts[-6:])
+            vlan = int(parts[-7]) if with_vlan else None
+        except (ValueError, IndexError, TypeError):
+            continue
+        if port > 0 and len(parts) >= 7:
+            out[(vlan, mac)] = port
+    return out
 
 
 async def _poll_fdb_device(device):
     """Асинхронно собирает FDB с одного устройства."""
     from apps.monitoring.snmp import SnmpClient, SnmpTarget
-    
-    target = SnmpTarget(
+
+    client = SnmpClient(SnmpTarget(
         host=device.ip,
         community=device.snmp_community or "public",
         port=device.snmp_port or 161,
-    )
-    client = SnmpClient(target)
-    
-    # OID для FDB: dot1dTpFdbPort (1.3.6.1.2.1.17.4.3.1.2)
-    fdb_rows = await client.walk("1.3.6.1.2.1.17.4.3.1.2")
-    
-    # OID для сопоставления bridge_port → if_index: dot1dBasePortIfIndex (1.3.6.1.2.1.17.1.4.1.2)
-    port_if_rows = await client.walk("1.3.6.1.2.1.17.1.4.1.2")
+    ))
+
+    fdb_data = parse_fdb_rows(await client.walk(OID_DOT1Q_FDB_PORT), with_vlan=True)
+    source = "dot1q"
+    if not fdb_data:   # коммутатор без Q-BRIDGE-MIB
+        fdb_data = parse_fdb_rows(await client.walk(OID_DOT1D_FDB_PORT), with_vlan=False)
+        source = "dot1d"
+
     port_to_ifindex = {}
-    for oid, ifindex_val in port_if_rows:
-        parts = oid.split('.')
-        bridge_port = int(parts[-1])
-        port_to_ifindex[bridge_port] = int(ifindex_val)
-    
-    # Строим словарь: bridge_port → MAC
-    fdb_data = {}
-    for oid, port_val in fdb_rows:
-        parts = oid.split('.')
-        if len(parts) >= 6:
-            mac_parts = parts[-6:]
-            mac = ':'.join(f'{int(p):02X}' for p in mac_parts)
-            bridge_port = int(port_val)
-            if bridge_port > 0:  # 0 = нет порта (multicast)
-                fdb_data[mac] = bridge_port
-    
-    # Сохраняем в БД
+    for oid, ifindex_val in await client.walk(OID_DOT1D_BASE_PORT_IFINDEX):
+        try:
+            port_to_ifindex[int(oid.split('.')[-1])] = int(ifindex_val)
+        except (ValueError, TypeError):
+            continue
+
     await _save_fdb(device, fdb_data, port_to_ifindex)
-    
-    logger.info(f"poll_fdb {device.name} ({device.ip}): {len(fdb_data)} записей")
+    logger.info(f"poll_fdb {device.name} ({device.ip}): {len(fdb_data)} записей ({source})")
 
 
 @database_sync_to_async
 def _save_fdb(device, fdb_data, port_to_ifindex):
-    """Синхронно сохраняет FDB-записи в БД."""
+    """Синхронно заменяет FDB устройства (атомарно — читатели не видят пустую таблицу)."""
+    from django.db import transaction
     from apps.monitoring.models import FdbEntry, Interface
-    
-    FdbEntry.objects.filter(device=device).delete()
-    
-    for mac, bridge_port in fdb_data.items():
-        # Пытаемся найти if_index по bridge_port (dot1dBasePortIfIndex)
-        # Пока просто сохраняем bridge_port
+
+    names = dict(Interface.objects.filter(device=device).values_list("if_index", "name"))
+    objs = []
+    for (vlan, mac), bridge_port in fdb_data.items():
         if_index = port_to_ifindex.get(bridge_port)
-        iface_name = ''
-        if if_index:
-            from apps.monitoring.models import Interface
-            iface = Interface.objects.filter(device=device, if_index=if_index).first()
-            iface_name = iface.name if iface else ''
-        
-        FdbEntry.objects.create(
-            device=device,
-            mac=mac,
-            bridge_port=bridge_port,
-            if_index=if_index,
-            interface_name=iface_name,
-        )
+        if port_to_ifindex and if_index is None:
+            # порта нет в dot1dBasePortIfIndex — не физический (CPU/L3-интерфейс, у D-Link «порт 897»);
+            # за ним «сидели» узлы, которые на самом деле подключены где-то ещё
+            continue
+        objs.append(FdbEntry(
+            device=device, mac=mac, vlan_id=vlan, bridge_port=bridge_port,
+            if_index=if_index, interface_name=names.get(if_index, "") if if_index else "",
+        ))
+    with transaction.atomic():
+        FdbEntry.objects.filter(device=device).delete()
+        FdbEntry.objects.bulk_create(objs, batch_size=1000)
 
 # Регистрация задач traffic_monitor
 from .tasks_traffic import poll_broadcast_rate, poll_all_subnets_broadcast  # noqa: F401

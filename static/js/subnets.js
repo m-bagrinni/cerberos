@@ -658,7 +658,8 @@
                    `<button type="button" class="ipm-copy" data-ipm="copy" data-v="${esc(mac)}" title="Копировать"><i class="bi bi-copy"></i></button>` +
                    (ip.vendor ? `<div class="ipm__hint">${esc(ip.vendor)}</div>` : ""));
       }
-      if (d.fdb_device) row("Подключён", `${esc(d.fdb_device)}${d.fdb_port ? ` · порт <b>${esc(d.fdb_port)}</b>` : ""}`);
+      if (d.fdb_device) row("Подключён", `${esc(d.fdb_device)}${d.fdb_port ? ` · ${/^порт/i.test(d.fdb_port) ? "" : "порт "}<b>${esc(d.fdb_port)}</b>` : ""}` +
+        (d.fdb_sure === false ? `<div class="ipm__hint">виден только через аплинк — его коммутатор доступа не опрашивается по SNMP</div>` : ""));
       if (d.is_device_ip && d.device_name) {
         row("В Cerber", `<a href="/local/devices/${encodeURIComponent(d.ip)}/">${esc(d.device_name)} <i class="bi bi-arrow-up-right"></i></a>`);
       }

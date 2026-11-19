@@ -4,58 +4,43 @@
 {% block admin_title %}Профили{% endblock %}
 
 {% block admin_actions %}
-<a href="{% url 'adminui:profile_create' %}" class="btn--secondary">
+<a href="{% url 'adminui:profile_create' %}" class="btn--primary">
   <i class="bi bi-plus-lg"></i> Добавить профиль
 </a>
 {% endblock %}
 
 {% block admin_content %}
 
-<form method="get" class="aui-filter-bar">
-  <div class="aui-filter-bar__field aui-filter-bar__field--grow">
-    {{ filter_form.q }}
-  </div>
-  <div class="aui-filter-bar__field">
-    {{ filter_form.vendor }}
-  </div>
-  <div class="aui-filter-bar__field">
-    {{ filter_form.category }}
-  </div>
-  <button type="submit" class="btn--secondary">
-    <i class="bi bi-funnel"></i> Фильтр
-  </button>
-  {% if request.GET %}
-  <a href="{% url 'adminui:profiles' %}" class="btn--secondary">
-    <i class="bi bi-x-lg"></i> Сброс
-  </a>
-  {% endif %}
-</form>
-
 <div class="panel">
-  <div class="panel__header">
-    <h2 class="panel__title">Профили ({{ total }})</h2>
-  </div>
+  <form method="get" class="aui-toolbar">
+    <div class="aui-search"><i class="bi bi-search"></i>{{ filter_form.q }}</div>
+    {{ filter_form.vendor }}
+    {{ filter_form.category }}
+    <button type="submit" class="btn--secondary"><i class="bi bi-funnel"></i> Применить</button>
+    {% if request.GET %}<a href="{% url 'adminui:profiles' %}" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>{% endif %}
+    <span class="aui-toolbar__end aui-count">Найдено: <b>{{ total }}</b></span>
+  </form>
   <div class="panel__body panel__body--flush">
     {% if profiles %}
     <table class="data-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Vendor</th>
-          <th>Category</th>
+          <th>Профиль</th>
+          <th>Вендор</th>
+          <th>Тип</th>
           <th>Slug</th>
-          <th>Metrics</th>
-          <th>Devices</th>
-          <th>Priority</th>
-          <th style="width:100px"></th>
+          <th class="col-num">Метрик</th>
+          <th class="col-num">Устройств</th>
+          <th class="col-num">Приоритет</th>
+          <th class="col-actions"></th>
         </tr>
       </thead>
       <tbody>
         {% for p in profiles %}
-        <tr>
+        <tr data-href="{% url 'adminui:profile_detail' p.pk %}">
           <td>
-            <strong>{{ p.name }}</strong>
-            {% if p.parent %}<br><span class="text-muted" style="font-size:11px">← {{ p.parent.name }}</span>{% endif %}
+            <a href="{% url 'adminui:profile_detail' p.pk %}" class="aui-link">{{ p.name }}</a>
+            {% if p.parent %}<span class="cell-sub">← {{ p.parent.name }}</span>{% endif %}
           </td>
           <td>{{ p.vendor.name }}</td>
           <td>
@@ -64,15 +49,15 @@
             {% else %}—{% endif %}
           </td>
           <td class="mono text-muted">{{ p.slug }}</td>
-          <td><strong>{{ p.metrics.count }}</strong></td>
-          <td>{{ p.devices.count }}</td>
-          <td class="text-muted">{{ p.priority }}</td>
+          <td class="col-num"><strong>{{ p.n_metrics }}</strong></td>
+          <td class="col-num">{{ p.n_devices }}</td>
+          <td class="col-num text-muted">{{ p.priority }}</td>
           <td>
             <div class="aui-row-actions">
               <a href="{% url 'adminui:profile_detail' p.pk %}" class="aui-icon-btn" title="Редактировать">
                 <i class="bi bi-pencil"></i>
               </a>
-              <a href="{% url 'adminui:profile_delete' p.pk %}" class="aui-icon-btn" title="Удалить">
+              <a href="{% url 'adminui:profile_delete' p.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить">
                 <i class="bi bi-trash"></i>
               </a>
             </div>
@@ -90,16 +75,5 @@
   </div>
 </div>
 
-{% if is_paginated %}
-<div class="aui-pagination">
-  {% if page_obj.has_previous %}
-  <a href="?page={{ page_obj.previous_page_number }}" class="btn--secondary">← Назад</a>
-  {% endif %}
-  <span class="text-muted">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}
-  <a href="?page={{ page_obj.next_page_number }}" class="btn--secondary">Вперёд →</a>
-  {% endif %}
-</div>
-{% endif %}
 
 {% endblock %}

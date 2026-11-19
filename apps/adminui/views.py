@@ -39,24 +39,57 @@ from .forms import (
 # ============================================================
 
 class DashboardView(PermissionRequiredMixin, TemplateView):
+    """Обзор: что требует внимания, состояние фоновых задач, последние события.
+    Блоки показываются по правам (acc) — в шаблоне; здесь считаем только то, что человеку видно."""
     permission_required = "admin.access"
     template_name = "adminui/dashboard.html"
 
     def get_context_data(self, **kwargs):
+        from apps.accounts.access import Access
+        from apps.accounts.models import AccessChangeLog
+        from apps.core import watchdog
+
         ctx = super().get_context_data(**kwargs)
-        ctx["stats"] = {
-            "devices": Device.objects.count(),
-            "profiles": DeviceProfile.objects.count(),
-            "vendors": Vendor.objects.count(),
-            "ne": NeDevice.objects.count(),
-            "metrics": MetricValue.objects.count(),
-            "alerts_firing": Alert.objects.filter(state="firing").count(),
-            "alerts_crit": Alert.objects.filter(state="firing", severity="crit").count(),
-            "subnets": Subnet.objects.count(),
-            "ips_alive": IpAddress.objects.filter(is_alive=True).count(),
-        }
-        ctx["recent_alerts"] = Alert.objects.filter(state="firing").order_by("-started_at")[:8]
-        ctx["devices"] = Device.objects.order_by("name")[:20]
+        acc = Access.for_user(self.request.user)
+        crit = (Alert.SEVERITY_CRIT, Alert.SEVERITY_POWER)
+        firing = Alert.objects.filter(state=Alert.STATE_FIRING)
+
+        stats = {}
+        if acc.can_edit("devices"):
+            stats.update(
+                devices=Device.objects.count(),
+                devices_down=Device.objects.filter(status=Device.STATUS_UNREACHABLE).count(),
+                profiles=DeviceProfile.objects.count(),
+                vendors=Vendor.objects.count(),
+            )
+            ctx["problem_devices"] = (Device.objects.select_related("vendor")
+                                      .filter(status=Device.STATUS_UNREACHABLE).order_by("name")[:10])
+        if acc.can_edit("mux"):
+            stats["ne"] = NeDevice.objects.count()
+        if acc.can_edit("alerts"):
+            stats.update(
+                alerts_firing=firing.count(),
+                alerts_crit=firing.filter(severity__in=crit).count(),
+                alerts_unacked=firing.filter(severity__in=crit, acked_by__isnull=True).count(),
+            )
+            ctx["recent_alerts"] = (firing.select_related("device", "ne_device", "ip_address", "acked_by")
+                                    .order_by("-started_at")[:8])
+        if acc.can_edit("subnets"):
+            stats.update(subnets=Subnet.objects.count(),
+                         ips_alive=IpAddress.objects.filter(is_alive=True).count())
+        if acc.has_cap("users_manage"):
+            stats.update(users=User.objects.filter(is_active=True).count(),
+                         users_pending=User.objects.filter(registration_status="pending").count())
+            ctx["access_log"] = AccessChangeLog.objects.select_related("actor", "target")[:8]
+        ctx["stats"] = stats
+
+        # Сторож Celery: секунды с последнего пульса каждой очереди
+        health = []
+        for queue, age in watchdog.status().items():
+            health.append({"queue": queue, "age": age,
+                           "down": age is None or age > watchdog.STALE_SEC})
+        ctx["health"] = health
+        ctx["health_down"] = [h["queue"] for h in health if h["down"]]
         return ctx
 
 
@@ -72,7 +105,7 @@ class DeviceListView(PermissionRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        qs = Device.objects.select_related("vendor", "profile").order_by("name")
+        qs = Device.objects.select_related("vendor", "profile", "category", "subcategory").order_by("name")
         form = DeviceFilterForm(self.request.GET or None)
         if form.is_valid():
             q = form.cleaned_data.get("q")
@@ -87,7 +120,7 @@ class DeviceListView(PermissionRequiredMixin, ListView):
             if vendor:
                 qs = qs.filter(vendor=vendor)
             if category:
-                qs = qs.filter(profile__device_category=category)
+                qs = qs.filter(category=category)
             if status:
                 qs = qs.filter(status=status)
         return qs
@@ -95,7 +128,7 @@ class DeviceListView(PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["filter_form"] = DeviceFilterForm(self.request.GET or None)
-        ctx["total"] = self.get_queryset().count()
+        ctx["total"] = ctx["paginator"].count if ctx.get("paginator") else len(ctx["devices"])
         return ctx
 
 
@@ -200,7 +233,9 @@ class ProfileListView(PermissionRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        qs = DeviceProfile.objects.select_related("vendor", "parent").order_by("vendor__name", "priority", "name")
+        qs = (DeviceProfile.objects.select_related("vendor", "parent")
+              .annotate(n_metrics=Count("metrics", distinct=True), n_devices=Count("devices", distinct=True))
+              .order_by("vendor__name", "priority", "name"))
         form = ProfileFilterForm(self.request.GET or None)
         if form.is_valid():
             q = form.cleaned_data.get("q")
@@ -217,7 +252,7 @@ class ProfileListView(PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["filter_form"] = ProfileFilterForm(self.request.GET or None)
-        ctx["total"] = self.get_queryset().count()
+        ctx["total"] = ctx["paginator"].count if ctx.get("paginator") else len(ctx["profiles"])
         return ctx
 
 
@@ -709,7 +744,7 @@ class AlertListView(PermissionRequiredMixin, ListView):
     def get_queryset(self):
         qs = (
             Alert.objects
-            .select_related("device", "ne_device", "ip_address")
+            .select_related("device", "ne_device", "ip_address", "acked_by")
             .order_by("-started_at")
         )
         form = AlertFilterForm(self.request.GET or None)
@@ -739,13 +774,14 @@ class AlertListView(PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["filter_form"] = AlertFilterForm(self.request.GET or None)
-        ctx["total"] = self.get_queryset().count()
+        ctx["total"] = ctx["paginator"].count if ctx.get("paginator") else len(ctx["alerts"])
 
         # Счётчики
         qs_all = Alert.objects.all()
         ctx["counts"] = {
             "firing": qs_all.filter(state="firing").count(),
-            "firing_crit": qs_all.filter(state="firing", severity="crit").count(),
+            "firing_crit": qs_all.filter(state="firing", severity__in=("crit", "power")).count(),
+            "firing_unacked": qs_all.filter(state="firing", acked_by__isnull=True).count(),
             "firing_warn": qs_all.filter(state="firing", severity="warn").count(),
             "total": qs_all.count(),
         }
@@ -762,9 +798,23 @@ class UserListView(PermissionRequiredMixin, ListView):
     paginate_by = 100
 
     def get_queryset(self):
-        return self.model.objects.all().order_by(
-            "-is_superuser", "-is_staff", "username"
-        )
+        qs = self.model.objects.select_related("position_ref").order_by("-is_superuser", "-is_staff", "username")
+        q = (self.request.GET.get("q") or "").strip()
+        if q:
+            qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
+                           | Q(email__icontains=q) | Q(department__icontains=q))
+        state = self.request.GET.get("state")
+        if state == "inactive":
+            qs = qs.filter(is_active=False)
+        elif state == "active":
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = self.request.GET.get("q", "")
+        ctx["state"] = self.request.GET.get("state", "")
+        return ctx
 
 
 class UserCreateView(PermissionRequiredMixin, CreateView):
@@ -818,6 +868,7 @@ class UserDeleteView(PermissionRequiredMixin, DeleteView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["is_self"] = self.get_object().pk == self.request.user.pk
+        ctx["can_delete"] = not ctx["is_self"]
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -968,7 +1019,20 @@ class StationListView(PermissionRequiredMixin, ListView):
             qs = qs.filter(name__icontains=q)
         return qs
 
-class StationCreateView(PermissionRequiredMixin, CreateView):
+class _StationMapMixin:
+    """Остальные станции с координатами — ориентиры на карте выбора точки (stations/form.html)."""
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        qs = Station.objects.exclude(latitude=None).exclude(longitude=None)
+        if getattr(self, "object", None) and self.object.pk:
+            qs = qs.exclude(pk=self.object.pk)
+        ctx["stations_geo"] = [{"name": s.name, "lat": s.latitude, "lon": s.longitude}
+                               for s in qs.only("name", "latitude", "longitude")]
+        return ctx
+
+
+class StationCreateView(_StationMapMixin, PermissionRequiredMixin, CreateView):
     model = Station
     form_class = StationForm
     template_name = "adminui/stations/form.html"
@@ -994,7 +1058,7 @@ class StationCreateView(PermissionRequiredMixin, CreateView):
             except Exception:
                 pass
 
-class StationUpdateView(PermissionRequiredMixin, UpdateView):
+class StationUpdateView(_StationMapMixin, PermissionRequiredMixin, UpdateView):
     model = Station
     form_class = StationForm
     template_name = "adminui/stations/form.html"
@@ -1039,14 +1103,35 @@ class OpticalLinkListView(PermissionRequiredMixin, ListView):
             qs = qs.filter(label__icontains=q) | qs.filter(station_a__name__icontains=q) | qs.filter(station_b__name__icontains=q)
         return qs
 
-class OpticalLinkCreateView(PermissionRequiredMixin, CreateView):
+class _LinkFormMixin:
+    """Русские подписи полей линии (у модели verbose_name не заданы)."""
+    LABELS = {
+        "label": "Название", "is_active": "Линия в работе",
+        "station_a": "Станция", "station_b": "Станция",
+        "device_a": "Коммутатор", "device_b": "Коммутатор",
+        "ne_a": "или NE (мультиплексор)", "ne_b": "или NE (мультиплексор)",
+        "port_a_type": "Тип порта", "port_b_type": "Тип порта",
+        "port_a_num": "Порт", "port_b_num": "Порт",
+    }
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for name, label in self.LABELS.items():
+            if name in form.fields:
+                form.fields[name].label = label
+        if "is_active" in form.fields:
+            form.fields["is_active"].help_text = "Выключенная линия не опрашивается и не даёт алертов"
+        return form
+
+
+class OpticalLinkCreateView(_LinkFormMixin, PermissionRequiredMixin, CreateView):
     model = OpticalLink
     fields = ("label", "station_a", "station_b", "device_a", "ne_a", "port_a_type", "port_a_num", "device_b", "ne_b", "port_b_type", "port_b_num", "is_active")
     template_name = "adminui/links/form.html"
     success_url = reverse_lazy("adminui:links")
     permission_required = "device.create"
 
-class OpticalLinkUpdateView(PermissionRequiredMixin, UpdateView):
+class OpticalLinkUpdateView(_LinkFormMixin, PermissionRequiredMixin, UpdateView):
     model = OpticalLink
     fields = ("label", "station_a", "station_b", "device_a", "ne_a", "port_a_type", "port_a_num", "device_b", "ne_b", "port_b_type", "port_b_num", "is_active")
     template_name = "adminui/links/form.html"
@@ -1126,6 +1211,12 @@ class CategoryListView(PermissionRequiredMixin, ListView):
     template_name = "adminui/categories/list.html"
     context_object_name = "categories"
     paginate_by = 50
+
+    def get_queryset(self):
+        return (DeviceCategory.objects
+                .annotate(n_devices=Count("devices", distinct=True),
+                          n_sub=Count("subcategories", distinct=True))
+                .order_by("sort_order", "name"))
 
 
 class CategoryCreateView(PermissionRequiredMixin, CreateView):
@@ -1267,6 +1358,49 @@ def category_delete_api(request):
         return JsonResponse({"ok": True, "slug": slug})
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+def _sub_from_request(request):
+    """(подкатегория, данные запроса) по JSON {slug, …}; подкатегория None, если не найдена."""
+    from apps.devices.models import DeviceSubcategory
+    data = json.loads(request.body or b"{}")
+    return DeviceSubcategory.objects.filter(slug=data.get("slug") or "").first(), data
+
+
+@require_POST
+@csrf_protect
+@_api_perm("profile.update")
+def subcategory_rename_api(request):
+    """Переименовать подкатегорию дерева устройств: JSON {slug, name}."""
+    try:
+        sub, data = _sub_from_request(request)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Неверный JSON"}, status=400)
+    name = (data.get("name") or "").strip()[:128]
+    if sub is None:
+        return JsonResponse({"ok": False, "error": "Подкатегория не найдена"}, status=404)
+    if not name:
+        return JsonResponse({"ok": False, "error": "Название не может быть пустым"}, status=400)
+    sub.name = name
+    sub.save(update_fields=["name"])
+    return JsonResponse({"ok": True, "slug": sub.slug, "name": name})
+
+
+@require_POST
+@csrf_protect
+@_api_perm("profile.delete")
+def subcategory_delete_api(request):
+    """Удалить подкатегорию: JSON {slug}. Устройства остаются в её категории (subcategory → NULL)."""
+    try:
+        sub, _ = _sub_from_request(request)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Неверный JSON"}, status=400)
+    if sub is None:
+        return JsonResponse({"ok": False, "error": "Подкатегория не найдена"}, status=404)
+    moved = sub.devices.update(subcategory=None)
+    slug = sub.slug
+    sub.delete()
+    return JsonResponse({"ok": True, "slug": slug, "devices": moved})
 
 
 

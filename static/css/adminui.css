@@ -1,961 +1,969 @@
-/* ============================================================
-   Cerberus — Admin UI
-   Отдельная админ-панель (/admin-ui/) в стилистике Grafana
-   ============================================================ */
+/* ============================================================================
+   Cerberus — Админ-панель (/admin-ui/)
 
-/* ---------- Reset / базовое ---------- */
-html, body { margin: 0; padding: 0; }
-body {
-  background: var(--bg-base, #111217);
-  color: var(--text, #ccccdc);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+   Подключается в adminui/base_admin.html ПОСЛЕ темы (theme.css «Графит» или glass.css «Старый вид»).
+   Цвета/радиусы — только через токены ниже: они берутся из активной темы,
+   поэтому админка выглядит так же, как остальной сайт, в обеих темах.
+   Все правила — под .adminui-page: файл не задевает другие страницы, а специфичности
+   хватает, чтобы перебить общие правила темы (например, `.theme-glass a`).
+
+   Разделы: 1 токены · 2 каркас · 3 шапка/флеш · 4 панели/карточки · 5 таблицы ·
+            6 кнопки · 7 формы · 8 бейджи/статусы · 9 страницы · 10 телефон
+   ========================================================================== */
+
+/* ── 1. Токены ─────────────────────────────────────────────────────────────── */
+.adminui-page {
+  --a-bg:          var(--bg-base, #111217);
+  --a-surface:     var(--bg-panel, #181b1f);
+  --a-surface-2:   var(--glass-2, var(--bg-elevated, #1f2226));
+  --a-hover:       var(--glass-3, var(--bg-hover, #22252b));
+  --a-input:       var(--bg-input, #0b0c0e);
+  --a-border:      var(--glass-border, var(--border, #2c3235));
+  --a-border-2:    var(--glass-border-strong, var(--border-strong, #3d444b));
+  --a-head:        rgba(0, 0, 0, 0.22);
+  --a-panel-bg:    var(--a-surface);
+  --a-panel-shadow: none;
+
+  --a-text:        var(--text-1, var(--text, #ccccdc));
+  --a-text-2:      var(--text-2, var(--text, #ccccdc));
+  --a-text-3:      var(--text-3, var(--text-muted, #8e8e8e));
+  --a-strong:      var(--text-strong, #ffffff);
+
+  --a-accent:      var(--accent, var(--primary, #ff780a));
+  --a-accent-hov:  var(--accent-hover, var(--primary-hover, #ff9633));
+  --a-accent-soft: var(--accent-soft, var(--primary-dim, rgba(255, 120, 10, .15)));
+  --a-accent-line: var(--accent-line, rgba(255, 120, 10, .5));
+  --a-on-accent:   #1a0f05;
+
+  --a-ok:   var(--ok, #73bf69);   --a-ok-soft:   var(--ok-soft, var(--ok-dim, rgba(115, 191, 105, .15)));
+  --a-warn: var(--warn, #f2cc0c); --a-warn-soft: var(--warn-soft, var(--warn-dim, rgba(242, 204, 12, .15)));
+  --a-crit: var(--crit, #f2495c); --a-crit-soft: var(--crit-soft, var(--crit-dim, rgba(242, 73, 92, .15)));
+  --a-info: var(--info, var(--tiffany, #0abfbc)); --a-info-soft: var(--info-soft, var(--tiffany-dim, rgba(10, 191, 188, .15)));
+  --a-mute-soft: var(--unknown-soft, rgba(138, 148, 166, .14));
+
+  --a-r-panel: var(--r-panel, 8px);
+  --a-r-card:  var(--r-card, 6px);
+  --a-r-ctrl:  var(--r-ctrl, 4px);
+  --a-r-pill:  999px;
+  --a-gap:     16px;
+  --a-mono:    var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+
+  margin: 0;
+  color: var(--a-text);
+  font-family: var(--font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   font-size: 14px;
   line-height: 1.5;
 }
+/* «Графит»: панели — то же стекло, что на остальном сайте */
+.adminui-page.theme-glass {
+  --a-panel-bg: var(--glass-spot), var(--glass-sheen), var(--glass-tint);
+  --a-panel-shadow: var(--shadow-panel), var(--glass-highlight);
+  --a-head: rgba(14, 16, 24, 0.55);
+}
+/* «Старый вид» (glass.css) красит глобально и с !important: светлый фон body, тёмные h1/h2 и
+   .text-muted «для светлого фона». В админке панели тёмные — возвращаем согласованные цвета. */
+html:has(> body.adminui-page:not(.theme-glass)) { background: var(--bg-base, #111217); }
+body.adminui-page:not(.theme-glass) { background: var(--bg-base, #111217) !important; color: var(--a-text) !important; }
+.adminui-page:not(.theme-glass) h1, .adminui-page:not(.theme-glass) h2 { color: var(--a-text) !important; }
+.adminui-page:not(.theme-glass) .text-muted { color: var(--a-text-3) !important; }
 
-/* ---------- Layout ---------- */
-.adminui-layout {
+/* ── 2. Каркас: сайдбар + контент ─────────────────────────────────────────── */
+.adminui-page .adminui-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
 }
 
-.adminui-sidebar {
-  background: var(--bg-panel, #181b1f);
-  border-right: 1px solid var(--border, #2c3235);
-  padding: 16px 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+.adminui-page .adminui-sidebar {
+  position: sticky; top: 0;
+  height: 100vh; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  padding: 14px 0 10px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow);
+  border-right: 1px solid var(--a-border);
+}
+/* В теме «Графит» — парящая стеклянная панель, как сайдбар основного сайта */
+.adminui-page.theme-glass .adminui-sidebar {
+  margin: 12px 0 12px 12px; height: calc(100vh - 24px); top: 12px;
+  border: 1px solid var(--a-border); border-radius: var(--a-r-panel);
 }
 
-.adminui-sidebar__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary, #ff780a);
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  border-bottom: 1px solid var(--border, #2c3235);
-  margin-bottom: 8px;
+.adminui-page .adminui-brand {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 12px 10px; padding: 4px 6px 12px;
+  border-bottom: 1px solid var(--a-border);
+  color: var(--a-text); text-decoration: none;
 }
-
-.adminui-sidebar__title i { font-size: 16px; }
-
-.adminui-nav { display: flex; flex-direction: column; }
-
-.adminui-nav__group {
-  padding: 12px 16px 4px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--text-muted, #8e8e8e);
+.adminui-page .adminui-brand > i {
+  display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: var(--a-r-card); font-size: 17px;
+  color: var(--a-accent); background: var(--a-accent-soft);
 }
+.adminui-page .adminui-brand__text { display: flex; flex-direction: column; line-height: 1.2; }
+.adminui-page .adminui-brand__text b { font-size: 15px; font-weight: 650; color: var(--a-text); }
+.adminui-page .adminui-brand__text small { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--a-text-3); }
 
-.adminui-nav__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  color: var(--text, #ccccdc);
-  text-decoration: none;
-  font-size: 13px;
-  border-left: 2px solid transparent;
-  transition: background .12s, border-color .12s;
+.adminui-page .adminui-nav { display: flex; flex-direction: column; }
+.adminui-page .adminui-nav__group {
+  padding: 14px 20px 4px;
+  font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--a-text-3);
 }
-
-.adminui-nav__item:hover {
-  background: var(--bg-hover, #22252b);
-  color: var(--text-strong, #ffffff);
+.adminui-page .adminui-nav__item {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  margin: 1px 10px; padding: 7px 10px;
+  border: 1px solid transparent; border-radius: var(--a-r-ctrl);
+  font-size: 13.5px; color: var(--a-text-2); text-decoration: none;
+  transition: background .15s, color .15s;
 }
-
-.adminui-nav__item.is-active {
-  background: var(--bg-elevated, #1f2226);
-  color: var(--primary, #ff780a);
-  border-left-color: var(--primary, #ff780a);
+.adminui-page .adminui-nav__item > i { font-size: 15px; width: 16px; text-align: center; color: var(--a-text-3); transition: color .15s; }
+.adminui-page .adminui-nav__item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adminui-page .adminui-nav__item:hover { background: var(--a-hover); color: var(--a-text); }
+.adminui-page .adminui-nav__item:hover > i { color: var(--a-text); }
+.adminui-page .adminui-nav__item.is-active {
+  background: var(--a-accent-soft); color: var(--a-text); border-color: rgba(255, 122, 26, .18);
 }
-
-.adminui-nav__item--external {
-  opacity: .7;
-  font-size: 12px;
+.adminui-page .adminui-nav__item.is-active > i { color: var(--a-accent); }
+.adminui-page .adminui-nav__item.is-active::before {
+  content: ""; position: absolute; left: -11px; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--a-accent);
 }
-.adminui-nav__item--external:hover { opacity: 1; }
-
-/* ---------- Main ---------- */
-.adminui-main {
-  padding: 20px 24px;
-  min-width: 0;
+.adminui-page .adminui-nav__item--muted { color: var(--a-text-3); font-size: 13px; }
+.adminui-page .adminui-nav__count {
+  min-width: 18px; padding: 0 6px; border-radius: var(--a-r-pill);
+  font-style: normal; font-size: 11px; font-weight: 650; line-height: 18px; text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--a-warn); background: var(--a-warn-soft);
 }
+.adminui-page .adminui-nav__count--crit { color: var(--a-crit); background: var(--a-crit-soft); }
 
-.adminui-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border, #2c3235);
+.adminui-page .adminui-sidebar__bottom {
+  margin-top: auto; padding-top: 10px;
+  border-top: 1px solid var(--a-border);
+  display: flex; flex-direction: column;
 }
-
-.adminui-header__title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-strong, #ffffff);
-  margin: 0;
+.adminui-page .adminui-user {
+  display: flex; align-items: center; gap: 4px;
+  margin: 8px 10px 0; padding: 6px;
+  border-radius: var(--a-r-card); background: var(--a-surface-2); border: 1px solid var(--a-border);
 }
+.adminui-page .adminui-user__link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--a-text); }
+.adminui-page .adminui-user__avatar {
+  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%;
+  font-size: 13px; font-weight: 650; color: var(--a-accent); background: var(--a-accent-soft);
+}
+.adminui-page .adminui-user__name { display: flex; flex-direction: column; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.adminui-page .adminui-user__name, .adminui-page .adminui-user__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adminui-page .adminui-user__name small { font-size: 11px; font-weight: 400; color: var(--a-text-3); }
+.adminui-page .adminui-user__logout { padding: 6px 8px; border-radius: var(--a-r-ctrl); color: var(--a-text-3); }
+.adminui-page .adminui-user__logout:hover { color: var(--a-crit); background: var(--a-crit-soft); }
 
-.adminui-header__actions { display: flex; gap: 8px; }
+.adminui-page .adminui-main { min-width: 0; padding: 22px 28px 40px; }
+.adminui-page .adminui-content { min-height: 200px; }
 
-.adminui-content { min-height: 200px; }
-
-/* ---------- Stat cards ---------- */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+/* ── 3. Шапка страницы, крошки, флеш ──────────────────────────────────────── */
+.adminui-page .adminui-header {
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px;
   margin-bottom: 20px;
 }
-
-.stat-card {
-  background: var(--bg-panel, #181b1f);
-  border: 1px solid var(--border, #2c3235);
-  border-radius: var(--radius, 4px);
-  padding: 14px 16px;
-  transition: border-color .15s;
+.adminui-page .adminui-header__text { min-width: 0; }
+.adminui-page .adminui-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12px; color: var(--a-text-3); }
+.adminui-page .adminui-crumbs a { color: var(--a-text-3); text-decoration: none; }
+.adminui-page .adminui-crumbs a:hover { color: var(--a-text); }
+.adminui-page .adminui-crumbs > *:not(:first-child)::before { content: "/"; margin-right: 6px; color: var(--a-border-2); }
+.adminui-page .adminui-header__title {
+  margin: 0; font-size: 24px; font-weight: 650; letter-spacing: -.01em; line-height: 1.2; color: var(--a-text);
 }
+.adminui-page .adminui-header__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.stat-card:hover { border-color: var(--border-strong, #3d444b); }
-
-.stat-card__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--text-muted, #8e8e8e);
-  margin-bottom: 6px;
+.adminui-page .adminui-flashes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.adminui-page .flash {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px 10px 14px; font-size: 13px;
+  border-radius: var(--a-r-card); border: 1px solid transparent; border-left-width: 3px;
 }
+.adminui-page .flash > span { flex: 1; }
+.adminui-page .flash--ok   { color: var(--a-ok);   background: var(--a-ok-soft);   border-color: transparent transparent transparent var(--a-ok); }
+.adminui-page .flash--crit { color: var(--a-crit); background: var(--a-crit-soft); border-color: transparent transparent transparent var(--a-crit); }
+.adminui-page .flash--warn { color: var(--a-warn); background: var(--a-warn-soft); border-color: transparent transparent transparent var(--a-warn); }
+.adminui-page .flash--info { color: var(--a-info); background: var(--a-info-soft); border-color: transparent transparent transparent var(--a-info); }
+.adminui-page .flash__close { background: none; border: 0; padding: 2px; font-size: 16px; color: inherit; opacity: .6; cursor: pointer; }
+.adminui-page .flash__close:hover { opacity: 1; }
 
-.stat-card__value {
-  font-size: 26px;
-  font-weight: 600;
-  color: var(--text-strong, #ffffff);
-  line-height: 1.1;
+/* ── 4. Панели, карточки, вкладки ─────────────────────────────────────────── */
+.adminui-page .panel {
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow); border: 1px solid var(--a-border); border-radius: var(--a-r-panel);
+  overflow: hidden;
 }
-
-.stat-card__hint {
-  font-size: 11px;
-  color: var(--text-muted, #8e8e8e);
-  margin-top: 4px;
+.adminui-page .panel + .panel, .adminui-page .panel + section, .adminui-page section + .panel { margin-top: var(--a-gap); }
+.adminui-page .panel__header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--a-border); background: var(--a-head);
 }
-
-.stat-card--warn { border-left: 3px solid var(--warn, #f2cc0c); }
-.stat-card--crit { border-left: 3px solid var(--crit, #f2495c); }
-
-/* ---------- Grid 2 cols ---------- */
-.adminui-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.adminui-page .panel__title {
+  margin: 0; display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 650; color: var(--a-text);
 }
+.adminui-page .panel__title .text-muted { font-weight: 400; }
+.adminui-page .panel__link { font-size: 12px; color: var(--a-accent); text-decoration: none; }
+.adminui-page .panel__link:hover { text-decoration: underline; }
+.adminui-page .panel__body { padding: 16px; }
+.adminui-page .panel__body--flush { padding: 0; }
+.adminui-page .panel__body--flush { overflow-x: auto; }
+/* Строка фильтров внутри панели (над таблицей) */
+.adminui-page .panel__filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--a-border);
+}
+.adminui-page .panel__filters .aui-input { width: auto; min-width: 220px; }
 
+.adminui-page .stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px;
+}
+.adminui-page .stat-card {
+  position: relative; display: block; padding: 14px 16px;
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow); border: 1px solid var(--a-border); border-radius: var(--a-r-panel);
+  color: var(--a-text); text-decoration: none; transition: border-color .15s, transform .15s;
+}
+.adminui-page a.stat-card:hover { border-color: var(--a-border-2); transform: translateY(-1px); }
+.adminui-page .stat-card__label {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--a-text-3);
+}
+.adminui-page .stat-card__value { font-size: 28px; font-weight: 650; line-height: 1.1; color: var(--a-text); font-variant-numeric: tabular-nums; }
+.adminui-page .stat-card__hint { margin-top: 4px; font-size: 12px; color: var(--a-text-3); }
+.adminui-page .stat-card--warn::before, .adminui-page .stat-card--crit::before, .adminui-page .stat-card--ok::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--a-warn);
+}
+.adminui-page .stat-card--crit::before { background: var(--a-crit); }
+.adminui-page .stat-card--ok::before { background: var(--a-ok); }
+.adminui-page .stat-card--warn .stat-card__value { color: var(--a-warn); }
+.adminui-page .stat-card--crit .stat-card__value { color: var(--a-crit); }
+
+.adminui-page .adminui-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--a-gap); align-items: start; }
+.adminui-page .adminui-grid-2 > .panel + .panel { margin-top: 0; }
+.adminui-page .adminui-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--a-gap); align-items: start; }
+.adminui-page .adminui-grid-3 > .panel + .panel { margin-top: 0; }
+@media (max-width: 1280px) { .adminui-page .adminui-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .adminui-page .adminui-grid-2, .adminui-page .adminui-grid-3 { grid-template-columns: 1fr; } }
+
+/* Вкладки над панелью (Пользователи: все / ждут подтверждения) */
+.adminui-page .aui-tabs, .adminui-page .admin-tabs {
+  display: inline-flex; flex-wrap: wrap; gap: 2px; margin-bottom: 16px; padding: 4px;
+  background: var(--a-head); border: 1px solid var(--a-border); border-radius: var(--a-r-ctrl);
+}
+.adminui-page .aui-tab, .adminui-page .admin-tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--a-r-ctrl);
+  font-size: 13px; color: var(--a-text-2); text-decoration: none; transition: background .15s, color .15s;
+}
+.adminui-page .aui-tab:hover, .adminui-page .admin-tab:hover { color: var(--a-text); background: var(--a-hover); }
+.adminui-page .aui-tab.is-active, .adminui-page .admin-tab.is-active { color: var(--a-text); background: var(--a-hover); box-shadow: inset 0 -2px 0 var(--a-accent); }
+.adminui-page .aui-tab em { font-style: normal; font-size: 11px; font-weight: 650; padding: 0 6px; border-radius: var(--a-r-pill); color: var(--a-warn); background: var(--a-warn-soft); }
+
+/* Раскрывающийся блок */
+.adminui-page .aui-details { padding: 12px 16px; background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow); border: 1px solid var(--a-border); border-radius: var(--a-r-panel); }
+.adminui-page .aui-details__summary { display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; user-select: none; font-size: 13px; font-weight: 600; color: var(--a-text-2); }
+.adminui-page .aui-details__summary::-webkit-details-marker { display: none; }
+.adminui-page .aui-details__summary i { transition: transform .15s; }
+.adminui-page .aui-details[open] .aui-details__summary i { transform: rotate(90deg); }
+.adminui-page .aui-details__summary:hover { color: var(--a-text); }
+
+/* Плашки-уведомления внутри страниц (предупреждения в подтверждениях удаления и т.п.) */
+.adminui-page .aui-notice {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 12px 0; padding: 10px 14px; font-size: 13px; line-height: 1.5;
+  border-radius: var(--a-r-card); border: 1px solid transparent; border-left-width: 3px;
+  color: var(--a-text); background: var(--a-surface-2);
+}
+.adminui-page .aui-notice > i { margin-top: 2px; }
+.adminui-page .aui-notice ul { margin: 6px 0 0; padding-left: 18px; }
+.adminui-page .aui-notice--crit { background: var(--a-crit-soft); border-left-color: var(--a-crit); }
+.adminui-page .aui-notice--crit > i { color: var(--a-crit); }
+.adminui-page .aui-notice--warn { background: var(--a-warn-soft); border-left-color: var(--a-warn); }
+.adminui-page .aui-notice--warn > i { color: var(--a-warn); }
+.adminui-page .aui-notice--info { background: var(--a-info-soft); border-left-color: var(--a-info); }
+.adminui-page .aui-notice--info > i { color: var(--a-info); }
+
+.adminui-page .empty-state { padding: 36px 16px; text-align: center; color: var(--a-text-3); font-size: 13px; }
+.adminui-page .empty-state i { display: block; margin-bottom: 10px; font-size: 32px; opacity: .55; }
+.adminui-page .empty-state p { margin: 0; }
+.adminui-page .empty-state .btn--primary, .adminui-page .empty-state .btn--secondary { margin-top: 14px; }
+.adminui-page .empty-state--lg { padding: 64px 24px; }
+.adminui-page .empty-state--lg i { font-size: 56px; margin-bottom: 18px; }
+.adminui-page .empty-state--lg h2 { margin: 0 0 8px; font-size: 18px; color: var(--a-text); }
+.adminui-page .empty-state--lg p { margin-bottom: 20px; }
+
+/* ── 5. Таблицы ───────────────────────────────────────────────────────────── */
+.adminui-page .data-table, .adminui-page .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; background: transparent; }
+.adminui-page .data-table th, .adminui-page .admin-table th {
+  padding: 9px 12px; text-align: left; white-space: nowrap;
+  font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--a-text-3); background: var(--a-head); border-bottom: 1px solid var(--a-border);
+}
+.adminui-page .data-table td, .adminui-page .admin-table td {
+  padding: 9px 12px; vertical-align: middle; color: var(--a-text);
+  border-bottom: 1px solid var(--a-border);
+}
+.adminui-page .data-table tbody tr:last-child td, .adminui-page .admin-table tbody tr:last-child td { border-bottom: 0; }
+.adminui-page .data-table tbody tr:hover td, .adminui-page .admin-table tbody tr:hover td { background: var(--a-hover); }
+.adminui-page .data-table tr.is-link { cursor: pointer; }
+.adminui-page .data-table .col-actions { width: 1%; white-space: nowrap; text-align: right; }
+.adminui-page .data-table .col-check { width: 32px; }
+.adminui-page .data-table .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+.adminui-page .data-table td .btn--icon { margin-right: 4px; }
+.adminui-page .data-table td .btn--icon:last-child { margin-right: 0; }
+.adminui-page .cell-sub { display: block; margin-top: 1px; font-size: 11.5px; color: var(--a-text-3); }
+
+/* Утилиты текста */
+.adminui-page .mono { font-family: var(--a-mono); font-size: .95em; font-variant-numeric: tabular-nums; }
+.adminui-page .text-muted { color: var(--a-text-3); }
+.adminui-page .text-2 { color: var(--a-text-2); }
+.adminui-page .text-ok { color: var(--a-ok); }
+.adminui-page .text-warn { color: var(--a-warn); }
+.adminui-page .text-crit, .adminui-page .text-danger { color: var(--a-crit); }
+.adminui-page .text-xs { font-size: 11.5px; }
+.adminui-page .text-sm { font-size: 12.5px; }
+.adminui-page .text-center { text-align: center; }
+.adminui-page .aui-link, .adminui-page a.aui-link { color: var(--a-text); font-weight: 600; text-decoration: none; }
+.adminui-page .aui-link:hover { color: var(--a-accent); }
+.adminui-page .aui-ref, .adminui-page a.aui-ref { color: var(--a-accent); text-decoration: none; }
+.adminui-page .aui-ref:hover { text-decoration: underline; }
+.adminui-page .aui-push { margin-left: auto; }
+.adminui-page .mt-0 { margin-top: 0; }
+.adminui-page .mt-16 { margin-top: 16px; }
+.adminui-page .mb-16 { margin-bottom: 16px; }
+.adminui-page .aui-narrow { max-width: 640px; }
+.adminui-page .aui-narrow--wide { max-width: 840px; }
+.adminui-page .aui-stack { display: flex; flex-direction: column; gap: var(--a-gap); }
+.adminui-page .aui-stack--tight { gap: 8px; }
+.adminui-page .aui-inline { display: inline; }
+.adminui-page .aui-hidden { display: none; }
+.adminui-page pre.aui-pre { margin: 0; white-space: pre-wrap; font-family: var(--a-mono); font-size: 12px; color: var(--a-text); }
+
+/* ── 6. Кнопки ────────────────────────────────────────────────────────────── */
+.adminui-page .btn--primary, .adminui-page .btn--secondary, .adminui-page .btn--danger,
+.adminui-page .btn, .adminui-page .btn-primary, .adminui-page .btn-secondary, .adminui-page .btn-danger {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 14px; box-sizing: border-box;
+  font: inherit; font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap;
+  border-radius: var(--a-r-ctrl); border: 1px solid var(--a-border);
+  color: var(--a-text); background: var(--a-surface-2);
+  text-decoration: none; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.adminui-page .btn--secondary:hover, .adminui-page .btn:hover, .adminui-page .btn-secondary:hover {
+  background: var(--a-hover); border-color: var(--a-border-2); color: var(--a-text);
+}
+.adminui-page .btn--primary, .adminui-page .btn-primary {
+  color: var(--a-on-accent); background: var(--a-accent); border-color: transparent; font-weight: 600;
+}
+.adminui-page .btn--primary:hover, .adminui-page .btn-primary:hover { color: var(--a-on-accent); background: var(--a-accent-hov); }
+.adminui-page .btn--danger, .adminui-page .btn-danger { color: var(--a-crit); background: transparent; border-color: rgba(255, 93, 108, .45); }
+.adminui-page .btn--danger:hover, .adminui-page .btn-danger:hover { color: var(--a-crit); background: var(--a-crit-soft); border-color: var(--a-crit); }
+.adminui-page .btn--ok { color: var(--a-ok); background: var(--a-ok-soft); border-color: transparent; }
+.adminui-page .btn--ok:hover { color: var(--a-ok); background: rgba(111, 208, 140, .24); }
+.adminui-page .btn--sm, .adminui-page .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.adminui-page .btn--block { width: 100%; }
+.adminui-page button:disabled, .adminui-page .btn--primary[disabled] { opacity: .55; cursor: default; }
+
+/* Иконочные кнопки в строках таблиц */
+.adminui-page .aui-row-actions { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
+.adminui-page .aui-icon-btn, .adminui-page .btn--icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; box-sizing: border-box; padding: 0;
+  border-radius: var(--a-r-ctrl); border: 1px solid transparent; background: transparent;
+  color: var(--a-text-3); font-size: 14px; text-decoration: none; cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.adminui-page .aui-icon-btn:hover, .adminui-page .btn--icon:hover { background: var(--a-hover); border-color: var(--a-border); color: var(--a-text); }
+.adminui-page .aui-icon-btn--poll:hover { color: var(--a-accent); border-color: var(--a-accent-line); }
+.adminui-page .aui-icon-btn--test:hover { color: var(--a-info); border-color: var(--a-info); }
+.adminui-page .aui-icon-btn--danger:hover, .adminui-page .btn--icon.btn--danger:hover { color: var(--a-crit); border-color: rgba(255, 93, 108, .45); background: var(--a-crit-soft); }
+/* .btn--icon.btn--danger: это иконка, а не большая кнопка */
+.adminui-page .btn--icon.btn--danger { width: 30px; height: 30px; padding: 0; border-color: transparent; color: var(--a-text-3); }
+
+.adminui-page .aui-pagination {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 20px;
+}
+.adminui-page .aui-pagination__info { padding: 0 8px; font-size: 12.5px; color: var(--a-text-3); }
+.adminui-page .aui-pagination__info b { color: var(--a-text); }
+
+/* ── 7. Формы ─────────────────────────────────────────────────────────────── */
+.adminui-page .aui-form { max-width: 1100px; }
+.adminui-page .aui-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--a-gap); align-items: start; margin-bottom: var(--a-gap); }
+.adminui-page .aui-form__grid > .panel + .panel { margin-top: 0; }
+.adminui-page .aui-form__grid--side { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.adminui-page .aui-form__row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; }
+@media (max-width: 900px) { .adminui-page .aui-form__grid, .adminui-page .aui-form__grid--side { grid-template-columns: 1fr; } }
+
+.adminui-page .aui-form__field, .adminui-page .form-group { margin-bottom: 14px; }
+.adminui-page .aui-form__field:last-child, .adminui-page .form-group:last-child { margin-bottom: 0; }
+.adminui-page .aui-form__label, .adminui-page .form-group > label {
+  display: block; margin-bottom: 5px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--a-text-3);
+}
+.adminui-page .aui-req { color: var(--a-accent); }
+.adminui-page .aui-form__hint, .adminui-page .acc__hint { margin-top: 4px; font-size: 12px; color: var(--a-text-3); }
+.adminui-page .aui-form__error, .adminui-page .form-error { margin-top: 4px; font-size: 12px; color: var(--a-crit); }
+.adminui-page .form-error ul, .adminui-page .errorlist { margin: 0; padding: 0; list-style: none; color: var(--a-crit); font-size: 12px; }
+.adminui-page .aui-form__errors, .adminui-page .alert--danger {
+  margin-bottom: 16px; padding: 10px 14px; font-size: 13px;
+  color: var(--a-crit); background: var(--a-crit-soft);
+  border: 1px solid transparent; border-left: 3px solid var(--a-crit); border-radius: var(--a-r-card);
+}
+.adminui-page .aui-form__actions, .adminui-page .form-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 8px; padding: 16px 0 0; border-top: 1px solid var(--a-border);
+}
+.adminui-page .panel__body > form > .form-actions:last-child,
+.adminui-page .panel__body > .form-actions:last-child { padding-bottom: 0; }
+.adminui-page .has-error .aui-input, .adminui-page .has-error input, .adminui-page .has-error select { border-color: rgba(255, 93, 108, .6); }
+
+.adminui-page .aui-input, .adminui-page .form-input, .adminui-page .form-select, .adminui-page .input,
+.adminui-page .aui-form input[type="text"], .adminui-page .aui-form input[type="number"],
+.adminui-page .aui-form input[type="email"], .adminui-page .aui-form input[type="password"],
+.adminui-page .aui-form input[type="url"], .adminui-page .aui-form select, .adminui-page .aui-form textarea,
+.adminui-page .form-group input:not([type="checkbox"]):not([type="radio"]), .adminui-page .form-group select, .adminui-page .form-group textarea {
+  width: 100%; box-sizing: border-box; min-height: 34px; padding: 7px 10px;
+  font: inherit; font-size: 13px; color: var(--a-text);
+  background: var(--a-input); border: 1px solid var(--a-border); border-radius: var(--a-r-ctrl);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.adminui-page textarea.aui-input, .adminui-page .aui-form textarea, .adminui-page .form-group textarea { min-height: 72px; resize: vertical; line-height: 1.45; }
+.adminui-page .aui-input:focus, .adminui-page .form-input:focus, .adminui-page .form-select:focus, .adminui-page .input:focus,
+.adminui-page .aui-form input:focus, .adminui-page .aui-form select:focus, .adminui-page .aui-form textarea:focus,
+.adminui-page .form-group input:focus, .adminui-page .form-group select:focus, .adminui-page .form-group textarea:focus {
+  border-color: var(--a-accent-line); box-shadow: 0 0 0 3px var(--a-accent-soft);
+}
+.adminui-page .aui-input::placeholder, .adminui-page input::placeholder, .adminui-page textarea::placeholder { color: var(--a-text-3); }
+.adminui-page select option { background: #151821; color: var(--a-text); }
+.adminui-page input[type="checkbox"], .adminui-page input[type="radio"] { accent-color: var(--a-accent); }
+.adminui-page .aui-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--a-text); cursor: pointer; text-transform: none; letter-spacing: 0; }
+.adminui-page .aui-check input { margin: 0; }
+
+/* Устаревшая разметка (формы станций/муфт) — сводим к общей */
+.adminui-page .admin-form { max-width: 640px; }
+.adminui-page .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; }
+.adminui-page .admin-card { padding: 20px; background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow); border: 1px solid var(--a-border); border-radius: var(--a-r-panel); }
+.adminui-page .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.adminui-page .admin-header h1 { margin: 0; font-size: 22px; font-weight: 650; color: var(--a-text); }
+.adminui-page .admin-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.adminui-page .admin-table__actions { display: flex; gap: 4px; }
+
+/* Панель фильтров над списком */
+.adminui-page .aui-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.adminui-page .aui-filter-bar__field { flex: 0 0 auto; }
+.adminui-page .aui-filter-bar__field--grow { flex: 1 1 240px; }
+.adminui-page .aui-filter-bar .aui-input { height: 34px; }
+
+/* Результат «Тест SNMP» */
+.adminui-page .aui-snmp-test { margin-top: 12px; padding: 10px 14px; font-size: 13px; line-height: 1.5; border-radius: var(--a-r-card); border: 1px solid transparent; border-left-width: 3px; }
+.adminui-page .aui-snmp-test--ok      { color: var(--a-ok);   background: var(--a-ok-soft);   border-left-color: var(--a-ok); }
+.adminui-page .aui-snmp-test--error   { color: var(--a-crit); background: var(--a-crit-soft); border-left-color: var(--a-crit); }
+.adminui-page .aui-snmp-test--loading { color: var(--a-info); background: var(--a-info-soft); border-left-color: var(--a-info); }
+.adminui-page .aui-snmp-test__row { margin-top: 6px; font-family: var(--a-mono); font-size: 12px; color: var(--a-text); }
+.adminui-page .aui-snmp-test ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Список «термин — значение» */
+.adminui-page .aui-dl, .adminui-page .acc-dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; font-size: 13px; }
+.adminui-page .aui-dl dt, .adminui-page .acc-dl dt { color: var(--a-text-3); }
+.adminui-page .aui-dl dd, .adminui-page .acc-dl dd { margin: 0; color: var(--a-text); overflow-wrap: anywhere; }
+
+/* ── 8. Бейджи и статусы ──────────────────────────────────────────────────── */
+.adminui-page .badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: var(--a-r-pill);
+  font-size: 11px; font-weight: 600; line-height: 1.5; letter-spacing: .02em; white-space: nowrap;
+  color: var(--a-text-2); background: var(--a-mute-soft);
+}
+.adminui-page .badge--info { color: var(--a-info); background: var(--a-info-soft); }
+.adminui-page .badge--warn, .adminui-page .badge--warning { color: var(--a-warn); background: var(--a-warn-soft); }
+.adminui-page .badge--crit, .adminui-page .badge--critical, .adminui-page .badge--down, .adminui-page .badge--broken { color: var(--a-crit); background: var(--a-crit-soft); }
+.adminui-page .badge--degraded { color: #f0a35b; background: rgba(240, 163, 91, .14); }
+.adminui-page .badge--ok, .adminui-page .badge--up, .adminui-page .badge--active { color: var(--a-ok); background: var(--a-ok-soft); }
+.adminui-page .badge--accent { color: var(--a-accent); background: var(--a-accent-soft); }
+.adminui-page .badge--off { opacity: .55; }
+
+.adminui-page .status-dot {
+  display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%;
+  vertical-align: middle; background: var(--a-text-3);
+}
+.adminui-page .status-dot--ok, .adminui-page .status-dot--up { background: var(--a-ok); box-shadow: 0 0 6px rgba(111, 208, 140, .5); }
+.adminui-page .status-dot--warning, .adminui-page .status-dot--warn { background: var(--a-warn); }
+.adminui-page .status-dot--error, .adminui-page .status-dot--down, .adminui-page .status-dot--unreachable, .adminui-page .status-dot--crit { background: var(--a-crit); box-shadow: 0 0 6px rgba(255, 93, 108, .6); }
+.adminui-page .status-dot--unknown { background: var(--a-text-3); }
+
+/* ── 9. Страницы ──────────────────────────────────────────────────────────── */
+/* Карточка устройства / NE / профиля */
+.adminui-page .device-header, .adminui-page .profile-header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;
+  margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--a-border);
+}
+.adminui-page .device-header__name { margin: 0 0 4px; font-size: 20px; font-weight: 650; color: var(--a-text); }
+.adminui-page .device-header__meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--a-text-3); }
+.adminui-page .device-header__status { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--a-text); }
+.adminui-page .device-header__details { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.adminui-page .device-detail-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.adminui-page .device-detail-item__label { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--a-text-3); }
+.adminui-page .device-detail-item__value { font-size: 13px; color: var(--a-text); overflow-wrap: anywhere; }
+
+.adminui-page .aui-charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--a-gap); }
+.adminui-page .aui-charts-grid canvas { max-height: 180px; }
+
+/* Подсети: сетка карточек */
+.adminui-page .subnet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--a-gap); }
+.adminui-page .subnet-card {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow); border: 1px solid var(--a-border); border-radius: var(--a-r-panel);
+}
+.adminui-page .subnet-card__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.adminui-page .subnet-card__title { margin: 0; font-size: 15px; font-weight: 650; color: var(--a-text); }
+.adminui-page .subnet-card__cidr { margin-top: 2px; font-size: 12px; color: var(--a-text-3); }
+.adminui-page .subnet-card__desc { font-size: 12px; color: var(--a-text-3); }
+.adminui-page .subnet-card__stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.adminui-page .subnet-stat { display: block; padding: 0; text-align: center; background: none; border: 0; }
+.adminui-page .subnet-stat__label { display: block; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--a-text-3); }
+.adminui-page .subnet-stat__value { display: block; font-size: 16px; font-weight: 650; line-height: 1.4; color: var(--a-text); font-variant-numeric: tabular-nums; }
+.adminui-page .subnet-stat--ok .subnet-stat__value { color: var(--a-ok); }
+.adminui-page .subnet-progress { height: 6px; overflow: hidden; border-radius: var(--a-r-pill); background: var(--a-input); }
+.adminui-page .subnet-progress__bar { height: 100%; border-radius: inherit; background: var(--a-accent); transition: width .3s; }
+.adminui-page .subnet-progress__label { font-size: 11px; }
+.adminui-page .subnet-card__footer { display: flex; justify-content: flex-end; gap: 4px; margin-top: auto; }
+.adminui-page .subnet-grid > .empty-state { grid-column: 1 / -1; }
+
+/* Матрица прав (users/_access_matrix.html) */
+.adminui-page .acc { display: flex; flex-direction: column; gap: 16px; }
+.adminui-page .acc__presets-row { display: flex; gap: 8px; align-items: center; }
+.adminui-page .acc__presets-row .aui-input { max-width: 320px; }
+.adminui-page .acc__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.adminui-page .acc__table th { padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; color: var(--a-text-3); border-bottom: 1px solid var(--a-border); }
+.adminui-page .acc__table td { padding: 8px; vertical-align: middle; border-bottom: 1px solid var(--a-border); }
+.adminui-page .acc__table tbody tr:hover td { background: var(--a-hover); }
+.adminui-page .acc__col { width: 96px; text-align: center !important; }
+.adminui-page .acc__group td { padding: 14px 8px 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--a-text-3); border-bottom: 0; }
+.adminui-page .acc__group:hover td { background: none; }
+.adminui-page .acc__name { font-weight: 500; color: var(--a-text); }
+.adminui-page .acc__all { padding: 2px 4px; border: 0; border-radius: var(--a-r-ctrl); font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; background: none; cursor: pointer; }
+.adminui-page .acc__all:hover { color: var(--a-text); background: var(--a-hover); }
+.adminui-page .acc__radio { display: inline-flex; cursor: pointer; }
+.adminui-page .acc__radio input { position: absolute; opacity: 0; pointer-events: none; }
+.adminui-page .acc__radio span { width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--a-border-2); transition: border-color .12s, background .12s; }
+.adminui-page .acc__radio:hover span { border-color: var(--a-text-3); }
+.adminui-page .acc__radio input:focus-visible + span { outline: 2px solid var(--a-accent); outline-offset: 2px; }
+.adminui-page .acc__radio--0 input:checked + span { border-color: var(--a-text-3); background: radial-gradient(circle, var(--a-text-3) 0 3px, transparent 4px); }
+.adminui-page .acc__radio--1 input:checked + span { border-color: var(--a-info); background: radial-gradient(circle, var(--a-info) 0 4px, transparent 5px); }
+.adminui-page .acc__radio--2 input:checked + span { border-color: var(--a-accent); background: radial-gradient(circle, var(--a-accent) 0 4px, transparent 5px); }
+.adminui-page .acc__caps { display: flex; flex-direction: column; gap: 6px; }
+.adminui-page .acc__cap { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; cursor: pointer; }
+.adminui-page .acc__cap--flat { padding: 0; }
+.adminui-page .acc__cap input { margin-top: 2px; }
+.adminui-page .acc__cap span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--a-text); }
+.adminui-page .acc__cap b { font-weight: 500; }
+.adminui-page .acc__cap small { font-size: 12px; color: var(--a-text-3); }
+.adminui-page .acc-sum { display: flex; flex-wrap: wrap; gap: 4px; }
+.adminui-page .acc-sum .badge { font-weight: 500; }
+
+/* Выбор иконки (категории) */
+.adminui-page .icon-picker {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px;
+  max-height: 300px; overflow-y: auto; margin-top: 8px; padding: 10px;
+  background: var(--a-input); border: 1px solid var(--a-border); border-radius: var(--a-r-card);
+}
+.adminui-page .icon-picker__item {
+  display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1;
+  font-size: 20px; color: var(--a-text-3); cursor: pointer;
+  background: var(--a-surface-2); border: 1px solid var(--a-border); border-radius: var(--a-r-ctrl);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.adminui-page .icon-picker__item:hover { background: var(--a-hover); border-color: var(--a-accent-line); color: var(--a-accent); }
+.adminui-page .icon-picker__item.is-selected { background: var(--a-accent-soft); border-color: var(--a-accent); color: var(--a-accent); }
+.adminui-page .icon-picker-search { margin-top: 12px; }
+.adminui-page .icon-preview { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--a-text-3); }
+.adminui-page .icon-preview i { font-size: 24px; color: var(--a-accent); }
+
+/* Зависимости */
+.adminui-page .deps-lead { max-width: 960px; margin: 0 0 12px; line-height: 1.55; color: var(--a-text-2); }
+.adminui-page .deps-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 4px 0 14px; font-size: 13px; color: var(--a-text-3); }
+.adminui-page .deps-stats b { color: var(--a-text); }
+.adminui-page .deps-hub { display: inline-block; width: auto; height: 30px; margin-left: 4px; }
+.adminui-page .deps-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 12px; }
+.adminui-page .deps-filter { max-width: 300px; }
+.adminui-page .deps-bulk { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--a-text-3); }
+.adminui-page .deps-bulk select.aui-input { width: 240px; height: 32px; min-height: 0; padding-top: 0; padding-bottom: 0; }
+.adminui-page .deps-name { display: flex; align-items: center; gap: 6px; }
+.adminui-page .deps-name .mono { font-size: 12px; color: var(--a-text-3); }
+.adminui-page .deps-tree { color: var(--a-text-3); }
+.adminui-page .deps-path { max-width: 440px; font-size: 12px; color: var(--a-text-3); }
+.adminui-page .deps-auto { margin-top: 2px; font-size: 11px; color: var(--a-info); }
+.adminui-page .deps-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 11.5px; color: var(--a-warn); }
+.adminui-page .deps-hint .btn--sm { height: 22px; padding: 0 8px; font-size: 11px; }
+.adminui-page .deps-below, .adminui-page .deps-root { padding: 1px 7px; border-radius: var(--a-r-pill); font-size: 11px; white-space: nowrap; }
+.adminui-page .deps-below { color: var(--a-info); background: var(--a-info-soft); }
+.adminui-page .deps-root { color: var(--a-accent); background: var(--a-accent-soft); }
+.adminui-page .data-table select.aui-input { min-width: 260px; height: 32px; min-height: 0; padding-top: 0; padding-bottom: 0; }
+.adminui-page .data-table tr.is-changed td { background: var(--a-accent-soft); }
+.adminui-page .deps-hub.is-changed { outline: 2px solid var(--a-accent); }
+
+/* Обзор (dashboard) */
+.adminui-page .aui-attention { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.adminui-page .aui-attention__item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border-radius: var(--a-r-card); border: 1px solid transparent; border-left-width: 3px;
+  font-size: 13px; color: var(--a-text); text-decoration: none;
+  background: var(--a-warn-soft); border-left-color: var(--a-warn);
+}
+.adminui-page .aui-attention__item > i { font-size: 16px; color: var(--a-warn); }
+.adminui-page .aui-attention__item > span:not(.aui-attention__go) { flex: 1; }
+.adminui-page .aui-attention__item--crit { background: var(--a-crit-soft); border-left-color: var(--a-crit); }
+.adminui-page .aui-attention__item--crit > i { color: var(--a-crit); }
+.adminui-page a.aui-attention__item:hover { border-color: var(--a-border-2); }
+.adminui-page .aui-attention__go { color: var(--a-text-3); font-size: 12px; white-space: nowrap; }
+
+.adminui-page .aui-health { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.adminui-page .aui-health__item {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 12px;
+  border-radius: var(--a-r-card); background: var(--a-surface-2); border: 1px solid var(--a-border);
+}
+.adminui-page .aui-health__name { display: flex; align-items: center; gap: 6px; font-family: var(--a-mono); font-size: 12px; color: var(--a-text); }
+.adminui-page .aui-health__name .status-dot { margin-right: 0; }
+.adminui-page .aui-health__age { font-size: 11.5px; color: var(--a-text-3); }
+.adminui-page .aui-health__item.is-down { border-color: rgba(255, 93, 108, .45); background: var(--a-crit-soft); }
+.adminui-page .aui-health__item.is-down .aui-health__age { color: var(--a-crit); }
+
+.adminui-page .aui-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.adminui-page .aui-quick a {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: var(--a-r-card); background: var(--a-surface-2); border: 1px solid var(--a-border);
+  font-size: 13px; color: var(--a-text); text-decoration: none; transition: background .15s, border-color .15s;
+}
+.adminui-page .aui-quick a > i { font-size: 16px; color: var(--a-accent); }
+.adminui-page .aui-quick a:hover { background: var(--a-hover); border-color: var(--a-border-2); }
+
+.adminui-page .aui-feed { margin: 0; padding: 0; list-style: none; }
+.adminui-page .aui-feed li { display: flex; gap: 12px; padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--a-border); }
+.adminui-page .aui-feed li:last-child { border-bottom: 0; }
+.adminui-page .aui-feed__time { flex-shrink: 0; width: 86px; font-size: 12px; color: var(--a-text-3); font-variant-numeric: tabular-nums; }
+.adminui-page .aui-feed__body { min-width: 0; color: var(--a-text-2); }
+.adminui-page .aui-feed__body b { color: var(--a-text); font-weight: 600; }
+
+/* Рисование трассы линии (links/draw.html, links/form.html) */
+.adminui-page .aui-map-layout { display: flex; gap: 20px; align-items: flex-start; }
+.adminui-page .aui-map-layout > .aui-map-layout__main { flex: 1 1 0; min-width: 0; }
+.adminui-page .aui-map-layout > .aui-map-layout__side { flex: 0 0 320px; }
+.adminui-page .aui-map-layout--half > .aui-map-layout__main,
+.adminui-page .aui-map-layout--half > .aui-map-layout__side { flex: 1 1 0; min-width: 0; }
+.adminui-page .aui-map-layout--half > .aui-map-layout__side { position: sticky; top: 20px; }
+.adminui-page .aui-map { height: calc(100vh - 170px); min-height: 420px; overflow: hidden; background: var(--a-surface); border: 1px solid var(--a-border); border-radius: var(--a-r-panel); }
+.adminui-page .aui-map-frame { display: block; width: 100%; height: 600px; border: 0; border-radius: var(--a-r-card); background: #111; }
 @media (max-width: 1100px) {
-  .adminui-grid-2 { grid-template-columns: 1fr; }
+  .adminui-page .aui-map-layout { flex-direction: column; }
+  .adminui-page .aui-map-layout > * { flex: 1 1 auto !important; width: 100%; position: static !important; }
 }
 
-/* ---------- Panel ---------- */
-.panel {
-  background: var(--bg-panel, #181b1f);
-  border: 1px solid var(--border, #2c3235);
-  border-radius: var(--radius, 4px);
-  overflow: hidden;
+/* Выбор порта (links/form.html) */
+.adminui-page .port-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.adminui-page .port-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0; box-sizing: border-box;
+  font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer;
+  color: var(--a-text-2); background: var(--a-input); border: 1px solid var(--a-border); border-radius: var(--a-r-ctrl);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.adminui-page .port-btn:hover { border-color: var(--a-border-2); color: var(--a-text); }
+.adminui-page .port-btn.is-active { color: var(--a-on-accent); background: var(--a-accent); border-color: transparent; font-weight: 700; }
+
+/* ── 11. Структура страниц: шапка объекта, секции форм, панель сохранения ── */
+
+/* Шапка-карточка объекта (устройство, NE, профиль, алерт, пользователь) */
+.adminui-page .aui-hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  padding: 18px 20px; margin-bottom: var(--a-gap);
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow);
+  border: 1px solid var(--a-border); border-radius: var(--a-r-panel);
+}
+.adminui-page .aui-hero__icon {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 12px;
+  font-size: 24px; color: var(--a-accent); background: var(--a-accent-soft); border: 1px solid rgba(255, 122, 26, .2);
+}
+.adminui-page .aui-hero__icon--ok   { color: var(--a-ok);   background: var(--a-ok-soft);   border-color: rgba(111, 208, 140, .25); }
+.adminui-page .aui-hero__icon--crit { color: var(--a-crit); background: var(--a-crit-soft); border-color: rgba(255, 93, 108, .3); }
+.adminui-page .aui-hero__icon--warn { color: var(--a-warn); background: var(--a-warn-soft); border-color: rgba(245, 197, 66, .3); }
+.adminui-page .aui-hero__icon--muted { color: var(--a-text-3); background: var(--a-surface-2); border-color: var(--a-border); }
+.adminui-page .aui-hero__main { min-width: 0; }
+.adminui-page .aui-hero__title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0; font-size: 20px; font-weight: 650; color: var(--a-text); }
+.adminui-page .aui-hero__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.adminui-page .aui-hero__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.adminui-page .aui-hero__facts {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+  margin: 4px -20px -18px; border-top: 1px solid var(--a-border); background: var(--a-border);
+  border-radius: 0 0 var(--a-r-panel) var(--a-r-panel); overflow: hidden;
+}
+.adminui-page .aui-fact { display: flex; flex-direction: column; gap: 3px; padding: 12px 20px; background: var(--a-head); min-width: 0; }
+.adminui-page.theme-glass .aui-fact { background: rgba(10, 12, 17, .55); }
+.adminui-page .aui-fact__label { font-size: 10.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--a-text-3); }
+.adminui-page .aui-fact__value { font-size: 13.5px; color: var(--a-text); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+
+/* Страницы с шапкой-карточкой: заголовок страницы — только для экранных дикторов, видны крошки */
+.adminui-page .adminui-header--compact { margin-bottom: 12px; }
+.adminui-page .adminui-header--compact .adminui-header__title {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-.panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border, #2c3235);
-  background: var(--bg-elevated, #1f2226);
+/* Метки-«чипы» в шапках и таблицах */
+.adminui-page .aui-chip {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  padding: 3px 9px; border-radius: var(--a-r-pill);
+  font-size: 12px; line-height: 1.35; color: var(--a-text-2);
+  background: var(--a-surface-2); border: 1px solid var(--a-border); text-decoration: none;
 }
+.adminui-page a.aui-chip:hover { color: var(--a-text); border-color: var(--a-border-2); }
+.adminui-page .aui-chip--mono { font-family: var(--a-mono); font-size: 11.5px; }
+.adminui-page .aui-chip > i { color: var(--a-text-3); }
 
-.panel__title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-strong, #ffffff);
+/* Статус-«пилюля»: точка + текст */
+.adminui-page .aui-status {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: var(--a-r-pill);
+  font-size: 12.5px; font-weight: 600; color: var(--a-text-2); background: var(--a-mute-soft);
 }
+.adminui-page .aui-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.adminui-page .aui-status--ok   { color: var(--a-ok);   background: var(--a-ok-soft); }
+.adminui-page .aui-status--warn { color: var(--a-warn); background: var(--a-warn-soft); }
+.adminui-page .aui-status--crit { color: var(--a-crit); background: var(--a-crit-soft); }
 
-.panel__link {
-  font-size: 12px;
-  color: var(--primary, #ff780a);
-  text-decoration: none;
+/* Форма из секций: слева заголовок и пояснение, справа поля */
+.adminui-page .aui-sheet { display: flex; flex-direction: column; gap: var(--a-gap); max-width: 1180px; }
+.adminui-page .aui-sheet--narrow { max-width: 860px; }
+.adminui-page .aui-fs {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr);
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow);
+  border: 1px solid var(--a-border); border-radius: var(--a-r-panel); overflow: hidden;
 }
-.panel__link:hover { text-decoration: underline; }
-
-.panel__body { padding: 12px 16px; }
-.panel__body--flush { padding: 0; }
-
-/* ---------- Data table ---------- */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 8px 12px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--text-muted, #8e8e8e);
-  font-weight: 500;
-  border-bottom: 1px solid var(--border, #2c3235);
-  background: var(--bg-base, #111217);
-}
-
-.data-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border, #2c3235);
-  color: var(--text, #ccccdc);
-}
-
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: var(--bg-hover, #22252b); }
-
-.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-.text-muted { color: var(--text-muted, #8e8e8e); }
-.text-crit { color: var(--crit, #f2495c); }
-
-/* ---------- Badges ---------- */
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .3px;
-}
-
-.badge--info { background: rgba(10,191,188,.15); color: var(--tiffany, #0abfbc); }
-.badge--warn { background: rgba(242,204,12,.15); color: var(--warn, #f2cc0c); }
-.badge--crit { background: rgba(242,73,92,.15); color: var(--crit, #f2495c); }
-
-/* ---------- Status dot ---------- */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  background: var(--text-muted, #8e8e8e);
-}
-
-.status-dot--ok,
-.status-dot--up { background: var(--ok, #73bf69); }
-.status-dot--warning { background: var(--warn, #f2cc0c); }
-.status-dot--error,
-.status-dot--down { background: var(--crit, #f2495c); }
-.status-dot--unknown { background: var(--text-muted, #8e8e8e); }
-
-/* ---------- Empty state ---------- */
-.empty-state {
-  padding: 32px 16px;
-  text-align: center;
-  color: var(--text-muted, #8e8e8e);
-}
-
-.empty-state i {
-  font-size: 32px;
-  color: var(--text-muted, #8e8e8e);
-  opacity: .5;
-  display: block;
-  margin-bottom: 12px;
-}
-
-.empty-state p { margin: 0; }
-
-.empty-state--lg { padding: 64px 24px; }
-.empty-state--lg i { font-size: 64px; margin-bottom: 20px; }
-.empty-state--lg h2 {
-  font-size: 18px;
-  color: var(--text-strong, #ffffff);
-  margin-bottom: 8px;
-}
-.empty-state--lg p { margin-bottom: 20px; }
-
-/* ---------- Buttons ---------- */
-.btn--secondary {
-  background: var(--bg-elevated, #1f2226);
-  border: 1px solid var(--border, #2c3235);
-  color: var(--text, #ccccdc);
-  padding: 6px 14px;
-  border-radius: var(--radius, 4px);
-  font-size: 13px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  transition: background .12s, border-color .12s;
-}
-
-.btn--secondary:hover {
-  background: var(--bg-hover, #22252b);
-  border-color: var(--border-strong, #3d444b);
-  color: var(--text-strong, #ffffff);
-}
-
-/* ---------- Filter bar ---------- */
-.aui-filter-bar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.aui-filter-bar__field { flex: 0 0 auto; }
-.aui-filter-bar__field--grow { flex: 1 1 240px; }
-
-.aui-input {
-  background: var(--bg-input, #0b0c0e);
-  border: 1px solid var(--border, #2c3235);
-  border-radius: var(--radius, 4px);
-  color: var(--text, #ccccdc);
-  padding: 6px 10px;
-  font-size: 13px;
-  width: 100%;
-  font-family: inherit;
-  outline: none;
-  transition: border-color .12s;
-}
-
-.aui-input:focus {
-  border-color: var(--primary, #ff780a);
-}
-
-/* ---------- Row actions ---------- */
-.aui-row-actions {
-  display: flex;
-  gap: 4px;
-  justify-content: flex-end;
-}
-
-.aui-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius, 4px);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted, #8e8e8e);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all .12s;
-}
-
-.aui-icon-btn:hover {
-  background: var(--bg-hover, #22252b);
-  border-color: var(--border, #2c3235);
-  color: var(--text-strong, #ffffff);
-}
-
-.aui-icon-btn--poll:hover {
-  color: var(--primary, #ff780a);
-  border-color: var(--primary, #ff780a);
-}
-
-/* ---------- Pagination ---------- */
-.aui-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-/* ---------- Device detail header ---------- */
-.device-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border, #2c3235);
-  margin-bottom: 12px;
-}
-
-.device-header__name {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text-strong, #ffffff);
-  margin: 0 0 4px;
-}
-
-.device-header__meta {
-  font-size: 13px;
-  color: var(--text-muted, #8e8e8e);
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.device-header__status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--text-strong, #ffffff);
-}
-
-.device-header__details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.device-detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.device-detail-item__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--text-muted, #8e8e8e);
-}
-
-.device-detail-item__value {
-  font-size: 13px;
-  color: var(--text-strong, #ffffff);
-}
-
-/* ---------- Charts grid ---------- */
-.aui-charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 16px;
-}
-
-.aui-charts-grid canvas {
-  max-height: 180px;
-}
-
-/* ---------- Forms ---------- */
-.aui-form { max-width: 1100px; }
-
-.aui-form__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
+.adminui-page .aui-fs__head { padding: 18px 20px; border-right: 1px solid var(--a-border); background: var(--a-head); }
+.adminui-page .aui-fs__title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 14px; font-weight: 650; color: var(--a-text); }
+.adminui-page .aui-fs__title > i { color: var(--a-accent); }
+.adminui-page .aui-fs__desc { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--a-text-3); }
+.adminui-page .aui-fs__tools { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.adminui-page .aui-fs__body { padding: 18px 20px; min-width: 0; }
+.adminui-page .aui-fs--flush .aui-fs__body { padding: 0; }
 @media (max-width: 900px) {
-  .aui-form__grid { grid-template-columns: 1fr; }
+  .adminui-page .aui-fs { grid-template-columns: 1fr; }
+  .adminui-page .aui-fs__head { border-right: 0; border-bottom: 1px solid var(--a-border); padding: 14px 16px; }
+  .adminui-page .aui-fs__body { padding: 16px; }
 }
 
-.aui-form__field {
-  margin-bottom: 14px;
+/* Сетка полей: по две колонки, широкие поля — на всю строку */
+.adminui-page .aui-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; align-items: start; }
+.adminui-page .aui-fields > .aui-form__field { margin: 0; }
+.adminui-page .aui-fields > .is-wide, .adminui-page .aui-fields > .aui-fields__wide { grid-column: 1 / -1; }
+.adminui-page .aui-fields--one { grid-template-columns: 1fr; }
+@media (max-width: 700px) { .adminui-page .aui-fields { grid-template-columns: 1fr; } }
+
+/* Переключатель для флажков */
+.adminui-page .aui-switch { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; cursor: pointer;
+  border-radius: var(--a-r-card); background: var(--a-surface-2); border: 1px solid var(--a-border); }
+.adminui-page .aui-switch:hover { border-color: var(--a-border-2); }
+.adminui-page .aui-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.adminui-page .aui-switch__track { position: relative; flex-shrink: 0; width: 34px; height: 20px; margin-top: 1px; border-radius: var(--a-r-pill); background: var(--a-border-2); transition: background .15s; }
+.adminui-page .aui-switch__track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.adminui-page .aui-switch input:checked + .aui-switch__track { background: var(--a-accent); }
+.adminui-page .aui-switch input:checked + .aui-switch__track::after { transform: translateX(14px); }
+.adminui-page .aui-switch input:focus-visible + .aui-switch__track { outline: 2px solid var(--a-accent-line); outline-offset: 2px; }
+.adminui-page .aui-switch__text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--a-text); }
+.adminui-page .aui-switch__text small { font-size: 12px; color: var(--a-text-3); }
+
+/* Липкая панель сохранения внизу формы */
+.adminui-page .aui-savebar {
+  position: sticky; bottom: 12px; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 4px; padding: 10px 12px;
+  background: rgba(16, 19, 25, .92); border: 1px solid var(--a-border-2); border-radius: var(--a-r-panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
+.adminui-page .aui-savebar__state { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-size: 12.5px; color: var(--a-text-3); }
+.adminui-page .aui-savebar__state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--a-text-3); }
+.adminui-page .aui-savebar.is-dirty .aui-savebar__state { color: var(--a-warn); }
+.adminui-page .aui-savebar.is-dirty .aui-savebar__state::before { background: var(--a-warn); }
+.adminui-page .aui-savebar kbd { padding: 0 5px; border-radius: 4px; font-family: var(--a-mono); font-size: 10.5px; color: var(--a-text-3); border: 1px solid var(--a-border-2); }
 
-.aui-form__field:last-child { margin-bottom: 0; }
+/* Панель инструментов списка (в шапке панели) */
+.adminui-page .aui-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--a-border); }
+.adminui-page .aui-toolbar .aui-input { width: auto; height: 34px; min-height: 0; padding-top: 0; padding-bottom: 0; }
+.adminui-page .aui-search { position: relative; flex: 1 1 260px; min-width: 200px; }
+.adminui-page .aui-search > i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--a-text-3); font-size: 13px; pointer-events: none; }
+.adminui-page .aui-search .aui-input, .adminui-page .aui-search input { width: 100%; padding-left: 32px; }
+.adminui-page .aui-toolbar__end { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.adminui-page .aui-count { font-size: 12.5px; color: var(--a-text-3); white-space: nowrap; }
+.adminui-page .aui-count b { color: var(--a-text); }
 
-.aui-form__label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted, #8e8e8e);
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  margin-bottom: 4px;
+/* Ячейка «объект»: иконка + имя + подпись */
+.adminui-page .aui-obj { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.adminui-page .aui-obj__icon { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; font-size: 15px; color: var(--a-text-2); background: var(--a-surface-2); border: 1px solid var(--a-border); }
+.adminui-page .aui-obj__text { display: flex; flex-direction: column; min-width: 0; }
+.adminui-page .aui-obj__text .cell-sub { margin-top: 0; }
+
+/* Подтверждение удаления */
+.adminui-page .aui-confirm { max-width: 620px; padding: 24px; text-align: left;
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow); border: 1px solid var(--a-border); border-radius: var(--a-r-panel); }
+.adminui-page .aui-confirm__icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 14px; border-radius: 12px; font-size: 22px; color: var(--a-crit); background: var(--a-crit-soft); }
+.adminui-page .aui-confirm__icon--blocked { color: var(--a-warn); background: var(--a-warn-soft); }
+.adminui-page .aui-confirm__title { margin: 0 0 6px; font-size: 18px; font-weight: 650; color: var(--a-text); }
+.adminui-page .aui-confirm__object { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; padding: 12px 14px; border-radius: var(--a-r-card); background: var(--a-surface-2); border: 1px solid var(--a-border); font-size: 14px; }
+.adminui-page .aui-confirm__object b { color: var(--a-text); }
+.adminui-page .aui-confirm__text { margin: 0; font-size: 13px; color: var(--a-text-2); }
+.adminui-page .aui-confirm .form-actions { border-top: 0; padding-top: 8px; margin-top: 16px; }
+
+/* Карточки-сетка (вендоры, модули, шаблоны доступа) */
+.adminui-page .aui-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--a-gap); }
+.adminui-page .aui-card {
+  position: relative; display: flex; flex-direction: column; gap: 10px; padding: 16px;
+  background: var(--a-panel-bg); box-shadow: var(--a-panel-shadow);
+  border: 1px solid var(--a-border); border-radius: var(--a-r-panel); color: var(--a-text); transition: border-color .15s;
 }
+.adminui-page .aui-card:hover { border-color: var(--a-border-2); }
+.adminui-page .aui-card__head { display: flex; align-items: flex-start; gap: 12px; }
+.adminui-page .aui-card__icon { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; font-size: 19px; color: var(--a-accent); background: var(--a-surface-2); border: 1px solid var(--a-border); }
+.adminui-page .aui-card__title { margin: 0; font-size: 15px; font-weight: 650; color: var(--a-text); }
+.adminui-page .aui-card__title a { color: inherit; text-decoration: none; }
+.adminui-page .aui-card__title a:hover { color: var(--a-accent); }
+.adminui-page .aui-card__sub { margin-top: 2px; font-size: 12px; color: var(--a-text-3); }
+.adminui-page .aui-card__body { font-size: 13px; color: var(--a-text-2); }
+.adminui-page .aui-card__stats { display: flex; gap: 20px; padding-top: 10px; border-top: 1px solid var(--a-border); }
+.adminui-page .aui-card__stat { display: flex; flex-direction: column; }
+.adminui-page .aui-card__stat b { font-size: 18px; font-weight: 650; color: var(--a-text); font-variant-numeric: tabular-nums; }
+.adminui-page .aui-card__stat span { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--a-text-3); }
+.adminui-page .aui-card__foot { display: flex; align-items: center; gap: 4px; margin-top: auto; }
+.adminui-page .aui-card--off { opacity: .6; }
+.adminui-page .aui-card--add { align-items: center; justify-content: center; min-height: 150px; border-style: dashed; color: var(--a-text-3); text-decoration: none; background: transparent; box-shadow: none; }
+.adminui-page .aui-card--add i { font-size: 26px; }
+.adminui-page .aui-card--add:hover { color: var(--a-accent); border-color: var(--a-accent-line); }
 
-.aui-form__hint {
-  font-size: 11px;
-  color: var(--text-muted, #8e8e8e);
-  margin-top: 4px;
+/* Всплывающие уведомления (Cerber.toast из core.js) */
+.adminui-page .cerber-toast {
+  display: flex; align-items: center; gap: 10px; max-width: 380px; padding: 11px 16px;
+  font-size: 13px; color: var(--a-text); pointer-events: auto;
+  background: rgba(20, 23, 30, .96); border: 1px solid var(--a-border-2); border-left: 3px solid var(--a-info);
+  border-radius: var(--a-r-card); box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+  animation: aui-toast-in .25s ease;
 }
+.adminui-page .cerber-toast--success { border-left-color: var(--a-ok); }
+.adminui-page .cerber-toast--error { border-left-color: var(--a-crit); }
+.adminui-page .cerber-toast--warning { border-left-color: var(--a-warn); }
+@keyframes aui-toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-.aui-form__error {
-  font-size: 12px;
-  color: var(--crit, #f2495c);
-  margin-top: 4px;
-}
+/* Заголовок раздела страницы (между блоками) */
+.adminui-page .aui-section-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin: 24px 0 12px; }
+.adminui-page .aui-section-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 650; color: var(--a-text); }
+.adminui-page .aui-section-head h2 > i { color: var(--a-accent); }
+.adminui-page .aui-section-head .aui-push { align-self: center; }
 
-.aui-form__errors {
-  background: rgba(242,73,92,.1);
-  border: 1px solid var(--crit, #f2495c);
-  border-radius: var(--radius, 4px);
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  color: var(--crit, #f2495c);
-  font-size: 13px;
-}
+/* Кликабельные строки таблиц (data-href) */
+.adminui-page .data-table tr[data-href] { cursor: pointer; }
 
-.aui-form__actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 16px 0;
-  border-top: 1px solid var(--border, #2c3235);
-  margin-top: 8px;
-}
-
-.aui-form select.aui-input,
-.aui-form textarea.aui-input {
-  width: 100%;
-}
-
-/* Кнопки */
-.btn--primary {
-  background: var(--primary, #ff780a);
-  border: 1px solid var(--primary, #ff780a);
-  color: #111;
-  padding: 8px 16px;
-  border-radius: var(--radius, 4px);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  transition: opacity .12s;
-}
-
-.btn--primary:hover { opacity: .85; }
-
-.btn--danger {
-  background: transparent;
-  border: 1px solid var(--crit, #f2495c);
-  color: var(--crit, #f2495c);
-  padding: 8px 16px;
-  border-radius: var(--radius, 4px);
-  font-size: 13px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  transition: background .12s;
-}
-
-.btn--danger:hover {
-  background: rgba(242,73,92,.1);
-}
-
-.btn--sm {
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-/* ---------- SNMP test result ---------- */
-.aui-snmp-test {
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: var(--radius, 4px);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.aui-snmp-test--ok {
-  background: rgba(115,191,105,.1);
-  border: 1px solid var(--ok, #73bf69);
-  color: var(--ok, #73bf69);
-}
-
-.aui-snmp-test--error {
-  background: rgba(242,73,92,.1);
-  border: 1px solid var(--crit, #f2495c);
-  color: var(--crit, #f2495c);
-}
-
-.aui-snmp-test--loading {
-  background: rgba(10,191,188,.1);
-  border: 1px solid var(--tiffany, #0abfbc);
-  color: var(--tiffany, #0abfbc);
-}
-
-.aui-snmp-test__row {
-  margin-top: 6px;
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--text, #ccccdc);
-}
-
-/* Кнопка "Тест OID" */
-.aui-icon-btn--test:hover {
-  color: var(--tiffany, #0abfbc);
-  border-color: var(--tiffany, #0abfbc);
-}
-
-/* Profile header */
-.profile-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-/* ---------- Details (компактный режим) ---------- */
-.aui-details {
-  background: var(--bg-panel, #181b1f);
-  border: 1px solid var(--border, #2c3235);
-  border-radius: var(--radius, 4px);
-  padding: 12px 16px;
-}
-
-.aui-details__summary {
-  cursor: pointer;
-  color: var(--text, #ccccdc);
-  font-size: 13px;
-  font-weight: 500;
-  user-select: none;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.aui-details__summary::-webkit-details-marker {
-  display: none;
-}
-
-.aui-details__summary i {
-  transition: transform .15s;
-}
-
-.aui-details[open] .aui-details__summary i {
-  transform: rotate(90deg);
-}
-
-.aui-details__summary:hover {
-  color: var(--text-strong, #ffffff);
-}
-
-/* ---------- Subnets grid ---------- */
-.subnet-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-}
-
-.subnet-card {
-  background: var(--bg-panel, #181b1f);
-  border: 1px solid var(--border, #2c3235);
-  border-radius: var(--radius, 4px);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.subnet-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.subnet-card__title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-strong, #ffffff);
-}
-
-.subnet-card__cidr {
-  font-size: 12px;
-  color: var(--text-muted, #8e8e8e);
-  margin-top: 2px;
-}
-
-.subnet-card__desc {
-  font-size: 12px;
-  color: var(--text-muted, #8e8e8e);
-}
-
-.subnet-card__stats {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-}
-
-.subnet-stat {
-  text-align: center;
-}
-
-.subnet-stat__label {
-  display: block;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  color: var(--text-muted, #8e8e8e);
-}
-
-.subnet-stat__value {
-  display: block;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-strong, #ffffff);
-}
-
-.subnet-stat--ok .subnet-stat__value {
-  color: var(--ok, #73bf69);
-}
-
-.subnet-progress {
-  background: var(--bg-input, #0b0c0e);
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.subnet-progress__bar {
-  height: 100%;
-  background: var(--primary, #ff780a);
-  transition: width .3s;
-}
-
-.subnet-progress__label {
-  font-size: 11px;
-}
-
-.subnet-card__footer {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-/* ── Формы и таблицы для муфт ── */
-.admin-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-}
-
-.admin-header h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-strong);
-    margin: 0;
-}
-
-.admin-filters {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.admin-form {
-    max-width: 600px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-row {
-    display: flex;
-    gap: 16px;
-}
-
-.form-row .form-group {
-    flex: 1;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-}
-
-.form-input, .form-select {
-    width: 100%;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 12px;
-    color: var(--text);
-    font-size: 0.875rem;
-    transition: border-color 0.15s;
-}
-
-.form-input:focus, .form-select:focus {
-    border-color: var(--primary);
-    outline: none;
-}
-
-.form-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-}
-
-.admin-card {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-}
-
-.admin-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-
-.admin-table th {
-    text-align: left;
-    padding: 12px 16px;
-    color: var(--text-muted);
-    font-weight: 500;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elevated);
-}
-
-.admin-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text);
-}
-
-.admin-table tr:hover td {
-    background: var(--bg-hover);
-}
-
-.admin-table__actions {
-    display: flex;
-    gap: 8px;
-}
-
-.text-danger { color: var(--crit) !important; font-size: 0.8rem; margin-top: 4px; }
-.text-center { text-align: center; }
-
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border-radius: var(--radius);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid transparent;
-    text-decoration: none;
-    transition: opacity 0.15s;
-}
-
-.btn:hover { opacity: 0.85; }
-.btn-primary { background: var(--primary); color: #fff; }
-.btn-secondary { background: var(--bg-elevated); color: var(--text); border-color: var(--border); }
-.btn-danger { background: var(--crit); color: #fff; }
-.btn-sm { padding: 4px 8px; font-size: 0.75rem; }
-
-/* Отступы между кнопками в таблицах */
-.data-table td .btn--icon {
-    margin-right: 8px;
-}
-.data-table td .btn--icon:last-child {
-    margin-right: 0;
-}
-
-/* ── Матрица прав (users/_access_matrix.html) ── */
-.acc { display: flex; flex-direction: column; gap: 16px; }
-.acc__presets-row { display: flex; gap: 8px; align-items: center; }
-.acc__presets-row .aui-input { max-width: 320px; }
-.acc__hint { margin-top: 2px; font-size: 12px; color: var(--text-muted); }
-.acc__table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.acc__table th { padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
-.acc__table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.acc__col { width: 96px; text-align: center !important; }
-.acc__group td { padding: 14px 8px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); border-bottom: 0; }
-.acc__name { font-weight: 500; color: var(--text); }
-.acc__all { background: none; border: 0; padding: 2px 4px; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; border-radius: 4px; }
-.acc__all:hover { color: var(--text); background: var(--bg-hover); }
-.acc__radio { display: inline-flex; cursor: pointer; }
-.acc__radio input { position: absolute; opacity: 0; pointer-events: none; }
-.acc__radio span { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong, var(--border)); box-sizing: border-box; transition: border-color .12s, background .12s; }
-.acc__radio:hover span { border-color: var(--text-muted); }
-.acc__radio input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
-.acc__radio--0 input:checked + span { border-color: var(--text-muted); background: radial-gradient(circle, var(--text-muted) 0 3px, transparent 4px); }
-.acc__radio--1 input:checked + span { border-color: var(--info, #5ab8f5); background: radial-gradient(circle, var(--info, #5ab8f5) 0 4px, transparent 5px); }
-.acc__radio--2 input:checked + span { border-color: var(--primary); background: radial-gradient(circle, var(--primary) 0 4px, transparent 5px); }
-.acc__caps { display: flex; flex-direction: column; gap: 6px; }
-.acc__cap { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; cursor: pointer; }
-.acc__cap input { margin-top: 2px; }
-.acc__cap span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text); }
-.acc__cap b { font-weight: 500; }
-.acc__cap small { font-size: 12px; color: var(--text-muted); }
-.acc-sum { display: flex; flex-wrap: wrap; gap: 4px; }
-.acc-sum .badge { font-weight: 500; }
-
-/* ============================================================
-   Телефон (≤ 768px): меню — прокручиваемая лента сверху, контент в одну колонку
-   ============================================================ */
+/* ── 10. Телефон (≤ 768px): меню — лента сверху, контент в одну колонку ───── */
 @media (max-width: 768px) {
-  html, body { overflow-x: hidden; }
-  .adminui-layout { display: block !important; min-height: 0; }
-  .adminui-sidebar {
-    position: sticky !important;
-    top: 0;
-    z-index: 50;
-    height: auto !important;
-    margin: 0 !important;
-    padding: calc(6px + var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)) 8px 6px !important;
-    border-radius: 0 !important;
-    border-right: 0 !important;
-    border-bottom: 1px solid var(--border, #2c3235);
-    background: #14171d !important;
-    flex-direction: row !important;
-    align-items: center;
-    gap: 4px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    backdrop-filter: none !important;
+  html:has(> body.adminui-page), body.adminui-page { overflow-x: hidden; }
+  .adminui-page .adminui-layout { display: block; min-height: 0; }
+  .adminui-page .adminui-sidebar,
+  .adminui-page.theme-glass .adminui-sidebar {
+    position: sticky; top: 0; z-index: 50;
+    height: auto; margin: 0;
+    padding: calc(6px + var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)) 8px 6px;
+    flex-direction: row; align-items: center; gap: 4px;
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+    border-radius: 0; border-right: 0; border-bottom: 1px solid var(--a-border);
+    background: #14171d; backdrop-filter: none;
   }
-  .adminui-sidebar::-webkit-scrollbar { display: none; }
-  .adminui-sidebar__title { flex: 0 0 auto; padding: 0 8px 0 4px !important; margin: 0 !important; border: 0 !important; }
-  .adminui-sidebar__title span { display: none; }
-  .adminui-nav { flex-direction: row !important; flex: 0 0 auto; gap: 4px; margin: 0 !important; }
-  .adminui-nav__group { display: none !important; }
-  .adminui-nav__item {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    min-height: 38px;
-    margin: 0 !important;
-    padding: 8px 12px !important;
-    border-radius: 8px;
-  }
-  .adminui-nav__item.is-active::before { display: none; }
-  .adminui-main { min-width: 0; padding: 0 !important; }
-  .adminui-header { flex-wrap: wrap; gap: 10px; padding: 14px 12px 8px !important; }
-  .adminui-header__title { font-size: 20px !important; }
-  .adminui-header__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .adminui-content { padding: 0 12px 24px !important; }
-  .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-  .adminui-grid-2, .aui-form__grid { grid-template-columns: 1fr !important; }
-  .panel { overflow-x: auto; }
-  .panel table { white-space: nowrap; }
-  input, select, textarea { font-size: 16px !important; max-width: 100%; }
+  .adminui-page .adminui-sidebar::-webkit-scrollbar { display: none; }
+  .adminui-page .adminui-brand { flex: 0 0 auto; margin: 0; padding: 0 6px 0 2px; border: 0; }
+  .adminui-page .adminui-brand__text { display: none; }
+  .adminui-page .adminui-nav, .adminui-page .adminui-sidebar__bottom { flex-direction: row; flex: 0 0 auto; gap: 4px; margin: 0; padding: 0; border: 0; }
+  .adminui-page .adminui-nav__group, .adminui-page .adminui-user { display: none; }
+  .adminui-page .adminui-nav__item { flex: 0 0 auto; min-height: 38px; margin: 0; padding: 8px 12px; white-space: nowrap; }
+  .adminui-page .adminui-nav__item.is-active::before { display: none; }
+  .adminui-page .adminui-main { padding: 14px 12px 24px; }
+  .adminui-page .adminui-header__title { font-size: 20px; }
+  .adminui-page .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .adminui-page .panel table { white-space: nowrap; }
+  .adminui-page .panel__filters .aui-input { min-width: 0; flex: 1 1 100%; }
+  .adminui-page input, .adminui-page select, .adminui-page textarea { font-size: 16px; max-width: 100%; }
+  .adminui-page .aui-hero { grid-template-columns: auto minmax(0, 1fr); padding: 14px 16px; }
+  .adminui-page .aui-hero__actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .adminui-page .aui-hero__facts { margin: 4px -16px -14px; }
+  .adminui-page .aui-savebar { bottom: 8px; }
+  .adminui-page .aui-savebar__state { display: none; }
 }
+
+/* ── Выбор порта конца линии (links/_end.html, static/js/adminui-link-ports.js) ── */
+.adminui-page .aui-end-letter {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 2px;
+  border-radius: 6px; background: var(--a-accent-soft); color: var(--a-accent); font-size: 12px; font-weight: 800;
+}
+.adminui-page .aui-ports__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.adminui-page .aui-ports__head .aui-form__label { margin: 0; }
+.adminui-page .aui-ports__picked { flex: 1; font-size: 12px; color: var(--a-text-2); min-width: 0; }
+.adminui-page .aui-ports__all { font-size: 12px; color: var(--a-text-3); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.adminui-page .aui-ports {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 6px; margin-top: 6px;
+  max-height: 340px; overflow-y: auto; padding: 2px;
+}
+.adminui-page .aui-ports__empty { grid-column: 1 / -1; padding: 12px; font-size: 13px; color: var(--a-text-3);
+  border: 1px dashed var(--a-border-2); border-radius: var(--a-r-ctrl); }
+.adminui-page .aui-ports__manual { width: 90px; display: inline-block; margin-left: 6px; }
+.adminui-page .aui-ports__more { grid-column: 1 / -1; padding: 7px; font-size: 12px; color: var(--a-text-2);
+  background: none; border: 1px dashed var(--a-border-2); border-radius: var(--a-r-ctrl); cursor: pointer; }
+.adminui-page .aui-ports__more:hover { color: var(--a-text); border-color: var(--a-text-3); }
+.adminui-page .aui-ports__type { margin-top: 8px; font-size: 12px; color: var(--a-text-3); display: flex; align-items: center; gap: 8px; }
+.adminui-page .aui-ports__type select { width: auto; padding: 4px 8px; font-size: 12px; }
+
+.adminui-page .aui-port {
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; text-align: left; min-width: 0;
+  background: var(--a-surface); color: var(--a-text); font: inherit; cursor: pointer;
+  border: 1px solid var(--a-border); border-radius: var(--a-r-ctrl); transition: border-color .12s, background .12s;
+}
+.adminui-page .aui-port:hover { border-color: var(--a-border-2); background: var(--a-hover); }
+.adminui-page .aui-port.is-active { border-color: var(--a-accent); background: var(--a-accent-soft); box-shadow: 0 0 0 1px var(--a-accent) inset; }
+.adminui-page .aui-port.is-down { opacity: .55; }
+.adminui-page .aui-port.is-down.is-active { opacity: 1; }
+.adminui-page .aui-port.is-used:not(.is-active) { border-style: dashed; }
+.adminui-page .aui-port__top { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.adminui-page .aui-port__top b { font-size: 15px; min-width: 16px; }
+.adminui-page .aui-port__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--a-text-3); flex: none; }
+.adminui-page .aui-port.is-up .aui-port__dot { background: var(--a-ok); box-shadow: 0 0 6px var(--a-ok); }
+.adminui-page .aui-port__name { font-family: var(--a-mono); font-size: 11px; color: var(--a-text-3); }
+.adminui-page .aui-port__sfp { margin-left: auto; padding: 0 5px; font-size: 10px; font-weight: 700; letter-spacing: .03em;
+  color: var(--a-info); background: var(--a-info-soft); border-radius: 4px; }
+.adminui-page .aui-port__alias { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adminui-page .aui-port__alias i { font-weight: 400; color: var(--a-text-3); }
+.adminui-page .aui-port__meta { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; color: var(--a-text-3); }
+.adminui-page .aui-port__rx { font-family: var(--a-mono); }
+.adminui-page .aui-port__rx.is-warn { color: var(--a-warn); }
+.adminui-page .aui-port__used { color: var(--a-warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.adminui-page .aui-port--ne { min-height: 0; }
+/* Секция «стопкой»: заголовок сверху, поля на всю ширину (концы линии — там список портов) */
+.adminui-page .aui-fs--stack { grid-template-columns: 1fr; }
+.adminui-page .aui-fs--stack .aui-fs__head { border-right: 0; border-bottom: 1px solid var(--a-border); padding: 12px 20px; }
+.adminui-page .aui-fs--stack .aui-fs__title { margin: 0; }
+.adminui-page .aui-fs--stack .aui-fs__desc { display: none; }
+
+/* ── Выбор места станции на карте (stations/form.html, static/js/adminui-station-geo.js) ── */
+.adminui-page .aui-geo { position: relative; margin-bottom: 14px; }
+.adminui-page .aui-geo__map {
+  height: 420px; border-radius: var(--a-r-ctrl); border: 1px solid var(--a-border-2); overflow: hidden;
+  cursor: crosshair; background: #0b0d12;
+}
+.adminui-page .aui-geo__map .leaflet-grab { cursor: crosshair; }
+.adminui-page .aui-geo__map .leaflet-dragging .leaflet-grab { cursor: grabbing; }
+.adminui-page .aui-geo__hint {
+  position: absolute; left: 54px; top: 10px; z-index: 500; max-width: calc(100% - 110px);
+  padding: 6px 10px; font-size: 12px; color: #e5e7eb; pointer-events: none;
+  background: rgba(15, 17, 23, .85); border: 1px solid rgba(255, 255, 255, .12); border-radius: 8px;
+}
+.adminui-page .aui-geo__pin { color: var(--a-accent); font-size: 30px; line-height: 30px; text-align: center;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .6)); }
+.adminui-page .aui-geo__pin i { display: block; }
+.adminui-page .aui-geo__fields { margin-bottom: 4px; }
+.adminui-page .aui-geo .leaflet-control-layers { font-size: 12px; }
+@media (max-width: 768px) { .adminui-page .aui-geo__map { height: 300px; } }

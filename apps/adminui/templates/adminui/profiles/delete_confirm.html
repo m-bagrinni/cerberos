@@ -1,50 +1,10 @@
-{% extends "adminui/base_admin.html" %}
-
-{% block admin_title %}Удалить профиль{% endblock %}
-
-{% block admin_content %}
-<div class="panel" style="max-width:600px">
-  <div class="panel__header">
-    <h2 class="panel__title">Удалить профиль?</h2>
-  </div>
-  <div class="panel__body">
-    <p>Профиль: <strong>{{ object.name }}</strong></p>
-    <p class="text-muted mono">Slug: {{ object.slug }}</p>
-
-    {% if has_children %}
-    <div class="aui-snmp-test aui-snmp-test--error" style="margin-top:12px">
-      <strong>Нельзя удалить:</strong> есть дочерние профили:
-      <ul style="margin:8px 0 0 20px">
-        {% for c in children %}<li>{{ c.name }} ({{ c.slug }})</li>{% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-    {% if has_devices %}
-    <div class="aui-snmp-test aui-snmp-test--error" style="margin-top:12px">
-      <strong>Нельзя удалить:</strong> профиль используется устройствами:
-      <ul style="margin:8px 0 0 20px">
-        {% for d in devices %}<li>{{ d.name }} ({{ d.ip }})</li>{% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-    {% if can_delete %}
-    <p class="text-muted" style="margin-top:12px">
-      Вместе с профилем будут удалены все его метрики ({{ object.metrics.count }}).
-    </p>
-    <form method="post" style="margin-top:20px;display:flex;gap:8px">
-      {% csrf_token %}
-      <button type="submit" class="btn--danger">
-        <i class="bi bi-trash"></i> Удалить
-      </button>
-      <a href="{% url 'adminui:profile_detail' object.pk %}" class="btn--secondary">Отмена</a>
-    </form>
-    {% else %}
-    <div style="margin-top:20px">
-      <a href="{% url 'adminui:profile_detail' object.pk %}" class="btn--secondary">← Назад к профилю</a>
-    </div>
-    {% endif %}
-  </div>
-</div>
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление профиля{% endblock %}
+{% block confirm_title %}{% if can_delete %}Удалить профиль?{% else %}Профиль удалить нельзя{% endif %}{% endblock %}
+{% block confirm_object %}<i class="bi bi-diagram-3"></i> <b>{{ object.name }}</b> <span class="aui-chip aui-chip--mono">{{ object.slug }}</span>{% endblock %}
+{% block confirm_blockers %}
+{% if has_children %}<div class="aui-notice aui-notice--warn"><i class="bi bi-diagram-2"></i><div><b>Есть дочерние профили:</b><ul>{% for c in children %}<li>{{ c.name }} <span class="mono text-muted">{{ c.slug }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+{% if has_devices %}<div class="aui-notice aui-notice--warn"><i class="bi bi-hdd-network"></i><div><b>Профиль используют устройства:</b><ul>{% for d in devices %}<li>{{ d.name }} <span class="mono text-muted">{{ d.ip }}</span></li>{% endfor %}</ul></div></div>{% endif %}
 {% endblock %}
+{% block confirm_text %}Вместе с профилем удалятся все его метрики ({{ object.metrics.count }}).{% endblock %}
+{% block cancel_url %}{% url 'adminui:profile_detail' object.pk %}{% endblock %}

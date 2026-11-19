@@ -1,174 +1,84 @@
 {% extends "adminui/base_admin.html" %}
 {% load static %}
 
-{% block admin_title %}{% if object %}Редактировать линию{% else %}Добавить линию{% endif %}{% endblock %}
-{% block admin_actions %}<a href="{% url 'adminui:links' %}" class="btn--secondary"><i class="bi bi-arrow-left"></i> Назад</a>{% endblock %}
-
-{% block extra_css %}
-<style>
-    /* Сетка портов */
-    .port-grid { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 8px !important; margin-top: 8px !important; }
-    .port-btn { width: 36px !important; height: 36px !important; border-radius: 4px !important; display: flex !important; align-items: center !important; justify-content: center !important; cursor: pointer !important; font-size: 14px !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box !important; transition: all 0.2s; }
-</style>
+{% block admin_title %}{% if object %}{{ object.label|default:"Линия" }}{% else %}Новая линия{% endif %}{% endblock %}
+{% block admin_actions %}
+{% if object %}<a href="{% url 'adminui:link_draw' object.pk %}" class="btn--secondary"><i class="bi bi-map"></i> Нарисовать трассу</a>{% endif %}
 {% endblock %}
 
 {% block admin_content %}
-<!-- ЖЕСТКИЙ FLEX ДЛЯ ДВУХ КОЛОНОК -->
-<div style="display: flex !important; flex-direction: row !important; gap: 20px !important; align-items: flex-start !important; width: 100% !important;">
-    
-    <!-- ЛЕВАЯ КОЛОНКА: Форма (50%) -->
-    <div style="flex: 0 0 50% !important; max-width: 50% !important; min-width: 350px !important;">
-        <div class="panel">
-            <div class="panel__header"><h2 class="panel__title">Данные линии</h2></div>
-            <div class="panel__body">
-                <form method="post" id="link-form">
-                    {% csrf_token %}
-                    {% for field in form %}
-                        <div class="form-group" style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; text-transform: uppercase; font-weight: bold;">{{ field.label }}</label>
-                            
-                            {% if field.name == 'port_a_num' or field.name == 'port_b_num' %}
-                                <div style="display:none;">{{ field }}</div>
-                                <div class="port-grid" data-target="{{ field.name }}"></div>
-                            {% else %}
-                                {{ field }}
-                            {% endif %}
-                            
-                            {% if field.errors %}<div class="form-error">{{ field.errors }}</div>{% endif %}
-                        </div>
-                    {% endfor %}
-                    
-                    <div class="form-actions" style="margin-top: 30px; display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 20px;">
-                        <button type="submit" class="btn--primary">Сохранить</button>
-                        <a href="{% url 'adminui:links' %}" class="btn--secondary">Отмена</a>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+<div class="aui-map-layout aui-map-layout--half">
 
-    <!-- ПРАВАЯ КОЛОНКА: Карта (50%, sticky) -->
-    <div style="flex: 0 0 50% !important; max-width: 50% !important; min-width: 350px !important; position: sticky !important; top: 20px !important;">
-        <div class="panel">
-            <div class="panel__header"><h2 class="panel__title">Карта маршрута</h2></div>
-            <div class="panel__body" style="padding: 10px;">
-                <iframe id="mapFrame" src="/static/map_preview.html?v=106" style="width: 100%; height: 600px; border: none; border-radius: 4px; background: #111;"></iframe>
-            </div>
+  <div class="aui-map-layout__main">
+    <form method="post" id="link-form" class="aui-sheet" data-ports-url="{% url 'adminui:link_device_ports' 0 %}"{% if object %} data-link-id="{{ object.pk }}"{% endif %}>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="aui-notice aui-notice--crit">{% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+
+      <section class="aui-fs aui-fs--stack">
+        <div class="aui-fs__head">
+          <h2 class="aui-fs__title"><i class="bi bi-bezier2"></i> Линия</h2>
         </div>
+        <div class="aui-fs__body aui-fields">
+          {% include "adminui/_field.html" with field=form.label wide=1 %}
+          {% include "adminui/_field.html" with field=form.is_active wide=1 %}
+        </div>
+      </section>
+
+      {% include "adminui/links/_end.html" with letter="A" key="a" st=form.station_a dev=form.device_a ne=form.ne_a ptype=form.port_a_type pnum=form.port_a_num %}
+      {% include "adminui/links/_end.html" with letter="B" key="b" st=form.station_b dev=form.device_b ne=form.ne_b ptype=form.port_b_type pnum=form.port_b_num %}
+
+      <div class="aui-savebar">
+        <span class="aui-savebar__state">Изменений нет · <kbd>Ctrl</kbd>+<kbd>S</kbd> — сохранить</span>
+        {% if object %}<a href="{% url 'adminui:link_delete' object.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить линию" aria-label="Удалить линию"><i class="bi bi-trash"></i></a>{% endif %}
+        <a href="{% url 'adminui:links' %}" class="btn--secondary">Отмена</a>
+        <button type="submit" class="btn--primary"><i class="bi bi-check-lg"></i> Сохранить</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="aui-map-layout__side">
+    <div class="panel">
+      <div class="panel__header"><h2 class="panel__title"><i class="bi bi-map"></i> Карта маршрута</h2></div>
+      <div class="panel__body">
+        <iframe id="mapFrame" class="aui-map-frame" src="/static/map_preview.html?v=106" title="Карта маршрута"></iframe>
+      </div>
     </div>
+  </div>
 
 </div>
 
-<!-- Передаем данные о линии в JSON -->
 {{ object.path_geojson|default:"[]"|json_script:"line-path-data" }}
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/adminui-link-ports.js' %}?v=1"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    // ==========================================
-    // 1. КНОПКИ ПОРТОВ
-    // ==========================================
-    function renderPortButtons(targetName, maxPorts) {
-        const grid = document.querySelector(`.port-grid[data-target="${targetName}"]`);
-        const hiddenInput = document.getElementById('id_' + targetName);
-        if (!grid || !hiddenInput) return;
-        
-        grid.innerHTML = '';
-        let currentValue = parseInt(hiddenInput.value) || 1;
-        if (currentValue > maxPorts) currentValue = 1;
-        hiddenInput.value = currentValue;
-        
-        for (let i = 1; i <= maxPorts; i++) {
-            const isActive = (i === currentValue);
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = i;
-            btn.setAttribute('style', `
-                width: 36px; height: 36px; border-radius: 4px; 
-                display: flex; align-items: center; justify-content: center;
-                cursor: pointer; font-size: 14px; font-weight: ${isActive ? 'bold' : 'normal'};
-                background-color: ${isActive ? 'var(--primary)' : 'var(--bg-input)'};
-                color: ${isActive ? '#fff' : 'var(--text)'};
-                border: 1px solid ${isActive ? 'var(--primary)' : 'var(--border)'};
-                padding: 0; margin: 0; box-sizing: border-box;
-                transition: all 0.2s;
-            `);
-            btn.onclick = function(e) {
-                e.preventDefault();
-                Array.from(grid.children).forEach(b => {
-                    b.style.backgroundColor = 'var(--bg-input)';
-                    b.style.color = 'var(--text)';
-                    b.style.borderColor = 'var(--border)';
-                    b.style.fontWeight = 'normal';
-                });
-                btn.style.backgroundColor = 'var(--primary)';
-                btn.style.color = '#fff';
-                btn.style.borderColor = 'var(--primary)';
-                btn.style.fontWeight = 'bold';
-                hiddenInput.value = i;
-            };
-            grid.appendChild(btn);
-        }
-    }
-
-    function updatePorts() {
-        const neA = document.getElementById('id_ne_a');
-        const neB = document.getElementById('id_ne_b');
-        let maxA = (neA && neA.value) ? 3 : 28;
-        renderPortButtons('port_a_num', maxA);
-        let maxB = (neB && neB.value) ? 3 : 28;
-        renderPortButtons('port_b_num', maxB);
-    }
-
-    ['id_ne_a', 'id_ne_b', 'id_device_a', 'id_device_b'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', updatePorts);
-    });
-    updatePorts();
-
-    // ==========================================
-    // 2. КАРТА (IFRAME)
-    // ==========================================
-    const mapFrame = document.getElementById('mapFrame');
-    let isIframeReady = false;
-    const linePathData = JSON.parse(document.getElementById('line-path-data').textContent || "[]");
-
-    function updateMap() {
-        if (!isIframeReady || !mapFrame.contentWindow) return;
-        
-        const stA = document.getElementById('id_station_a');
-        const stB = document.getElementById('id_station_b');
-        if (!stA || !stB) return;
-
-        fetch('/api/v1/stations/?light=1')
-            .then(r => r.json())
-            .then(data => {
-                const stations = data.results || data;
-                const getSt = (id) => stations.find(s => s.id == id);
-                const sA = getSt(stA.value);
-                const sB = getSt(stB.value);
-
-                mapFrame.contentWindow.postMessage({
-                    type: 'update_route',
-                    stationA: sA ? { lat: sA.y, lon: sA.x, name: sA.name } : null,
-                    stationB: sB ? { lat: sB.y, lon: sB.x, name: sB.name } : null,
-                    path: linePathData
-                }, '*');
-            })
-            .catch(err => console.error("Ошибка:", err));
-    }
-
-    if (mapFrame) {
-        mapFrame.addEventListener('load', () => {
-            isIframeReady = true;
-            const stA = document.getElementById('id_station_a');
-            const stB = document.getElementById('id_station_b');
-            if (stA) stA.addEventListener('change', updateMap);
-            if (stB) stB.addEventListener('change', updateMap);
-            updateMap();
-        });
-    }
+document.addEventListener("DOMContentLoaded", function () {
+  // ── Карта (iframe) ──
+  const mapFrame = document.getElementById("mapFrame");
+  const linePathData = JSON.parse(document.getElementById("line-path-data").textContent || "[]");
+  let ready = false;
+  function updateMap() {
+    const stA = document.getElementById("id_station_a"), stB = document.getElementById("id_station_b");
+    if (!ready || !mapFrame.contentWindow || !stA || !stB) return;
+    fetch("/api/v1/stations/?light=1").then(r => r.json()).then(data => {
+      const stations = data.results || data;
+      const get = (id) => stations.find(s => s.id == id);
+      const a = get(stA.value), b = get(stB.value);
+      mapFrame.contentWindow.postMessage({
+        type: "update_route",
+        // latitude/longitude, не x/y: x/y — условные координаты SVG-схемы, а не гео
+        stationA: a && a.latitude != null ? { lat: a.latitude, lon: a.longitude, name: a.name } : null,
+        stationB: b && b.latitude != null ? { lat: b.latitude, lon: b.longitude, name: b.name } : null,
+        path: linePathData,
+      }, "*");
+    }).catch(err => console.error("Карта:", err));
+  }
+  if (mapFrame) mapFrame.addEventListener("load", () => {
+    ready = true;
+    ["id_station_a", "id_station_b"].forEach(id => document.getElementById(id)?.addEventListener("change", updateMap));
+    updateMap();
+  });
 });
 </script>
 {% endblock %}

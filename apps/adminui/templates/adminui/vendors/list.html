@@ -3,57 +3,33 @@
 {% block admin_title %}Вендоры{% endblock %}
 
 {% block admin_actions %}
-<a href="{% url 'adminui:vendor_create' %}" class="btn--secondary">
+<a href="{% url 'adminui:vendor_create' %}" class="btn--primary">
   <i class="bi bi-plus-lg"></i> Добавить вендора
 </a>
 {% endblock %}
 
 {% block admin_content %}
-<div class="panel">
-  <div class="panel__header">
-    <h2 class="panel__title">Вендоры ({{ vendors|length }})</h2>
-  </div>
-  <div class="panel__body panel__body--flush">
-    {% if vendors %}
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Slug</th>
-          <th>Enterprise IDs</th>
-          <th>Profiles</th>
-          <th>Devices</th>
-          <th style="width:100px"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for v in vendors %}
-        <tr>
-          <td><strong>{{ v.name }}</strong></td>
-          <td class="mono text-muted">{{ v.slug }}</td>
-          <td class="mono text-muted" style="font-size:11px">{{ v.enterprise_ids }}</td>
-          <td>{{ v.profiles_count }}</td>
-          <td>{{ v.devices_count }}</td>
-          <td>
-            <div class="aui-row-actions">
-              <a href="{% url 'adminui:vendor_update' v.pk %}" class="aui-icon-btn" title="Редактировать">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'adminui:vendor_delete' v.pk %}" class="aui-icon-btn" title="Удалить">
-                <i class="bi bi-trash"></i>
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="empty-state">
-      <i class="bi bi-building"></i>
-      <p>Вендоров нет</p>
+<div class="aui-cards">
+  {% for v in vendors %}
+  <div class="aui-card">
+    <div class="aui-card__head">
+      <span class="aui-card__icon"><i class="bi bi-building"></i></span>
+      <div>
+        <h3 class="aui-card__title"><a href="{% url 'adminui:vendor_update' v.pk %}">{{ v.name }}</a></h3>
+        <div class="aui-card__sub mono">{{ v.slug }}</div>
+      </div>
     </div>
-    {% endif %}
+    <div class="aui-card__body">{% if v.enterprise_ids %}<span class="aui-chip aui-chip--mono" title="Enterprise ID (sysObjectID)"><i class="bi bi-fingerprint"></i>{{ v.enterprise_ids }}</span>{% else %}<span class="text-muted text-sm">Enterprise ID не задан — автоподбор профиля работать не будет</span>{% endif %}</div>
+    <div class="aui-card__stats">
+      <a class="aui-card__stat aui-ref" href="{% url 'adminui:profiles' %}?vendor={{ v.pk }}"><b>{{ v.profiles_count }}</b><span>профилей</span></a>
+      <a class="aui-card__stat aui-ref" href="{% url 'adminui:devices' %}?vendor={{ v.pk }}"><b>{{ v.devices_count }}</b><span>устройств</span></a>
+      <div class="aui-card__foot aui-push">
+        <a href="{% url 'adminui:vendor_update' v.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+        <a href="{% url 'adminui:vendor_delete' v.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
+      </div>
+    </div>
   </div>
+  {% endfor %}
+  <a href="{% url 'adminui:vendor_create' %}" class="aui-card aui-card--add"><i class="bi bi-plus-circle"></i><span>Добавить вендора</span></a>
 </div>
 {% endblock %}

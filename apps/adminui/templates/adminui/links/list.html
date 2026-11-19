@@ -3,39 +3,40 @@
 
 {% block admin_title %}Оптические линии{% endblock %}
 {% block admin_actions %}
-<a href="{% url 'adminui:link_create' %}" class="btn--secondary"><i class="bi bi-plus-lg"></i> Добавить линию</a>
+<a href="{% url 'adminui:link_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Добавить линию</a>
 {% endblock %}
 
 {% block admin_content %}
 <div class="panel">
-  <div class="panel__header"><h2 class="panel__title">Линии ({{ links|length }})</h2></div>
+  <div class="panel__header"><h2 class="panel__title">Оптические линии <span class="text-muted">{{ paginator.count }}</span></h2></div>
   <div class="panel__body panel__body--flush">
-    <form method="get" style="padding: 16px; display: flex; gap: 12px; border-bottom: 1px solid var(--border);">
-      <input type="text" name="q" placeholder="Поиск..." value="{{ q }}" class="input">
-      <button type="submit" class="btn--secondary">Фильтр</button>
+    <form method="get" class="aui-toolbar">
+      <div class="aui-search"><i class="bi bi-search"></i><input type="search" name="q" placeholder="Название или станция…" value="{{ q }}" class="aui-input"></div>
+      <button type="submit" class="btn--secondary"><i class="bi bi-search"></i> Найти</button>
+      {% if q %}<a href="?" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>{% endif %}
     </form>
     {% if links %}
     <table class="data-table">
-      <thead><tr><th>ID</th><th>Название</th><th>Станция А</th><th>Станция Б</th><th>Статус</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Название</th><th>Станция А</th><th>Станция Б</th><th>Статус</th><th class="col-actions"></th></tr></thead>
       <tbody>
         {% for l in links %}
-        <tr>
-          <td>{{ l.id }}</td>
-          <td>{{ l.label|default:"—" }}</td>
+        <tr data-href="{% url 'adminui:link_update' l.pk %}">
+          <td class="text-muted mono">{{ l.id }}</td>
+          <td><a href="{% url 'adminui:link_update' l.pk %}" class="aui-link">{{ l.label|default:"без названия" }}</a></td>
           <td>{{ l.station_a.name }}</td>
           <td>{{ l.station_b.name }}</td>
           <td><span class="badge badge--{{ l.link_status }}">{{ l.get_link_status_display }}</span></td>
-          <td>
-            <a href="{% url 'adminui:link_draw' l.pk %}" class="btn--icon" title="Нарисовать маршрут"><i class="bi bi-map"></i></a>
-            <a href="{% url 'adminui:link_duplicate' l.pk %}" class="btn--icon" title="Дублировать" onclick="return confirm('Создать копию линии?');"><i class="bi bi-files"></i></a>
-            <a href="{% url 'adminui:link_update' l.pk %}" class="btn--icon"><i class="bi bi-pencil"></i></a>
-            <a href="{% url 'adminui:link_delete' l.pk %}" class="btn--icon btn--danger"><i class="bi bi-trash"></i></a>
-          </td>
+          <td class="col-actions"><div class="aui-row-actions">
+            <a href="{% url 'adminui:link_draw' l.pk %}" class="aui-icon-btn" title="Нарисовать трассу"><i class="bi bi-map"></i></a>
+            <a href="{% url 'adminui:link_duplicate' l.pk %}" class="aui-icon-btn" title="Дублировать" onclick="return confirm('Создать копию линии?');"><i class="bi bi-files"></i></a>
+            <a href="{% url 'adminui:link_update' l.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:link_delete' l.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
+          </div></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    {% else %}<div class="empty-state">Нет линий</div>{% endif %}
+    {% else %}<div class="empty-state"><i class="bi bi-bezier2"></i><p>{% if q %}Ничего не найдено{% else %}Линий пока нет{% endif %}</p></div>{% endif %}
   </div>
 </div>
 {% endblock %}

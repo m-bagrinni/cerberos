@@ -1,16 +1,5 @@
-{% extends "adminui/base_admin.html" %}
-{% block admin_title %}Удалить линию{% endblock %}
-{% block admin_content %}
-<div class="panel" style="max-width: 500px;">
-  <div class="panel__header"><h2 class="panel__title">Подтверждение</h2></div>
-  <div class="panel__body">
-    <p>Вы уверены, что хотите удалить линию <strong>{{ object }}</strong>?</p>
-    <form method="post">{% csrf_token %}
-      <div class="form-actions">
-        <button type="submit" class="btn--danger">Удалить</button>
-        <a href="{% url 'adminui:links' %}" class="btn--secondary">Отмена</a>
-      </div>
-    </form>
-  </div>
-</div>
-{% endblock %}
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление линии{% endblock %}
+{% block confirm_title %}Удалить оптическую линию?{% endblock %}
+{% block confirm_object %}<i class="bi bi-bezier2"></i> <b>{{ object }}</b>{% endblock %}
+{% block confirm_text %}Вместе с линией удалятся её трасса на карте и муфты на ней.{% endblock %}

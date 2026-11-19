@@ -7,30 +7,6 @@
 {% endblock %}
 
 {% block admin_content %}
-<style>
-  .deps-lead { color: var(--text-muted, #8e8e8e); margin: 0 0 12px; line-height: 1.55; max-width: 960px; }
-  .deps-stats { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin: 4px 0 14px; color: var(--text-muted, #8e8e8e); font-size: 13px; }
-  .deps-stats b { color: var(--text-strong, #fff); }
-  .deps-hub { width: auto; height: 30px; display: inline-block; margin-left: 4px; }
-  .deps-tools { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-  .deps-filter { max-width: 300px; }
-  .deps-bulk { display: inline-flex; gap: 8px; align-items: center; color: var(--text-muted, #8e8e8e); font-size: 13px; flex-wrap: wrap; }
-  .deps-bulk select.aui-input { width: 240px; height: 32px; }
-  .deps-name { display: flex; align-items: center; gap: 6px; }
-  .deps-name .mono { color: var(--text-muted, #8e8e8e); font-size: 12px; }
-  .deps-tree { color: var(--text-muted, #8e8e8e); }
-  .deps-path { font-size: 12px; color: var(--text-muted, #8e8e8e); max-width: 440px; }
-  .deps-auto { font-size: 11px; color: var(--info, #5ab8f5); margin-top: 2px; }
-  .deps-hint { font-size: 11.5px; color: var(--warn, #f5c542); margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .deps-hint .btn--sm { padding: 1px 8px; font-size: 11px; }
-  .deps-below, .deps-root { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
-  .deps-below { background: rgba(90, 184, 245, .14); color: var(--info, #5ab8f5); }
-  .deps-root { background: rgba(255, 122, 26, .14); color: var(--accent, #ff7a1a); }
-  .data-table select.aui-input { min-width: 260px; height: 32px; }
-  .data-table tr.is-changed td { background: rgba(255, 122, 26, .08); }
-  .deps-hub.is-changed { outline: 2px solid var(--accent, #ff7a1a); }
-</style>
-
 <p class="deps-lead">
   Когда пропадает связь с узлом — устройство недоступно, NE недоступен, обрыв или нет питания на оптической
   линии, — придёт <b>одно</b> уведомление с числом зависимых. Алерты всего, что за ним, свернутся под него без
@@ -80,7 +56,7 @@
     <optgroup label="NE мультиплексоров">{% for v, l in ne_options %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</optgroup>
   </template>
 
-  <section class="panel" style="margin-bottom:16px">
+  <section class="panel mb-16">
     <div class="panel__header"><h2 class="panel__title">Устройства</h2></div>
     <div class="panel__body panel__body--flush">
       <table class="data-table">
@@ -120,7 +96,7 @@
     </div>
   </section>
 
-  <section class="panel" style="margin-bottom:16px">
+  <section class="panel mb-16">
     <div class="panel__header">
       <h2 class="panel__title">NE мультиплексоров — по оптическим линиям</h2>
       <a href="{% url 'adminui:links' %}" class="btn--secondary btn--sm"><i class="bi bi-bezier2"></i> Линии</a>
@@ -140,7 +116,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="4" style="color:var(--text-muted)">NE нет</td></tr>
+          <tr><td colspan="4" class="text-muted">NE нет</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -165,7 +141,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="3" style="color:var(--text-muted)">Подсетей нет</td></tr>
+          <tr><td colspan="3" class="text-muted">Подсетей нет</td></tr>
           {% endfor %}
         </tbody>
       </table>

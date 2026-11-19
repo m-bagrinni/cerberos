@@ -383,6 +383,9 @@ def notify_alert_created(alert) -> int:
     return sent
 
 
+RESOLVED_REPEAT_SEC = 30 * 60
+
+
 def notify_alert_resolved(alert) -> int:
     if alert is None:
         logger.warning("notify_alert_resolved: alert is None — пропускаем")
@@ -390,6 +393,18 @@ def notify_alert_resolved(alert) -> int:
     from apps.alerts.correlation import should_announce_resolve
     if not should_announce_resolve(alert):
         return 0   # об открытии не сообщали (подавлен / придержан) — и о закрытии молчим
+    # Один и тот же алерт, закрытый повторно (флап: закрыли → переоткрыли → закрыли), не шлём
+    # чаще раза в RESOLVED_REPEAT_SEC. cache.add атомарен — два воркера не пройдут оба.
+    alert_id = getattr(alert, "id", None)
+    if alert_id is not None:
+        from django.core.cache import cache
+        try:
+            first = cache.add(f"tg_resolved_sent_{alert_id}", 1, timeout=RESOLVED_REPEAT_SEC)
+        except Exception:   # кэш недоступен — лучше лишнее сообщение, чем потерянное
+            first = True
+        if not first:
+            logger.info("notify_alert_resolved alert=%s: повтор за %s с — не шлём", alert_id, RESOLVED_REPEAT_SEC)
+            return 0
     text = _resolved_text(alert)
     sent = _dispatch(text, None, f"alert_resolved:{getattr(alert, 'id', '?')}", _alert_meta(alert, "resolved"))
     logger.info("notify_alert_resolved alert=%s sent=%s", getattr(alert, "id", "?"), sent)

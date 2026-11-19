@@ -80,6 +80,7 @@ class IpAddressSerializer(serializers.ModelSerializer):
     device_name = serializers.SerializerMethodField()
     fdb_port = serializers.SerializerMethodField()
     fdb_device = serializers.SerializerMethodField()
+    fdb_sure = serializers.SerializerMethodField()
 
     class Meta:
         model = IpAddress
@@ -89,7 +90,7 @@ class IpAddressSerializer(serializers.ModelSerializer):
             "is_alive", "is_monitored", "is_reserved",
             "last_seen_at", "last_ping_at",
             "last_rtt_ms", "packet_loss_pct",
-            "arp_mac", "arp_device", "arp_interface", "is_device_ip", "device_name", "fdb_port", "fdb_device",
+            "arp_mac", "arp_device", "arp_interface", "is_device_ip", "device_name", "fdb_port", "fdb_device", "fdb_sure",
         )
 
 
@@ -101,41 +102,31 @@ class IpAddressSerializer(serializers.ModelSerializer):
         return dev.name if dev else None
 
 
+    def _fdb(self, obj):
+        """(порт, уверенно) — где подключён узел по FDB (apps/monitoring/fdb.py); кэш на объект."""
+        cache = self.__dict__.setdefault("_fdb_cache", {})
+        if obj.pk not in cache:
+            from apps.monitoring.fdb import locate
+            from apps.monitoring.models import ArpEntry
+            arp = ArpEntry.objects.filter(ip=obj.ip).order_by("-updated_at").first()
+            mac = (arp.mac if arp else None) or obj.mac
+            cache[obj.pk] = locate(mac) if mac else (None, False)
+        return cache[obj.pk]
+
     def get_fdb_port(self, obj):
-        from apps.monitoring.models import ArpEntry, FdbEntry
-        arp = ArpEntry.objects.filter(ip=obj.ip).first()
-        if not arp:
+        port, _ = self._fdb(obj)
+        if not port:
             return None
-        fdb_entries = list(FdbEntry.objects.filter(mac=arp.mac).select_related('device'))
-        if not fdb_entries:
-            return None
-        best = None
-        best_count = 999999
-        for fdb in fdb_entries:
-            count = FdbEntry.objects.filter(device=fdb.device, bridge_port=fdb.bridge_port).count()
-            if count < best_count:
-                best_count = count
-                best = fdb
-        if best:
-            return best.interface_name or str(best.bridge_port)
-        return None
+        return f"{port.port} · VLAN {port.vlan}" if port.vlan else port.port
 
     def get_fdb_device(self, obj):
-        from apps.monitoring.models import ArpEntry, FdbEntry
-        arp = ArpEntry.objects.filter(ip=obj.ip).first()
-        if not arp:
-            return None
-        fdb_entries = list(FdbEntry.objects.filter(mac=arp.mac).select_related('device'))
-        if not fdb_entries:
-            return None
-        best = None
-        best_count = 999999
-        for fdb in fdb_entries:
-            count = FdbEntry.objects.filter(device=fdb.device, bridge_port=fdb.bridge_port).count()
-            if count < best_count:
-                best_count = count
-                best = fdb
-        return best.device.name if best else None
+        port, _ = self._fdb(obj)
+        return port.device if port else None
+
+    def get_fdb_sure(self, obj):
+        """False — узел виден только на аплинках (его коммутатор доступа не опрашивается)."""
+        port, sure = self._fdb(obj)
+        return sure if port else None
 
     def get_is_device_ip(self, obj):
         from apps.devices.models import Device

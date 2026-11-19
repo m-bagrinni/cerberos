@@ -1,62 +1,28 @@
-{% extends "adminui/base_admin.html" %}
-
-{% block admin_title %}{% if object %}Редактировать муфту{% else %}Добавить муфту{% endif %}{% endblock %}
-
-{% block admin_actions %}
-<a href="{% url 'adminui:closures' %}" class="btn--secondary">
-  <i class="bi bi-arrow-left"></i> Назад
-</a>
+{% extends "adminui/form_base.html" %}
+{% block sheet_class %} aui-sheet--narrow{% endblock %}
+{% block admin_title %}{% if object %}{{ object.name }}{% else %}Новая муфта{% endif %}{% endblock %}
+{% block form_body %}
+  <section class="aui-fs">
+    <header class="aui-fs__head">
+      <h2 class="aui-fs__title"><i class="bi bi-node-plus"></i> Муфта</h2>
+      <p class="aui-fs__desc">Оптическая муфта на линии — точка сварки/разветвления кабеля.</p>
+    </header>
+    <div class="aui-fs__body aui-fields">
+      {% include "adminui/_field.html" with field=form.link %}
+      {% include "adminui/_field.html" with field=form.name %}
+      {% include "adminui/_field.html" with field=form.description %}
+    </div>
+  </section>
+  <section class="aui-fs">
+    <header class="aui-fs__head">
+      <h2 class="aui-fs__title"><i class="bi bi-pin-map"></i> Координаты</h2>
+      <p class="aui-fs__desc">Где муфта находится на трассе.</p>
+    </header>
+    <div class="aui-fs__body aui-fields">
+      {% include "adminui/_field.html" with field=form.lat %}
+      {% include "adminui/_field.html" with field=form.lon %}
+    </div>
+  </section>
 {% endblock %}
-
-{% block admin_content %}
-<div class="panel" style="max-width: 600px;">
-  <div class="panel__header">
-    <h2 class="panel__title">Данные муфты</h2>
-  </div>
-  <div class="panel__body">
-    <form method="post">
-      {% csrf_token %}
-      
-      {% if form.non_field_errors %}
-        <div class="alert alert--danger">{{ form.non_field_errors }}</div>
-      {% endif %}
-
-      <div class="form-group">
-        <label for="{{ form.link.id_for_label }}">Линия</label>
-        {{ form.link }}
-        {% if form.link.errors %}<div class="form-error">{{ form.link.errors }}</div>{% endif %}
-      </div>
-
-      <div class="form-group">
-        <label for="{{ form.name.id_for_label }}">Название</label>
-        {{ form.name }}
-        {% if form.name.errors %}<div class="form-error">{{ form.name.errors }}</div>{% endif %}
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="{{ form.lat.id_for_label }}">Широта (lat)</label>
-          {{ form.lat }}
-          {% if form.lat.errors %}<div class="form-error">{{ form.lat.errors }}</div>{% endif %}
-        </div>
-        <div class="form-group">
-          <label for="{{ form.lon.id_for_label }}">Долгота (lon)</label>
-          {{ form.lon }}
-          {% if form.lon.errors %}<div class="form-error">{{ form.lon.errors }}</div>{% endif %}
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="{{ form.description.id_for_label }}">Описание</label>
-        {{ form.description }}
-        {% if form.description.errors %}<div class="form-error">{{ form.description.errors }}</div>{% endif %}
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn--primary">Сохранить</button>
-        <a href="{% url 'adminui:closures' %}" class="btn--secondary">Отмена</a>
-      </div>
-    </form>
-  </div>
-</div>
-{% endblock %}
+{% block cancel_url %}{% url 'adminui:closures' %}{% endblock %}
+{% block delete_link %}{% if object %}<a href="{% url 'adminui:closure_delete' object.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}

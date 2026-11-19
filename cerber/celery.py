@@ -42,6 +42,7 @@ app.conf.task_routes = {
     "subnets.scan_subnet_task":              {"queue": "low"},
     "subnets.fingerprint_subnet_task":       {"queue": "low"},
     "analytics.run_network_analysis":        {"queue": "low"},
+    "monitoring.poll_fdb":                   {"queue": "low"},
 
     # SERVERS — retention метрик (раз в сутки, 03:00)
     "servers.cleanup_metrics":               {"queue": "low"},
@@ -77,6 +78,11 @@ app.conf.beat_schedule["alerts-escalate-unacked"] = {
 # Корреляция алертов: придержанные уведомления и следствия без причины (apps/alerts/correlation.py)
 app.conf.beat_schedule["alerts-correlate"] = {
     "task": "alerts.correlate", "schedule": 60.0, "options": {"expires": 55},
+}
+# FDB коммутаторов (MAC ↔ порт) — для «Подключён к …» в подсетях (apps/monitoring/fdb.py).
+# Раньше задачи не было в расписании: таблица собиралась вручную и устаревала.
+app.conf.beat_schedule["monitoring-poll-fdb"] = {
+    "task": "monitoring.poll_fdb", "schedule": 900.0, "options": {"queue": "low", "expires": 840},
 }
 # СЭД: утреннее напоминание о сроках (apps/edocs/tasks.py)
 from celery.schedules import crontab  # noqa: E402

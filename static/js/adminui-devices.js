@@ -31,15 +31,16 @@
       const data = await resp.json();
       if (data.ok) {
         btn.innerHTML = '<i class="bi bi-check-lg"></i>';
-        setTimeout(() => location.reload(), 1200);
+        Cerber.toast('Опрос запущен', 'success');
+        setTimeout(() => location.reload(), 1500);
       } else {
         btn.innerHTML = '<i class="bi bi-x-lg"></i>';
-        alert('Ошибка: ' + (data.error || 'unknown'));
+        Cerber.toast('Ошибка опроса: ' + (data.error || 'неизвестно'), 'error');
         setTimeout(() => { btn.innerHTML = orig; }, 2500);
       }
     } catch (err) {
       btn.innerHTML = '<i class="bi bi-x-lg"></i>';
-      alert('Ошибка: ' + err.message);
+      Cerber.toast('Ошибка опроса: ' + err.message, 'error');
       setTimeout(() => { btn.innerHTML = orig; }, 2500);
     } finally {
       btn.dataset.busy = '';

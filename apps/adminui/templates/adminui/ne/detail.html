@@ -1,64 +1,37 @@
 {% extends "adminui/base_admin.html" %}
 {% load static cerber_json %}
 
+{% block header_class %} adminui-header--compact{% endblock %}
 {% block admin_title %}{{ ne.name }} (NE {{ ne.ne_id }}){% endblock %}
 
-{% block admin_actions %}
-<a href="{% url 'adminui:ne' %}" class="btn--secondary">
-  <i class="bi bi-arrow-left"></i> К списку
-</a>
-<a href="{% url 'adminui:device_detail' gateway.pk %}" class="btn--secondary">
-  <i class="bi bi-router"></i> Открыть шлюз
-</a>
-<button type="button" class="btn--secondary aui-icon-btn--poll" data-pk="{{ gateway.pk }}">
-  <i class="bi bi-arrow-clockwise"></i> Poll шлюз
-</button>
-{% endblock %}
 
 {% block admin_content %}
 
-<section class="panel" style="margin-bottom:16px">
-  <div class="panel__body">
-    <div class="device-header">
-      <div class="device-header__main">
-        <h2 class="device-header__name">{{ ne.name }}</h2>
-        <div class="device-header__meta">
-          <span>NE ID: <strong>{{ ne.ne_id }}</strong></span>
-          {% if ne.raw_name %}<span>·</span><span class="mono">{{ ne.raw_name }}</span>{% endif %}
-          <span>·</span>
-          <span>шлюз: <a href="{% url 'adminui:device_detail' gateway.pk %}" style="color:var(--primary)">{{ gateway.name }}</a></span>
-        </div>
-      </div>
-      <div class="device-header__status">
-        <span class="status-dot status-dot--{{ ne.status }}"></span>
-        <strong>{{ ne.status }}</strong>
-      </div>
-    </div>
-
-    <div class="device-header__details">
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Last seen</span>
-        <span class="device-detail-item__value">
-          {% if ne.last_seen %}{{ ne.last_seen|timesince }} назад{% else %}—{% endif %}
-        </span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Last polled</span>
-        <span class="device-detail-item__value">
-          {% if ne.last_polled_at %}{{ ne.last_polled_at|timesince }} назад{% else %}—{% endif %}
-        </span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Sort order</span>
-        <span class="device-detail-item__value">{{ ne.sort_order }}</span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Метрик</span>
-        <span class="device-detail-item__value">{{ metric_keys|length }}</span>
-      </div>
+<div class="aui-hero">
+  <div class="aui-hero__icon{% if ne.status == 'ok' %} aui-hero__icon--ok{% elif ne.status == 'unreachable' %} aui-hero__icon--crit{% else %} aui-hero__icon--muted{% endif %}"><i class="bi bi-router"></i></div>
+  <div class="aui-hero__main">
+    <h2 class="aui-hero__title">{{ ne.name }}
+      <span class="aui-status{% if ne.status == 'ok' %} aui-status--ok{% elif ne.status == 'unreachable' %} aui-status--crit{% endif %}">{{ ne.get_status_display|default:ne.status }}</span>
+    </h2>
+    <div class="aui-hero__meta">
+      <span class="aui-chip aui-chip--mono"><i class="bi bi-hash"></i>NE {{ ne.ne_id }}</span>
+      {% if ne.raw_name %}<span class="aui-chip aui-chip--mono" title="Имя, которое отдаёт мультиплексор"><i class="bi bi-tag"></i>{{ ne.raw_name }}</span>{% endif %}
+      <a class="aui-chip" href="{% url 'adminui:device_detail' gateway.pk %}"><i class="bi bi-hdd-network"></i>шлюз {{ gateway.name }}</a>
     </div>
   </div>
-</section>
+  <div class="aui-hero__actions">
+    <button type="button" class="btn--secondary aui-icon-btn--poll" data-pk="{{ gateway.pk }}"><i class="bi bi-arrow-clockwise"></i> Опросить шлюз</button>
+    <a href="/local/multiplexers/" class="btn--secondary"><i class="bi bi-box-arrow-up-right"></i> На сайте</a>
+  </div>
+  <div class="aui-hero__facts">
+    <div class="aui-fact"><span class="aui-fact__label">Последний ответ</span><span class="aui-fact__value">{% if ne.last_seen %}{{ ne.last_seen|timesince }} назад{% else %}—{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Последний опрос</span><span class="aui-fact__value">{% if ne.last_polled_at %}{{ ne.last_polled_at|timesince }} назад{% else %}—{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Метрик</span><span class="aui-fact__value">{{ metric_keys|length }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Порядок в дереве</span><span class="aui-fact__value">{{ ne.sort_order }}</span></div>
+  </div>
+</div>
+
+<div class="aui-section-head"><h2><i class="bi bi-graph-up"></i> Графики</h2><span class="text-muted text-sm">основные — оптика (RX dBm по портам), температура SFP, трафик Ethernet</span></div>
 
 {% if metric_keys %}
 
@@ -81,12 +54,12 @@
 {% endwith %}
 
 {# === Остальные графики — свёрнуты === #}
-<details class="aui-details" style="margin-top:16px">
+<details class="aui-details mt-16">
   <summary class="aui-details__summary">
     <i class="bi bi-chevron-right"></i>
     Показать остальные метрики (всего {{ metric_keys|length }})
   </summary>
-  <div class="aui-charts-grid" style="margin-top:12px">
+  <div class="aui-charts-grid mt-16">
     {% for key in metric_keys %}
       {% if not ":1" in key or not "sfp_rx_dbm" in key %}
         {% if not ":2" in key or not "sfp_rx_dbm" in key %}
@@ -111,14 +84,7 @@
 </details>
 
 {% else %}
-<div class="panel">
-  <div class="panel__body">
-    <div class="empty-state">
-      <i class="bi bi-graph-up"></i>
-      <p>У этого NE пока нет метрик</p>
-    </div>
-  </div>
-</div>
+<div class="panel"><div class="empty-state"><i class="bi bi-graph-up"></i><p>У этого NE пока нет метрик — они появятся после первого опроса шлюза.</p></div></div>
 {% endif %}
 
 {% endblock %}

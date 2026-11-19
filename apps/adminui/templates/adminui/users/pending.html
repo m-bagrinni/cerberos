@@ -3,48 +3,11 @@
 {% block admin_title %}Ожидают подтверждения{% endblock %}
 
 {% block admin_content %}
-<style>
-  .admin-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 12px;
-  }
-  .admin-tab {
-    padding: 6px 14px;
-    border-radius: var(--radius);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: transparent;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-  }
-  .admin-tab:hover {
-    color: var(--text-strong);
-    background: var(--bg-hover);
-  }
-  .admin-tab.is-active {
-    color: var(--primary);
-    background: rgba(255, 120, 10, 0.1);
-    border-color: rgba(255, 120, 10, 0.3);
-  }
-</style>
-
-<div class="admin-tabs">
-  <a href="{% url 'adminui:users' %}" class="admin-tab">
-    <i class="bi bi-people"></i> Все пользователи
-  </a>
-  <a href="{% url 'adminui:users_pending' %}" class="admin-tab is-active">
-    <i class="bi bi-hourglass-split"></i> Ожидают подтверждения
-  </a>
-</div>
+{% include "adminui/users/_tabs.html" with tab="pending" %}
 
 <div class="panel">
   <div class="panel__header">
-    <h2 class="panel__title">Pending ({{ pending_users|length }})</h2>
+    <h2 class="panel__title">Заявки на регистрацию <span class="text-muted">{{ pending_users|length }}</span></h2>
   </div>
   <div class="panel__body panel__body--flush">
     {% if pending_users %}
@@ -55,7 +18,7 @@
           <th>Email</th>
           <th>Имя</th>
           <th>Дата регистрации</th>
-          <th style="width:260px"></th>
+          <th class="col-actions"></th>
         </tr>
       </thead>
       <tbody>
@@ -63,14 +26,14 @@
         <tr>
           <td><strong>{{ u.username }}</strong></td>
           <td class="text-muted">{{ u.email }}</td>
-          <td>{{ u.first_name }} {{ u.last_name }}</td>
+          <td>{{ u.get_full_name|default:"—" }}</td>
           <td class="text-muted">{{ u.date_joined|date:"d.m.Y H:i" }}</td>
           <td>
             <div class="aui-row-actions">
               <a href="{% url 'adminui:user_approve' u.pk %}" class="btn--primary btn--sm">
                 <i class="bi bi-check-lg"></i> Рассмотреть и подтвердить
               </a>
-              <form method="post" action="{% url 'adminui:user_reject' u.pk %}" style="display:inline">
+              <form method="post" action="{% url 'adminui:user_reject' u.pk %}" class="aui-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn--danger btn--sm"
                         onclick="return confirm('Отклонить регистрацию?')">

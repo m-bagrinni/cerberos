@@ -1,111 +1,220 @@
 {% extends "adminui/base_admin.html" %}
-{% load static %}
 
 {% block admin_title %}Обзор{% endblock %}
 
+{% block admin_actions %}
+{% if acc.e.devices %}<a href="{% url 'adminui:device_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Устройство</a>{% endif %}
+{% endblock %}
+
 {% block admin_content %}
 
-{# ===== Счётчики ===== #}
-<div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-card__label">Устройства</div>
-    <div class="stat-card__value">{{ stats.devices }}</div>
-    <div class="stat-card__hint">{{ stats.vendors }} вендоров · {{ stats.profiles }} профилей</div>
+{# ===== Требует внимания ===== #}
+{% if health_down or stats.users_pending or stats.alerts_unacked or stats.devices_down %}
+<div class="aui-attention">
+  {% if health_down %}
+  <div class="aui-attention__item aui-attention__item--crit">
+    <i class="bi bi-heartbreak"></i>
+    <span>{% if health_down|length == health|length %}<b>Фоновые задачи остановлены</b> — ни одна очередь Celery не отвечает. Скорее всего не работает beat или Redis, алерты сейчас не формируются.{% else %}<b>Не отвечают очереди Celery:</b> {{ health_down|join:", " }}.{% endif %}</span>
   </div>
-  <div class="stat-card">
-    <div class="stat-card__label">NE (Olencom)</div>
-    <div class="stat-card__value">{{ stats.ne }}</div>
-    <div class="stat-card__hint">мультиплексоры</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-card__label">Метрик в БД</div>
-    <div class="stat-card__value">{{ stats.metrics }}</div>
-    <div class="stat-card__hint">retention: 2ч</div>
-  </div>
-  <a href="{% url 'adminui:alerts' %}?state=firing" class="stat-card {% if stats.alerts_crit %}stat-card--crit{% elif stats.alerts_firing %}stat-card--warn{% endif %}" style="text-decoration:none">
-    <div class="stat-card__label">Алерты (firing)</div>
-    <div class="stat-card__value">{{ stats.alerts_firing }}</div>
-    <div class="stat-card__hint">
-      {% if stats.alerts_crit %}<span class="text-crit">{{ stats.alerts_crit }} crit</span>{% else %}нет критичных{% endif %}
-    </div>
+  {% endif %}
+  {% if stats.alerts_unacked %}
+  <a href="{% url 'adminui:alerts' %}?state=firing&amp;severity=crit" class="aui-attention__item aui-attention__item--crit">
+    <i class="bi bi-exclamation-octagon"></i>
+    <span><b>{{ stats.alerts_unacked }}</b> критичн{{ stats.alerts_unacked|pluralize:"ый,ых" }} алерт{{ stats.alerts_unacked|pluralize:",ов" }} никто не взял в работу</span>
+    <span class="aui-attention__go">Открыть →</span>
   </a>
-  <div class="stat-card">
-    <div class="stat-card__label">Подсети</div>
+  {% endif %}
+  {% if stats.users_pending %}
+  <a href="{% url 'adminui:users_pending' %}" class="aui-attention__item">
+    <i class="bi bi-person-plus"></i>
+    <span><b>{{ stats.users_pending }}</b> заяв{{ stats.users_pending|pluralize:"ка,ки" }} на регистрацию ж{{ stats.users_pending|pluralize:"дёт,дут" }} подтверждения</span>
+    <span class="aui-attention__go">Рассмотреть →</span>
+  </a>
+  {% endif %}
+  {% if stats.devices_down %}
+  <a href="{% url 'adminui:devices' %}?status=unreachable" class="aui-attention__item">
+    <i class="bi bi-hdd-network"></i>
+    <span><b>{{ stats.devices_down }}</b> устройств{{ stats.devices_down|pluralize:"о,а" }} недоступн{{ stats.devices_down|pluralize:"о,ы" }}</span>
+    <span class="aui-attention__go">Список →</span>
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ===== Счётчики (по правам) ===== #}
+<div class="stat-grid">
+  {% if stats.devices is not None %}
+  <a href="{% url 'adminui:devices' %}" class="stat-card{% if stats.devices_down %} stat-card--warn{% endif %}">
+    <div class="stat-card__label"><i class="bi bi-hdd-network"></i> Устройства</div>
+    <div class="stat-card__value">{{ stats.devices }}</div>
+    <div class="stat-card__hint">{% if stats.devices_down %}<span class="text-warn">{{ stats.devices_down }} недоступно</span>{% else %}все доступны{% endif %}</div>
+  </a>
+  <a href="{% url 'adminui:profiles' %}" class="stat-card">
+    <div class="stat-card__label"><i class="bi bi-diagram-3"></i> Профили SNMP</div>
+    <div class="stat-card__value">{{ stats.profiles }}</div>
+    <div class="stat-card__hint">{{ stats.vendors }} вендор{{ stats.vendors|pluralize:",ов" }}</div>
+  </a>
+  {% endif %}
+  {% if stats.ne is not None %}
+  <a href="{% url 'adminui:ne' %}" class="stat-card">
+    <div class="stat-card__label"><i class="bi bi-router"></i> NE</div>
+    <div class="stat-card__value">{{ stats.ne }}</div>
+    <div class="stat-card__hint">мультиплексоры Olencom</div>
+  </a>
+  {% endif %}
+  {% if stats.alerts_firing is not None %}
+  <a href="{% url 'adminui:alerts' %}?state=firing" class="stat-card{% if stats.alerts_crit %} stat-card--crit{% elif stats.alerts_firing %} stat-card--warn{% else %} stat-card--ok{% endif %}">
+    <div class="stat-card__label"><i class="bi bi-bell"></i> Активные алерты</div>
+    <div class="stat-card__value">{{ stats.alerts_firing }}</div>
+    <div class="stat-card__hint">{% if stats.alerts_crit %}<span class="text-crit">{{ stats.alerts_crit }} критичных</span>{% else %}нет критичных{% endif %}</div>
+  </a>
+  {% endif %}
+  {% if stats.subnets is not None %}
+  <a href="{% url 'adminui:subnets' %}" class="stat-card">
+    <div class="stat-card__label"><i class="bi bi-diagram-2"></i> Подсети</div>
     <div class="stat-card__value">{{ stats.subnets }}</div>
     <div class="stat-card__hint">{{ stats.ips_alive }} живых IP</div>
-  </div>
+  </a>
+  {% endif %}
+  {% if stats.users is not None %}
+  <a href="{% url 'adminui:users' %}" class="stat-card{% if stats.users_pending %} stat-card--warn{% endif %}">
+    <div class="stat-card__label"><i class="bi bi-people"></i> Пользователи</div>
+    <div class="stat-card__value">{{ stats.users }}</div>
+    <div class="stat-card__hint">{% if stats.users_pending %}<span class="text-warn">{{ stats.users_pending }} ж{{ stats.users_pending|pluralize:"дёт,дут" }} подтверждения</span>{% else %}активных учёток{% endif %}</div>
+  </a>
+  {% endif %}
 </div>
 
-{# ===== Две колонки ===== #}
 <div class="adminui-grid-2">
 
-  {# Алерты #}
-  <section class="panel">
-    <div class="panel__header">
-      <h2 class="panel__title">Активные алерты</h2>
-      <a href="{% url 'adminui:alerts' %}" class="panel__link">все →</a>
-    </div>
-    <div class="panel__body panel__body--flush">
-      {% if recent_alerts %}
-      <table class="data-table">
-        <thead>
-          <tr><th>Severity</th><th>Объект</th><th>Метрика</th><th>Начало</th></tr>
-        </thead>
-        <tbody>
-          {% for a in recent_alerts %}
-          <tr style="cursor:pointer" onclick="location.href='{% url 'adminui:alert_detail' a.pk %}'">
-            <td><span class="badge badge--{{ a.severity }}">{{ a.severity }}</span></td>
-            <td>
-              {% if a.device %}{{ a.device.name }}
-              {% elif a.ne_device %}{{ a.ne_device.name }}
-              {% elif a.ip_address %}{{ a.ip_address.ip }}
-              {% else %}—{% endif %}
-            </td>
-            <td class="text-muted">{{ a.metric_key }}</td>
-            <td class="text-muted">{{ a.started_at|date:"H:i d.m" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty-state">
-        <i class="bi bi-check-circle"></i>
-        <p>Активных алертов нет</p>
+  {# ===== Левая колонка ===== #}
+  <div class="aui-stack">
+    {% if stats.alerts_firing is not None %}
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title"><i class="bi bi-bell"></i> Активные алерты</h2>
+        <a href="{% url 'adminui:alerts' %}" class="panel__link">все →</a>
       </div>
-      {% endif %}
-    </div>
-  </section>
+      <div class="panel__body panel__body--flush">
+        {% if recent_alerts %}
+        <table class="data-table">
+          <thead><tr><th>Уровень</th><th>Объект</th><th>Метрика</th><th>В работе</th><th>Начало</th></tr></thead>
+          <tbody>
+            {% for a in recent_alerts %}
+            <tr class="is-link" onclick="location.href='{% url 'adminui:alert_detail' a.pk %}'">
+              <td><span class="badge badge--{{ a.severity }}">{{ a.get_severity_display }}</span></td>
+              <td>
+                {% if a.device %}{{ a.device.name }}
+                {% elif a.ne_device %}{{ a.ne_device.name }}
+                {% elif a.ip_address %}<span class="mono">{{ a.ip_address.ip }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="mono text-muted text-xs">{{ a.metric_key }}</td>
+              <td>{% if a.acked_by %}<span class="text-2 text-sm">{{ a.acked_by.get_full_name|default:a.acked_by.username }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="text-muted text-sm" title="{{ a.started_at|date:'d.m.Y H:i:s' }}">{{ a.started_at|date:"H:i d.m" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-check-circle"></i><p>Активных алертов нет</p></div>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
 
-  {# Устройства #}
-  <section class="panel">
-    <div class="panel__header">
-      <h2 class="panel__title">Устройства</h2>
-      <a href="{% url 'adminui:devices' %}" class="panel__link">все →</a>
-    </div>
-    <div class="panel__body panel__body--flush">
-      <table class="data-table">
-        <thead>
-          <tr><th>Name</th><th>IP</th><th>Vendor</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          {% for d in devices %}
-          <tr>
-            <td>{{ d.name }}</td>
-            <td class="text-muted mono">{{ d.ip }}</td>
-            <td>{{ d.vendor.name|default:"—" }}</td>
-            <td>
-              <span class="status-dot status-dot--{{ d.status }}"></span>
-              {{ d.status }}
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="4" class="text-muted">Устройств нет</td></tr>
+    {% if stats.devices is not None %}
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title"><i class="bi bi-hdd-network"></i> Недоступные устройства</h2>
+        <a href="{% url 'adminui:devices' %}?status=unreachable" class="panel__link">все →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        {% if problem_devices %}
+        <table class="data-table">
+          <thead><tr><th>Имя</th><th>IP</th><th>Вендор</th><th>Последний опрос</th></tr></thead>
+          <tbody>
+            {% for d in problem_devices %}
+            <tr class="is-link" onclick="location.href='{% url 'adminui:device_detail' d.pk %}'">
+              <td><span class="status-dot status-dot--crit"></span>{{ d.name }}</td>
+              <td class="mono text-muted">{{ d.ip }}</td>
+              <td>{{ d.vendor.name|default:"—" }}</td>
+              <td class="text-muted text-sm">{% if d.last_poll_at %}{{ d.last_poll_at|timesince }} назад{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-check-circle"></i><p>Все устройства доступны</p></div>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  {# ===== Правая колонка ===== #}
+  <div class="aui-stack">
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title"><i class="bi bi-activity"></i> Фоновые задачи (Celery)</h2>
+        <span class="text-muted text-xs">пульс раз в минуту</span>
+      </div>
+      <div class="panel__body">
+        <div class="aui-health">
+          {% for h in health %}
+          <div class="aui-health__item{% if h.down %} is-down{% endif %}">
+            <span class="aui-health__name"><span class="status-dot status-dot--{% if h.down %}crit{% else %}ok{% endif %}"></span>{{ h.queue }}</span>
+            <span class="aui-health__age">{% if h.age is None %}пульса не было{% elif h.age < 60 %}{{ h.age }} с назад{% else %}{% widthratio h.age 60 1 %} мин назад{% endif %}</span>
+          </div>
           {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header"><h2 class="panel__title"><i class="bi bi-lightning"></i> Быстрые действия</h2></div>
+      <div class="panel__body">
+        <div class="aui-quick">
+          {% if acc.e.devices %}
+          <a href="{% url 'adminui:device_create' %}"><i class="bi bi-plus-square"></i> Добавить устройство</a>
+          <a href="{% url 'adminui:profile_create' %}"><i class="bi bi-diagram-3"></i> Новый профиль SNMP</a>
+          <a href="{% url 'adminui:dependencies' %}"><i class="bi bi-share"></i> Зависимости</a>
+          {% endif %}
+          {% if acc.e.subnets %}<a href="{% url 'adminui:subnet_create' %}"><i class="bi bi-diagram-2"></i> Добавить подсеть</a>{% endif %}
+          {% if acc.e.stations %}<a href="{% url 'adminui:link_create' %}"><i class="bi bi-bezier2"></i> Новая линия</a>{% endif %}
+          {% if acc.c.users_manage %}<a href="{% url 'adminui:user_create' %}"><i class="bi bi-person-plus"></i> Новый пользователь</a>{% endif %}
+          {% if acc.c.announcements %}<a href="{% url 'adminui:announcement_create' %}"><i class="bi bi-megaphone"></i> Объявление</a>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    {% if stats.users is not None %}
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title"><i class="bi bi-journal-text"></i> Последние изменения прав</h2>
+        <a href="{% url 'adminui:users' %}" class="panel__link">пользователи →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        {% if access_log %}
+        <ul class="aui-feed">
+          {% for e in access_log %}
+          <li>
+            <span class="aui-feed__time" title="{{ e.created_at|date:'d.m.Y H:i' }}">{{ e.created_at|date:"d.m H:i" }}</span>
+            <span class="aui-feed__body">
+              <b>{{ e.actor.get_full_name|default:e.actor.username|default:"система" }}</b> →
+              <a href="{% url 'adminui:user_update' e.target.pk %}" class="aui-ref">{{ e.target.get_full_name|default:e.target.username }}</a>:
+              {{ e.changes|join:"; "|truncatechars:140 }}
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-journal"></i><p>Изменений прав пока нет</p></div>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
 
 </div>
-
 {% endblock %}

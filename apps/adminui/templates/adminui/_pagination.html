@@ -1,0 +1,16 @@
+{% load adminui_tags %}
+{# Пагинация для всех списков: подключается в base_admin.html автоматически, если is_paginated #}
+<nav class="aui-pagination" aria-label="Страницы">
+  {% if page_obj.has_previous %}
+    <a href="{% page_url 1 %}" class="aui-icon-btn" title="Первая"><i class="bi bi-chevron-double-left"></i></a>
+    <a href="{% page_url page_obj.previous_page_number %}" class="btn--secondary btn--sm"><i class="bi bi-chevron-left"></i> Назад</a>
+  {% endif %}
+  <span class="aui-pagination__info">
+    Стр. <b>{{ page_obj.number }}</b> из {{ page_obj.paginator.num_pages }}
+    · записи {{ page_obj.start_index }}–{{ page_obj.end_index }} из {{ page_obj.paginator.count }}
+  </span>
+  {% if page_obj.has_next %}
+    <a href="{% page_url page_obj.next_page_number %}" class="btn--secondary btn--sm">Вперёд <i class="bi bi-chevron-right"></i></a>
+    <a href="{% page_url page_obj.paginator.num_pages %}" class="aui-icon-btn" title="Последняя"><i class="bi bi-chevron-double-right"></i></a>
+  {% endif %}
+</nav>

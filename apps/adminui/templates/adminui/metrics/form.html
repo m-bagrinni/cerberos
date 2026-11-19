@@ -1,74 +1,37 @@
-{% extends "adminui/base_admin.html" %}
-{% load static %}
+{% extends "adminui/form_base.html" %}
+{% block admin_crumbs %}<a href="{% url 'adminui:profile_detail' profile.pk %}">{{ profile.name }}</a>{% endblock %}
+{% block admin_title %}{% if metric %}Метрика {{ metric.key }}{% else %}Новая метрика{% endif %}{% endblock %}
 
-{% block admin_title %}{{ form_title }}{% endblock %}
+{% block form_body %}
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-graph-up"></i> Что снимать</h2>
+    <p class="aui-fs__desc">Ключ — внутреннее имя (латиница, например <code>cpu.load</code>), по нему строятся графики и алерты. OID — что запрашивать по SNMP.</p>
+  </header>
+  <div class="aui-fields aui-fs__body">
+    {% include "adminui/_field.html" with field=form.key %}
+    {% include "adminui/_field.html" with field=form.name %}
+    {% include "adminui/_field.html" with field=form.oid wide=1 %}
+    {% include "adminui/_field.html" with field=form.value_type %}
+    {% include "adminui/_field.html" with field=form.unit %}
+    {% include "adminui/_field.html" with field=form.enabled %}
+  </div>
+</section>
 
-{% block admin_actions %}
-<a href="{% url 'adminui:profile_detail' profile.pk %}" class="btn--secondary">
-  <i class="bi bi-x-lg"></i> Отмена
-</a>
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-sliders"></i> Обработка и пороги</h2>
+    <p class="aui-fs__desc">Множитель и преобразование сырого значения. Пороги Warn/Crit — когда поднимать алерт; пусто — без алерта.</p>
+  </header>
+  <div class="aui-fields aui-fs__body">
+    {% include "adminui/_field.html" with field=form.scale %}
+    {% include "adminui/_field.html" with field=form.transform %}
+    {% include "adminui/_field.html" with field=form.transform_params wide=1 %}
+    {% include "adminui/_field.html" with field=form.warn %}
+    {% include "adminui/_field.html" with field=form.crit %}
+  </div>
+</section>
 {% endblock %}
 
-{% block admin_content %}
-
-<form method="post" class="aui-form">
-  {% csrf_token %}
-
-  {% if form.non_field_errors %}
-  <div class="aui-form__errors">
-    {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
-  </div>
-  {% endif %}
-
-  <div class="aui-form__grid">
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">Метрика</h2>
-      </div>
-      <div class="panel__body">
-        {% for field in form %}
-          {% if field.name in "key,name,oid,value_type,unit,enabled" %}
-          <div class="aui-form__field">
-            <label class="aui-form__label" for="{{ field.id_for_label }}">
-              {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
-            </label>
-            {{ field }}
-            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">Обработка и пороги</h2>
-      </div>
-      <div class="panel__body">
-        {% for field in form %}
-          {% if field.name in "scale,transform,transform_params,warn,crit" %}
-          <div class="aui-form__field">
-            <label class="aui-form__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-  </div>
-
-  <div class="aui-form__actions">
-    <button type="submit" class="btn--primary">
-      <i class="bi bi-check-lg"></i> {{ form_submit }}
-    </button>
-    <a href="{% url 'adminui:profile_detail' profile.pk %}" class="btn--secondary">Отмена</a>
-    {% if metric %}
-    <a href="{% url 'adminui:metric_delete' profile.pk metric.pk %}" class="btn--danger" style="margin-left:auto">
-      <i class="bi bi-trash"></i> Удалить
-    </a>
-    {% endif %}
-  </div>
-</form>
-
-{% endblock %}
+{% block cancel_url %}{% url 'adminui:profile_detail' profile.pk %}{% endblock %}
+{% block delete_link %}{% if metric %}<a href="{% url 'adminui:metric_delete' profile.pk metric.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}

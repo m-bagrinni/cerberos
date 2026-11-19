@@ -1,24 +1,50 @@
-{% extends "adminui/base_admin.html" %}
-{% block admin_title %}{% if object %}Редактировать станцию{% else %}Добавить станцию{% endif %}{% endblock %}
-{% block admin_actions %}<a href="{% url 'adminui:stations' %}" class="btn--secondary"><i class="bi bi-arrow-left"></i> Назад</a>{% endblock %}
-{% block admin_content %}
-<div class="panel" style="max-width: 600px;">
-  <div class="panel__header"><h2 class="panel__title">Данные станции</h2></div>
-  <div class="panel__body">
-    <form method="post">
-      {% csrf_token %}
-      {% for field in form %}
-        <div class="form-group">
-          <label>{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<div class="form-error">{{ field.errors }}</div>{% endif %}
-        </div>
-      {% endfor %}
-      <div class="form-actions">
-        <button type="submit" class="btn--primary">Сохранить</button>
-        <a href="{% url 'adminui:stations' %}" class="btn--secondary">Отмена</a>
+{% extends "adminui/form_base.html" %}
+{% load static %}
+{% block sheet_class %} aui-sheet--narrow{% endblock %}
+{% block admin_title %}{% if object %}{{ object.name }}{% else %}Новая станция{% endif %}{% endblock %}
+{% block form_body %}
+  <section class="aui-fs">
+    <header class="aui-fs__head">
+      <h2 class="aui-fs__title"><i class="bi bi-geo-alt"></i> Станция</h2>
+      <p class="aui-fs__desc">Название и slug (латиница, для адресов). Порядок — для сортировки в списках.</p>
+    </header>
+    <div class="aui-fs__body aui-fields">
+      {% include "adminui/_field.html" with field=form.name %}
+      {% include "adminui/_field.html" with field=form.slug %}
+      {% include "adminui/_field.html" with field=form.sort_order %}
+    </div>
+  </section>
+  <section class="aui-fs aui-fs--stack">
+    <header class="aui-fs__head">
+      <h2 class="aui-fs__title"><i class="bi bi-pin-map"></i> Место на карте</h2>
+    </header>
+    <div class="aui-fs__body">
+      <div class="aui-geo" id="station-geo">
+        <div class="aui-geo__map" id="station-geo-map" role="application" aria-label="Карта: нажмите, чтобы поставить станцию"></div>
+        <div class="aui-geo__hint" id="station-geo-hint">Нажмите на карте, чтобы поставить станцию. Маркер можно перетащить.</div>
       </div>
-    </form>
-  </div>
-</div>
+      <div class="aui-fields aui-geo__fields">
+        {% include "adminui/_field.html" with field=form.latitude %}
+        {% include "adminui/_field.html" with field=form.longitude %}
+      </div>
+      <p class="aui-form__hint">Можно вставить координаты из Google Карт целиком — «42.874600, 74.569800» — в любое из полей.</p>
+    </div>
+  </section>
+  <section class="aui-fs">
+    <header class="aui-fs__head">
+      <h2 class="aui-fs__title"><i class="bi bi-hdd-network"></i> Оборудование</h2>
+      <p class="aui-fs__desc">Устройства, которые стоят на станции — их состояние красит маркер на карте.</p>
+    </header>
+    <div class="aui-fs__body aui-fields">
+      {% include "adminui/_field.html" with field=form.devices %}
+    </div>
+  </section>
+{% endblock %}
+{% block cancel_url %}{% url 'adminui:stations' %}{% endblock %}
+{% block delete_link %}{% if object %}<a href="{% url 'adminui:station_delete' object.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
+{% block extra_js %}
+{{ stations_geo|json_script:"stations-geo" }}
+<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
+<script src="{% static 'js/adminui-station-geo.js' %}?v=1"></script>
 {% endblock %}

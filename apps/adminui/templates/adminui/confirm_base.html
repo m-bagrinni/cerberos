@@ -1,0 +1,29 @@
+{% extends "adminui/base_admin.html" %}
+{% load adminui_tags %}
+{% comment %}
+  Каркас подтверждения удаления. Блоки: confirm_title, confirm_object, confirm_text,
+  confirm_blockers (причины запрета, когда can_delete == False), cancel_url, delete_label.
+  Контекст: can_delete (если не передан — удалять можно).
+{% endcomment %}
+{% block admin_content %}
+<div class="aui-confirm">
+  {% if can_delete is False %}
+  <div class="aui-confirm__icon aui-confirm__icon--blocked"><i class="bi bi-shield-exclamation"></i></div>
+  {% else %}
+  <div class="aui-confirm__icon"><i class="bi bi-trash3"></i></div>
+  {% endif %}
+  <h2 class="aui-confirm__title">{% block confirm_title %}Удалить?{% endblock %}</h2>
+  <div class="aui-confirm__object">{% block confirm_object %}<b>{{ object }}</b>{% endblock %}</div>
+  {% block confirm_blockers %}{% endblock %}
+  {% if can_delete is not False %}
+  <p class="aui-confirm__text">{% block confirm_text %}Действие необратимо.{% endblock %}</p>
+  <form method="post" class="form-actions">
+    {% csrf_token %}
+    <button type="submit" class="btn--danger"><i class="bi bi-trash3"></i> {% block delete_label %}Удалить{% endblock %}</button>
+    <a href="{% block cancel_url %}{% aui_list_url %}{% endblock %}" class="btn--secondary">Отмена</a>
+  </form>
+  {% else %}
+  <div class="form-actions"><a href="{% aui_list_url %}" class="btn--secondary"><i class="bi bi-arrow-left"></i> Назад</a></div>
+  {% endif %}
+</div>
+{% endblock %}

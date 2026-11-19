@@ -1,44 +1,8 @@
-{% extends "adminui/base_admin.html" %}
-
+{% extends "adminui/form_base.html" %}
 {% block admin_title %}{{ form_title }}{% endblock %}
-
-{% block admin_content %}
-<form method="post" class="aui-form" style="max-width:600px">
-  {% csrf_token %}
-
-  {% if form.non_field_errors %}
-  <div class="aui-form__errors">
-    {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
-  </div>
-  {% endif %}
-
-  <div class="panel">
-    <div class="panel__header">
-      <h2 class="panel__title">{{ form_title }}</h2>
-    </div>
-    <div class="panel__body">
-      {% for field in form %}
-      <div class="aui-form__field">
-        <label class="aui-form__label" for="{{ field.id_for_label }}">
-          {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
-        </label>
-        {{ field }}
-        {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="aui-form__actions">
-    <button type="submit" class="btn--primary">
-      <i class="bi bi-check-lg"></i> {{ form_submit }}
-    </button>
-    <a href="{% url 'adminui:vendors' %}" class="btn--secondary">Отмена</a>
-    {% if vendor %}
-    <a href="{% url 'adminui:vendor_delete' vendor.pk %}" class="btn--danger" style="margin-left:auto">
-      <i class="bi bi-trash"></i> Удалить
-    </a>
-    {% endif %}
-  </div>
-</form>
-{% endblock %}
+{% block sheet_class %} aui-sheet--narrow{% endblock %}
+{% block section_icon %}bi-building{% endblock %}
+{% block section_title %}Вендор{% endblock %}
+{% block section_desc %}Производитель оборудования. Enterprise ID из sysObjectID помогает автоматически подобрать профиль SNMP для нового устройства.{% endblock %}
+{% block cancel_url %}{% url 'adminui:vendors' %}{% endblock %}
+{% block delete_link %}{% if vendor %}<a href="{% url 'adminui:vendor_delete' vendor.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}

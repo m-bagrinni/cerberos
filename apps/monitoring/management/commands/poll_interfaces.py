@@ -20,6 +20,15 @@ from apps.monitoring.snmp import SnmpClient, SnmpTarget
 from apps.monitoring.status import mark_ok, mark_unreachable
 
 
+# Eltex (стек MES): нужны только физические порты юнита 1 — ifIndex 49..108 (см. Interface.is_physical).
+# Выше — фантомные порты юнитов 2–8 (150–999) и служебные (Po, tunnel, loopback, stack-port — 1000+).
+# D-Link не ограничиваем: там Port-channel (ifIndex 897) показывается на странице устройства с трафиком.
+ELTEX_IF_INDEX_LIMIT = 150
+
+
+def _is_eltex(device) -> bool:
+    return "eltex" in ((device.vendor.name if device.vendor_id else "") or "").lower()
+
 OID_IF_DESCR = "1.3.6.1.2.1.2.2.1.2"
 OID_IF_TYPE = "1.3.6.1.2.1.2.2.1.3"
 OID_IF_ADMIN = "1.3.6.1.2.1.2.2.1.7"
@@ -49,9 +58,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         try:
-            device = Device.objects.get(ip=opts["ip"])
+            device = Device.objects.select_related("vendor").get(ip=opts["ip"])   # vendor читается в async _fetch
         except Device.DoesNotExist:
             self.stderr.write(f"Устройство с IP {opts['ip']} не найдено")
+            return
+
+        if "olencom" in ((device.vendor.name if device.vendor_id else "") or "").lower():
+            # PDH-мультиплексор: ifTable нет, опрос давал только таймауты (состояние — через NE)
+            self.stdout.write(f"{device.name}: Olencom — интерфейсы не опрашиваются")
             return
 
         self.stdout.write(f"Опрос интерфейсов {device.name} ({device.ip})...")
@@ -91,8 +105,15 @@ class Command(BaseCommand):
             ("vlan_names", OID_VLAN_NAME),
         ]
 
+        # Eltex: столбцы ifTable/ifXTable — только до ELTEX_IF_INDEX_LIMIT. Раньше выкачивалась вся
+        # таблица (~10 параллельных обходов по ~900 строк, почти всё — фантомы и служебные, которые
+        # не сохраняются), и опрос opt.LAZ в ~3 случаях из 4 падал по таймауту.
+        limit = ELTEX_IF_INDEX_LIMIT if _is_eltex(device) else None
+        # pvid (dot1qPvid) у Eltex индексирован тем же ifIndex — 256 строк, ~11 с без ограничения
+        if_columns = {"descr", "iftype", "admin", "oper", "name", "speed", "alias", "pvid"}
         results = await asyncio.gather(
-            *[client.walk(oid) for _, oid in oid_map],
+            *[client.walk(oid, index_below=limit if key in if_columns else None)
+              for key, oid in oid_map],
             return_exceptions=True,
         )
 
@@ -195,11 +216,11 @@ class Command(BaseCommand):
         for idx in sorted(all_idx):
             # Фильтр: пропускаем служебные интерфейсы
             # - D-Link: VLAN (if_index >= 1024)
-            # - Eltex: фантомные unit'ы (if_type=6, if_index >= 150)
+            # - Eltex: всё выше ELTEX_IF_INDEX_LIMIT (фантомные юниты, Po, tunnel…)
             if_type_val = self._int(iftype.get(idx), 0)
             if idx >= 1024:
                 continue
-            if if_type_val in (6, 62, 71, 117) and idx >= 150:
+            if idx >= ELTEX_IF_INDEX_LIMIT and (if_type_val in (6, 62, 71, 117) or _is_eltex(device)):
                 continue
 
             # Получаем старый oper_status (если интерфейс существует)

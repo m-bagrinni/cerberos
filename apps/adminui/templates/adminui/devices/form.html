@@ -1,95 +1,78 @@
-{% extends "adminui/base_admin.html" %}
+{% extends "adminui/form_base.html" %}
 {% load static %}
+{% block admin_title %}{% if device %}{{ device.name }}{% else %}Новое устройство{% endif %}{% endblock %}
+{% block form_attrs %}id="device-form"{% endblock %}
 
-{% block admin_title %}{{ form_title }}{% endblock %}
+{% block form_body %}
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-hdd-network"></i> Устройство</h2>
+    <p class="aui-fs__desc">Как устройство подписано в дереве и по какому адресу его опрашивать. Категория определяет папку в дереве на «Обзоре».</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    {% include "adminui/_field.html" with field=form.name %}
+    {% include "adminui/_field.html" with field=form.ip %}
+    {% include "adminui/_field.html" with field=form.category %}
+    {% include "adminui/_field.html" with field=form.vendor %}
+  </div>
+</section>
 
-{% block admin_actions %}
-<a href="{% if device %}{% url 'adminui:device_detail' device.pk %}{% else %}{% url 'adminui:devices' %}{% endif %}"
-   class="btn--secondary">
-  <i class="bi bi-x-lg"></i> Отмена
-</a>
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-plug"></i> SNMP</h2>
+    <p class="aui-fs__desc">Параметры доступа. Перед сохранением можно проверить, отвечает ли устройство.</p>
+    <div class="aui-fs__tools">
+      <button type="button" class="btn--secondary btn--sm" id="btn-test-snmp"><i class="bi bi-broadcast"></i> Проверить связь</button>
+    </div>
+  </header>
+  <div class="aui-fs__body">
+    <div class="aui-fields">
+      {% include "adminui/_field.html" with field=form.snmp_version %}
+      {% include "adminui/_field.html" with field=form.snmp_port %}
+      {% include "adminui/_field.html" with field=form.snmp_community wide=1 %}
+    </div>
+    <div id="snmp-test-result" class="aui-snmp-test" style="display:none"></div>
+  </div>
+</section>
+
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-diagram-3"></i> Профиль опроса</h2>
+    <p class="aui-fs__desc">Какие метрики снимать. Обычно профиль подбирается автоматически по sysObjectID; «Зафиксировать» — не менять его при переопределении.</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    {% include "adminui/_field.html" with field=form.profile %}
+    {% include "adminui/_field.html" with field=form.profile_override %}
+  </div>
+</section>
+
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-share"></i> Зависимость</h2>
+    <p class="aui-fs__desc">Через что устройство доступно. Если вышестоящее упадёт, алерты этого устройства свернутся под его алерт и не будут дублироваться в Telegram.</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    {% include "adminui/_field.html" with field=form.uplink %}
+    {% include "adminui/_field.html" with field=form.uplink_ne %}
+  </div>
+</section>
+
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-router"></i> Мультиплексор</h2>
+    <p class="aui-fs__desc">Только для шлюзов Olencom: NE ID и IP шлюза, через который опрашиваются NE. Для обычных устройств оставьте пустым.</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    {% include "adminui/_field.html" with field=form.ne_id %}
+    {% include "adminui/_field.html" with field=form.ne_gateway_ip %}
+  </div>
+</section>
 {% endblock %}
 
-{% block admin_content %}
-
-<form method="post" class="aui-form" id="device-form">
-  {% csrf_token %}
-
-  {% if form.non_field_errors %}
-  <div class="aui-form__errors">
-    {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
-  </div>
-  {% endif %}
-
-  <div class="aui-form__grid">
-
-    {# === Основное === #}
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">Основное</h2>
-      </div>
-      <div class="panel__body">
-        {% for field in form %}
-          {% if field.name in "name,ip,category,vendor,profile,profile_override,uplink,uplink_ne" %}
-          <div class="aui-form__field">
-            <label class="aui-form__label" for="{{ field.id_for_label }}">
-              {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
-            </label>
-            {{ field }}
-            {% if field.help_text %}<div class="aui-form__hint">{{ field.help_text }}</div>{% endif %}
-            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-
-    {# === SNMP === #}
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">SNMP</h2>
-        <button type="button" class="btn--secondary btn--sm" id="btn-test-snmp">
-          <i class="bi bi-plug"></i> Проверить связь
-        </button>
-      </div>
-      <div class="panel__body">
-        {% for field in form %}
-          {% if field.name in "snmp_version,snmp_community,snmp_port,ne_id,ne_gateway_ip" %}
-          <div class="aui-form__field">
-            <label class="aui-form__label" for="{{ field.id_for_label }}">
-              {{ field.label }}{% if field.field.required %} <span class="text-crit">*</span>{% endif %}
-            </label>
-            {{ field }}
-            {% if field.help_text %}<div class="aui-form__hint">{{ field.help_text }}</div>{% endif %}
-            {% if field.errors %}<div class="aui-form__error">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
-          {% endif %}
-        {% endfor %}
-
-        <div id="snmp-test-result" class="aui-snmp-test" style="display:none"></div>
-      </div>
-    </section>
-
-  </div>
-
-  <div class="aui-form__actions">
-    <button type="submit" class="btn--primary">
-      <i class="bi bi-check-lg"></i> {{ form_submit }}
-    </button>
-    <a href="{% url 'adminui:devices' %}" class="btn--secondary">Отмена</a>
-    {% if device %}
-    <a href="{% url 'adminui:device_delete' device.pk %}" class="btn--danger" style="margin-left:auto">
-      <i class="bi bi-trash"></i> Удалить
-    </a>
-    {% endif %}
-  </div>
-</form>
-
-{% endblock %}
+{% block cancel_url %}{% if device %}{% url 'adminui:device_detail' device.pk %}{% else %}{% url 'adminui:devices' %}{% endif %}{% endblock %}
+{% block delete_link %}{% if device %}<a href="{% url 'adminui:device_delete' device.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}
 
 {% block extra_js %}
-<script>
-  window.CERBER_TEST_SNMP_URL = "{% url 'adminui:test_snmp' %}";
-</script>
+<script>window.CERBER_TEST_SNMP_URL = "{% url 'adminui:test_snmp' %}";</script>
 <script src="{% static 'js/adminui-device-form.js' %}?v=1"></script>
 {% endblock %}

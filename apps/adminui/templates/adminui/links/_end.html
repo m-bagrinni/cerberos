@@ -1,0 +1,26 @@
+{# Конец линии: станция, оборудование (коммутатор ИЛИ NE), порт. Выбор порта — static/js/adminui-link-ports.js #}
+<section class="aui-fs aui-fs--stack" data-link-end="{{ key }}">
+  <div class="aui-fs__head">
+    <h2 class="aui-fs__title"><span class="aui-end-letter">{{ letter }}</span> Конец {{ letter }}</h2>
+    <p class="aui-fs__desc">Станция и оборудование, на котором заведена линия: коммутатор или мультиплексор (NE).</p>
+  </div>
+  <div class="aui-fs__body aui-fields">
+    {% include "adminui/_field.html" with field=st wide=1 %}
+    {% include "adminui/_field.html" with field=dev %}
+    {% include "adminui/_field.html" with field=ne %}
+    <div class="aui-form__field is-wide{% if pnum.errors %} has-error{% endif %}">
+      <div class="aui-ports__head">
+        <label class="aui-form__label">Порт <span class="aui-req">*</span></label>
+        <span class="aui-ports__picked" data-ports-picked></span>
+        <label class="aui-ports__all"><input type="checkbox" data-ports-all> все порты</label>
+      </div>
+      <div class="aui-hidden">{{ pnum }}</div>
+      <div class="aui-ports" data-ports data-port-input="{{ pnum.id_for_label }}" data-type-input="{{ ptype.id_for_label }}"
+           data-device-input="{{ dev.id_for_label }}" data-ne-input="{{ ne.id_for_label }}">
+        <div class="aui-ports__empty">Выберите коммутатор или NE</div>
+      </div>
+      <div class="aui-ports__type">Тип порта: {{ ptype }}</div>
+      {% for e in pnum.errors %}<div class="aui-form__error">{{ e }}</div>{% endfor %}
+    </div>
+  </div>
+</section>

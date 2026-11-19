@@ -3,7 +3,7 @@
 {% block admin_title %}Объявления{% endblock %}
 
 {% block admin_actions %}
-<a href="{% url 'adminui:announcement_create' %}" class="btn--secondary">
+<a href="{% url 'adminui:announcement_create' %}" class="btn--primary">
   <i class="bi bi-plus-lg"></i> Новое объявление
 </a>
 {% endblock %}
@@ -11,7 +11,7 @@
 {% block admin_content %}
 <div class="panel">
   <div class="panel__header">
-    <h2 class="panel__title">Объявления на главной ({{ announcements|length }})</h2>
+    <h2 class="panel__title"><i class="bi bi-megaphone"></i> Объявления на главной <span class="text-muted">{{ paginator.count }}</span></h2>
   </div>
   <div class="panel__body panel__body--flush">
     {% if announcements %}
@@ -23,31 +23,31 @@
           <th>Показ</th>
           <th>Период</th>
           <th>Автор</th>
-          <th style="width:100px"></th>
+          <th class="col-actions"></th>
         </tr>
       </thead>
       <tbody>
         {% for a in announcements %}
-        <tr>
+        <tr data-href="{% url 'adminui:announcement_update' a.pk %}">
           <td>
             {% if a.is_pinned %}<i class="bi bi-pin-angle-fill text-muted" title="Закреплено"></i> {% endif %}
             <strong>{{ a.title }}</strong>
-            {% if a.text %}<div class="text-muted" style="font-size:12px">{{ a.text|truncatechars:90 }}</div>{% endif %}
+            {% if a.text %}<div class="text-muted text-sm">{{ a.text|truncatechars:90 }}</div>{% endif %}
           </td>
-          <td>{{ a.get_level_display }}</td>
+          <td><span class="badge badge--{{ a.level }}">{{ a.get_level_display }}</span></td>
           <td>
-            {% if a.id in visible_ids %}<span style="color:var(--ok,#22c55e)">Показывается</span>
+            {% if a.id in visible_ids %}<span class="text-ok">Показывается</span>
             {% elif not a.is_active %}<span class="text-muted">Выключено</span>
             {% else %}<span class="text-muted">Вне периода</span>{% endif %}
           </td>
-          <td class="mono text-muted" style="font-size:12px">
+          <td class="mono text-muted text-sm">
             {{ a.starts_at|date:"d.m.Y H:i" }} — {% if a.ends_at %}{{ a.ends_at|date:"d.m.Y H:i" }}{% else %}бессрочно{% endif %}
           </td>
           <td class="text-muted">{{ a.created_by.short_name|default:"—" }}</td>
           <td>
             <div class="aui-row-actions">
               <a href="{% url 'adminui:announcement_update' a.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
-              <a href="{% url 'adminui:announcement_delete' a.pk %}" class="aui-icon-btn" title="Удалить"><i class="bi bi-trash"></i></a>
+              <a href="{% url 'adminui:announcement_delete' a.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
             </div>
           </td>
         </tr>
@@ -55,7 +55,7 @@
       </tbody>
     </table>
     {% else %}
-    <p class="text-muted" style="padding:24px;text-align:center">Объявлений пока нет. Они появятся на главной у всех сотрудников.</p>
+    <div class="empty-state"><i class="bi bi-megaphone"></i><p>Объявлений пока нет. Они появятся на главной у всех сотрудников.</p><a href="{% url 'adminui:announcement_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Написать объявление</a></div>
     {% endif %}
   </div>
 </div>

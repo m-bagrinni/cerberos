@@ -1,16 +1,5 @@
-{% extends "adminui/base_admin.html" %}
-{% block admin_title %}Удалить станцию{% endblock %}
-{% block admin_content %}
-<div class="panel" style="max-width: 500px;">
-  <div class="panel__header"><h2 class="panel__title">Подтверждение</h2></div>
-  <div class="panel__body">
-    <p>Вы уверены, что хотите удалить станцию <strong>{{ object.name }}</strong>?</p>
-    <form method="post">{% csrf_token %}
-      <div class="form-actions">
-        <button type="submit" class="btn--danger">Удалить</button>
-        <a href="{% url 'adminui:stations' %}" class="btn--secondary">Отмена</a>
-      </div>
-    </form>
-  </div>
-</div>
-{% endblock %}
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление станции{% endblock %}
+{% block confirm_title %}Удалить станцию?{% endblock %}
+{% block confirm_object %}<i class="bi bi-geo-alt"></i> <b>{{ object.name }}</b>{% endblock %}
+{% block confirm_text %}Станция исчезнет с карты. Линии, которые к ней подключены, тоже могут быть удалены.{% endblock %}

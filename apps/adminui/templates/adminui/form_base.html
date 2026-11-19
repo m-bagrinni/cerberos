@@ -1,0 +1,40 @@
+{% extends "adminui/base_admin.html" %}
+{% load adminui_tags %}
+{% comment %}
+  Каркас формы админки: секции .aui-fs (слева заголовок с пояснением, справа поля) + липкая панель сохранения.
+  Блоки: form_attrs, form_body (по умолчанию — одна секция со всеми полями формы),
+         section_icon / section_title / section_desc (для секции по умолчанию),
+         submit_label, cancel_url, delete_url (пусто — без кнопки «Удалить»), form_after (вне секций, напр. история).
+{% endcomment %}
+{% block admin_content %}
+<form method="post" class="aui-form aui-sheet{% block sheet_class %}{% endblock %}" {% block form_attrs %}{% endblock %}>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="aui-form__errors">{% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div>
+  {% elif form.errors %}
+  <div class="aui-form__errors">Проверьте поля, отмеченные красным.</div>
+  {% endif %}
+
+  {% block form_body %}
+  <section class="aui-fs">
+    <header class="aui-fs__head">
+      <h2 class="aui-fs__title"><i class="bi {% block section_icon %}bi-pencil-square{% endblock %}"></i> {% block section_title %}Основное{% endblock %}</h2>
+      <p class="aui-fs__desc">{% block section_desc %}{% endblock %}</p>
+    </header>
+    <div class="aui-fs__body aui-fields">
+      {% for field in form.visible_fields %}{% include "adminui/_field.html" %}{% endfor %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+    </div>
+  </section>
+  {% endblock %}
+
+  {% block form_after %}{% endblock %}
+
+  <div class="aui-savebar">
+    <span class="aui-savebar__state">Изменений нет · <kbd>Ctrl</kbd>+<kbd>S</kbd> — сохранить</span>
+    {% block delete_link %}{% endblock %}
+    <a href="{% block cancel_url %}{% aui_list_url %}{% endblock %}" class="btn--secondary">Отмена</a>
+    <button type="submit" class="btn--primary"><i class="bi bi-check-lg"></i> {% block submit_label %}{{ form_submit|default:"Сохранить" }}{% endblock %}</button>
+  </div>
+</form>
+{% endblock %}

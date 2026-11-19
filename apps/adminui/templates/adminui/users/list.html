@@ -3,89 +3,62 @@
 {% block admin_title %}Пользователи{% endblock %}
 
 {% block admin_actions %}
-<a href="{% url 'adminui:user_create' %}" class="btn--secondary">
-  <i class="bi bi-plus-lg"></i> Добавить пользователя
-</a>
+<a href="{% url 'adminui:user_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Добавить пользователя</a>
 {% endblock %}
 
 {% block admin_content %}
-<style>
-  .admin-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 12px;
-  }
-  .admin-tab {
-    padding: 6px 14px;
-    border-radius: var(--radius);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: transparent;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-  }
-  .admin-tab:hover {
-    color: var(--text-strong);
-    background: var(--bg-hover);
-  }
-  .admin-tab.is-active {
-    color: var(--primary);
-    background: rgba(255, 120, 10, 0.1);
-    border-color: rgba(255, 120, 10, 0.3);
-  }
-</style>
+{% include "adminui/users/_tabs.html" with tab="all" %}
 
-<div class="admin-tabs">
-  <a href="{% url 'adminui:users' %}" class="admin-tab is-active">
-    <i class="bi bi-people"></i> Все пользователи
-  </a>
-  <a href="{% url 'adminui:users_pending' %}" class="admin-tab">
-    <i class="bi bi-hourglass-split"></i> Ожидают подтверждения
-  </a>
-</div>
 <div class="panel">
-  <div class="panel__header"><h2 class="panel__title">Пользователи ({{ users|length }})</h2></div>
+  <div class="panel__header"><h2 class="panel__title">Пользователи <span class="text-muted">{{ paginator.count }}</span></h2></div>
   <div class="panel__body panel__body--flush">
+    <form method="get" class="panel__filters">
+      <input type="search" name="q" value="{{ q }}" class="aui-input" placeholder="Логин, ФИО, email, отдел…" autofocus>
+      <select name="state" class="aui-input">
+        <option value="">Все учётки</option>
+        <option value="active"{% if state == "active" %} selected{% endif %}>Активные</option>
+        <option value="inactive"{% if state == "inactive" %} selected{% endif %}>Отключённые</option>
+      </select>
+      <button type="submit" class="btn--secondary"><i class="bi bi-search"></i> Найти</button>
+      {% if q or state %}<a href="{% url 'adminui:users' %}" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>{% endif %}
+    </form>
     {% if users %}
     <table class="data-table">
       <thead>
         <tr>
-          <th>Username</th>
-          <th>Email</th>
-          <th>Telegram ID</th>
+          <th>Пользователь</th>
+          <th>Должность / отдел</th>
           <th>Доступ</th>
-          <th>Last login</th>
-          <th style="width:100px"></th>
+          <th>Telegram</th>
+          <th>Последний вход</th>
+          <th class="col-actions"></th>
         </tr>
       </thead>
       <tbody>
         {% for u in users %}
         <tr>
-          <td><strong>{{ u.username }}</strong></td>
-          <td class="text-muted">{{ u.email|default:"—" }}</td>
-          <td class="mono text-muted">{{ u.telegram_id|default:"—" }}</td>
+          <td>
+            <a href="{% url 'adminui:user_update' u.pk %}" class="aui-link">{{ u.get_full_name|default:u.username }}</a>
+            <span class="cell-sub mono">{{ u.username }}{% if u.email %} · {{ u.email }}{% endif %}</span>
+          </td>
+          <td class="text-sm">
+            {{ u.position_ref.name|default:"—" }}
+            {% if u.department %}<span class="cell-sub">{{ u.department }}</span>{% endif %}
+          </td>
           <td>
             <div class="acc-sum">
-            {% for name in u.access_summary %}<span class="badge badge--info">{{ name }}</span>{% empty %}{% if not u.is_superuser %}<span class="text-muted">нет доступа</span>{% endif %}{% endfor %}
-            {% if u.is_superuser %}<span class="badge badge--crit">superuser</span>{% endif %}
+            {% if u.is_superuser %}<span class="badge badge--accent">суперпользователь</span>
+            {% else %}{% for name in u.access_summary %}<span class="badge badge--info">{{ name }}</span>{% empty %}<span class="text-muted text-sm">нет доступа</span>{% endfor %}{% endif %}
+            {% if not u.is_active %}<span class="badge badge--crit">отключён</span>{% endif %}
             {% if u.registration_status == "pending" %}<span class="badge badge--warn">ждёт подтверждения</span>{% endif %}
             </div>
           </td>
-          <td class="text-muted">
-            {% if u.last_login %}{{ u.last_login|timesince }} назад{% else %}—{% endif %}
-          </td>
-          <td>
+          <td>{% if u.telegram_id %}<span class="text-ok" title="Telegram привязан"><i class="bi bi-telegram"></i></span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-muted text-sm">{% if u.last_login %}<span title="{{ u.last_login|date:'d.m.Y H:i' }}">{{ u.last_login|timesince }} назад</span>{% else %}никогда{% endif %}</td>
+          <td class="col-actions">
             <div class="aui-row-actions">
-              <a href="{% url 'adminui:user_update' u.pk %}" class="aui-icon-btn" title="Редактировать">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'adminui:user_delete' u.pk %}" class="aui-icon-btn" title="Удалить">
-                <i class="bi bi-trash"></i>
-              </a>
+              <a href="{% url 'adminui:user_update' u.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+              <a href="{% url 'adminui:user_delete' u.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
             </div>
           </td>
         </tr>
@@ -93,7 +66,7 @@
       </tbody>
     </table>
     {% else %}
-    <div class="empty-state"><i class="bi bi-people"></i><p>Пользователей нет</p></div>
+    <div class="empty-state"><i class="bi bi-people"></i><p>{% if q or state %}Никого не нашлось{% else %}Пользователей нет{% endif %}</p></div>
     {% endif %}
   </div>
 </div>

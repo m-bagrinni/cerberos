@@ -19,7 +19,6 @@ import threading
 from typing import Any
 
 from django.core.cache import cache
-from django.db.models import Count
 
 logger = logging.getLogger(__name__)
 
@@ -118,32 +117,19 @@ def vendor_of(mac: str) -> str | None:
 # ── коммутаторы ──────────────────────────────────────────────────────────────
 def switch_ports(mac: str) -> list[dict[str, Any]]:
     """
-    Где MAC в FDB коммутаторов. MAC виден и на аплинках, поэтому для каждого
-    порта считаем, сколько MAC за ним: порт доступа — тот, где их меньше всего.
+    Где MAC в FDB коммутаторов; первым — вероятное место подключения
+    (порт без других наших коммутаторов за ним, см. apps/monitoring/fdb.py).
     """
-    from apps.monitoring.models import FdbEntry
+    from apps.monitoring.fdb import ports_for
 
-    entries = list(FdbEntry.objects.filter(mac__iexact=mac).select_related("device"))
-    if not entries:
-        return []
-    counts = {
-        (r["device_id"], r["bridge_port"]): r["n"]
-        for r in FdbEntry.objects.filter(
-            device_id__in={e.device_id for e in entries},
-            bridge_port__in={e.bridge_port for e in entries},
-        ).values("device_id", "bridge_port").annotate(n=Count("mac", distinct=True))
-    }
-    out = []
-    for e in entries:
-        n = counts.get((e.device_id, e.bridge_port), 1)
-        out.append({
-            "device": e.device.name, "device_ip": e.device.ip,
-            "port": e.interface_name or f"порт {e.bridge_port}",
-            "vlan": e.vlan_id, "macs_on_port": n, "access": n <= 3,
-            "updated": e.updated_at.isoformat() if e.updated_at else None,
-        })
-    out.sort(key=lambda x: (x["macs_on_port"], x["device"]))
-    return out[:5]
+    # «порт доступа»: не аплинк и (лучший кандидат или мало MAC — если MAC коммутаторов
+    # неизвестны, аплинк узнаётся только по множеству MAC за ним)
+    return [{
+        "device": p.device, "device_ip": p.device_ip, "port": p.port,
+        "vlan": p.vlan, "macs_on_port": p.macs_on_port, "uplink": p.uplink,
+        "access": p.final and not p.uplink and (i == 0 or p.macs_on_port <= 3),
+        "updated": p.updated.isoformat() if p.updated else None,
+    } for i, p in enumerate(ports_for(mac)[:5])]
 
 
 def _host_neigh() -> dict[str, str]:

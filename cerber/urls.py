@@ -58,6 +58,7 @@ urlpatterns = [
     path("local/subcategories/move-category/", login_required(device_actions.move_subcategory_to_category), name="move_subcategory_to_category"),
     path("local/devices/reorder/", login_required(device_actions.reorder_devices), name="reorder_devices"),
     path("local/devices/reorder-all/", login_required(device_actions.reorder_all), name="reorder_all"),
+    path("local/devices/tree-order/", login_required(device_actions.tree_order), name="tree_order"),
     path("api/v1/devices/statuses/", device_actions.devices_statuses, name="devices_statuses"),
     path("local/subcategories/reorder/", login_required(device_actions.reorder_subcategories), name="reorder_subcategories"),
     path("api/v1/devices/poll-all-now/", login_required(device_actions.poll_all_devices_now), name="poll_all_devices_now"),

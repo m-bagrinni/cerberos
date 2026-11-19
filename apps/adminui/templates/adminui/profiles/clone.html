@@ -1,34 +1,24 @@
-{% extends "adminui/base_admin.html" %}
-
-{% block admin_title %}Клонировать профиль{% endblock %}
-
-{% block admin_content %}
-<div class="panel" style="max-width:600px">
-  <div class="panel__header">
-    <h2 class="panel__title">Клонировать: {{ source.name }}</h2>
+{% extends "adminui/form_base.html" %}
+{% block sheet_class %} aui-sheet--narrow{% endblock %}
+{% block admin_crumbs %}<a href="{% url 'adminui:profile_detail' source.pk %}">{{ source.name }}</a>{% endblock %}
+{% block admin_title %}Клонирование профиля{% endblock %}
+{% block form_body %}
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-files"></i> Новый профиль</h2>
+    <p class="aui-fs__desc">Скопируются все настройки «{{ source.name }}» и {{ source.metrics.count }} метрик. Удобно, чтобы сделать профиль под соседнюю модель.</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    <div class="aui-form__field">
+      <label class="aui-form__label" for="id_name">Название <span class="aui-req">*</span></label>
+      <input type="text" name="name" id="id_name" class="aui-input" value="{{ source.name }} (копия)" required>
+    </div>
+    <div class="aui-form__field">
+      <label class="aui-form__label" for="id_slug">Slug <span class="aui-req">*</span></label>
+      <input type="text" name="slug" id="id_slug" class="aui-input mono" value="{{ source.slug }}-copy" required>
+    </div>
   </div>
-  <div class="panel__body">
-    <p class="text-muted">Будут скопированы все настройки профиля и {{ source.metrics.count }} метрик.</p>
-
-    <form method="post" style="margin-top:16px">
-      {% csrf_token %}
-      <div class="aui-form__field">
-        <label class="aui-form__label" for="id_name">Название</label>
-        <input type="text" name="name" id="id_name" class="aui-input"
-               value="{{ source.name }} (копия)" required>
-      </div>
-      <div class="aui-form__field">
-        <label class="aui-form__label" for="id_slug">Slug</label>
-        <input type="text" name="slug" id="id_slug" class="aui-input mono"
-               value="{{ source.slug }}-copy" required>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:16px">
-        <button type="submit" class="btn--primary">
-          <i class="bi bi-files"></i> Клонировать
-        </button>
-        <a href="{% url 'adminui:profile_detail' source.pk %}" class="btn--secondary">Отмена</a>
-      </div>
-    </form>
-  </div>
-</div>
+</section>
 {% endblock %}
+{% block cancel_url %}{% url 'adminui:profile_detail' source.pk %}{% endblock %}
+{% block submit_label %}Клонировать{% endblock %}

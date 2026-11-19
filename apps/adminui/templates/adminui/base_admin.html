@@ -1,140 +1,144 @@
-{% load static %}
+{% load static adminui_tags %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#111217">
   <title>{% block title %}Админ-панель · Cerberus{% endblock %}</title>
 
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
-  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261116m">
-  <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=20261117a">
-  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261116l">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  <link rel="stylesheet" href="{% static 'css/cerber.css' %}?v=20261118t">
+  {% if ui_theme_glass %}<link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20261117a">{% else %}<link rel="stylesheet" href="{% static 'css/glass.css' %}">{% endif %}
+  {# adminui.css — после темы: страницы админки собраны на его компонентах, тема даёт токены #}
+  <link rel="stylesheet" href="{% static 'css/adminui.css' %}?v=20261118e">
   {% block extra_head %}{% endblock %}
-    <script src="{% static 'js/core.js' %}?v=2"></script>
+  <script src="{% static 'js/core.js' %}?v=2"></script>
 </head>
-<body{% if ui_theme_glass %} class="theme-glass"{% endif %} data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
+{% aui_section as sec %}
+<body class="adminui-page{% if ui_theme_glass %} theme-glass{% endif %}" data-acc-e="{{ acc.edit_keys }}" data-acc-c="{{ acc.cap_keys }}">
 
 <div class="adminui-layout">
 
-  {# ===== Сайдбар админки ===== #}
+  {# ===== Сайдбар ===== #}
   <aside class="adminui-sidebar">
-    <div class="adminui-sidebar__title">
+    <a href="{% url 'adminui:dashboard' %}" class="adminui-brand">
       <i class="bi bi-shield-lock"></i>
-      <span>Админ-панель</span>
-    </div>
+      <span class="adminui-brand__text"><b>Cerberus</b><small>Админ-панель</small></span>
+    </a>
 
-    <nav class="adminui-nav">
-      <a href="{% url 'adminui:dashboard' %}"
-         class="adminui-nav__item {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
-        <i class="bi bi-speedometer2"></i> Обзор
+    <nav class="adminui-nav" aria-label="Разделы админ-панели">
+      <a href="{% url 'adminui:dashboard' %}" class="adminui-nav__item{% if sec == 'dashboard' %} is-active{% endif %}">
+        <i class="bi bi-speedometer2"></i><span>Обзор</span>
       </a>
 
-      <div class="adminui-nav__group">Мониторинг</div>
-      {% if acc.e.devices %}<a href="{% url 'adminui:devices' %}"
-         class="adminui-nav__item {% if 'devices' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-hdd-network"></i> Устройства
-      </a>{% endif %}
-      {% if acc.e.devices %}<a href="{% url 'adminui:dependencies' %}"
-         class="adminui-nav__item {% if request.resolver_match.url_name == 'dependencies' %}is-active{% endif %}">
-        <i class="bi bi-diagram-2"></i> Зависимости
-      </a>{% endif %}
-      {% if acc.e.devices %}<a href="{% url 'adminui:profiles' %}"
-         class="adminui-nav__item {% if 'profiles' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-diagram-3"></i> Профили
-      </a>{% endif %}
-      {% if acc.e.devices %}<a href="{% url 'adminui:vendors' %}"
-         class="adminui-nav__item {% if 'vendors' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-building"></i> Вендоры
-      </a>{% endif %}
-      {% if acc.e.stations %}<a href="{% url 'adminui:closures' %}"
-         class="adminui-nav__item {% if 'closures' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-node-plus"></i> Муфты
-      </a>{% endif %}
-      {% if acc.e.stations %}<a href="{% url 'adminui:stations' %}" class="adminui-nav__item {% if 'station' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-geo-alt"></i> Станции
-      </a>{% endif %}
-      {% if acc.e.stations %}<a href="{% url 'adminui:links' %}" class="adminui-nav__item {% if 'link' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-link-45deg"></i> Линии
-      </a>{% endif %}
-      {% if acc.e.mux %}<a href="{% url 'adminui:ne' %}"
-         class="adminui-nav__item {% if request.resolver_match.url_name == 'ne' %}is-active{% endif %}">
-        <i class="bi bi-router"></i> NE
-      </a>{% endif %}
-
-      <div class="adminui-nav__group">Инфраструктура</div>
-      {% if acc.e.subnets %}<a href="{% url 'adminui:subnets' %}"
-         class="adminui-nav__item {% if 'subnets' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-diagram-2"></i> Подсети
-      </a>{% endif %}
-      {% if acc.e.alerts %}<a href="{% url 'adminui:alerts' %}"
-         class="adminui-nav__item {% if 'alerts' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-bell"></i> Алерты
-      </a>{% endif %}
-
-      <div class="adminui-nav__group">Система</div>
-      {% if acc.c.users_manage %}<a href="{% url 'adminui:users' %}"
-         class="adminui-nav__item {% if 'users' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-people"></i> Пользователи
-      </a>{% endif %}
-      {% if acc.c.users_manage %}<a href="{% url 'adminui:presets' %}"
-         class="adminui-nav__item {% if 'preset' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-ui-checks-grid"></i> Шаблоны доступа
-      </a>{% endif %}
-      {% if acc.c.announcements %}<a href="{% url 'adminui:announcements' %}"
-         class="adminui-nav__item {% if 'announcement' in request.resolver_match.url_name %}is-active{% endif %}">
-        <i class="bi bi-megaphone"></i> Объявления
-      </a>{% endif %}
-    </nav>
-
-    <div class="adminui-nav__group" style="margin-top:auto">Переходы</div>
-    <nav class="adminui-nav" style="margin-bottom:12px">
-      <a href="/local/" class="adminui-nav__item adminui-nav__item--external">
-        <i class="bi bi-arrow-left-circle"></i> Cerberus
-      </a>
-      <a href="/admin/" class="adminui-nav__item adminui-nav__item--external">
-        <i class="bi bi-box-arrow-up-right"></i> Django-admin
-      </a>
-    </nav>
-
-    {# === Пользователь === #}
-    {% if user.is_authenticated %}
-    <div class="adminui-nav__group" style="margin-top:auto">Пользователь</div>
-    <nav class="adminui-nav" style="margin-bottom:12px">
-      <a href="/accounts/profile/" class="adminui-nav__item">
-        <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
-      </a>
-      {% if ui_theme_glass %}
-      <a href="{% url 'set_ui_theme' 'classic' %}?next={{ request.get_full_path|urlencode }}" class="adminui-nav__item" title="Вернуть прежнее оформление (только для вас)">
-        <i class="bi bi-circle-half"></i> Старый вид
-      </a>
-      {% else %}
-      <a href="{% url 'set_ui_theme' 'glass' %}?next={{ request.get_full_path|urlencode }}" class="adminui-nav__item" title="Попробовать новое оформление">
-        <i class="bi bi-stars"></i> Тема «Стекло»
-      </a>
+      {% if acc.e.devices %}
+      <div class="adminui-nav__group">Устройства</div>
+      <a href="{% url 'adminui:devices' %}" class="adminui-nav__item{% if sec == 'devices' %} is-active{% endif %}"><i class="bi bi-hdd-network"></i><span>Устройства</span></a>
+      <a href="{% url 'adminui:categories' %}" class="adminui-nav__item{% if sec == 'categories' %} is-active{% endif %}"><i class="bi bi-folder2"></i><span>Категории</span></a>
+      <a href="{% url 'adminui:profiles' %}" class="adminui-nav__item{% if sec == 'profiles' %} is-active{% endif %}"><i class="bi bi-diagram-3"></i><span>Профили SNMP</span></a>
+      <a href="{% url 'adminui:vendors' %}" class="adminui-nav__item{% if sec == 'vendors' %} is-active{% endif %}"><i class="bi bi-building"></i><span>Вендоры</span></a>
+      <a href="{% url 'adminui:dependencies' %}" class="adminui-nav__item{% if sec == 'dependencies' %} is-active{% endif %}"><i class="bi bi-share"></i><span>Зависимости</span></a>
       {% endif %}
-      <a href="{% url 'accounts:logout' %}" class="adminui-nav__item">
-        <i class="bi bi-box-arrow-right"></i> Выйти
-      </a>
+
+      {% if acc.e.stations or acc.e.mux %}
+      <div class="adminui-nav__group">Сеть и ВОЛС</div>
+      {% if acc.e.stations %}
+      <a href="{% url 'adminui:stations' %}" class="adminui-nav__item{% if sec == 'stations' %} is-active{% endif %}"><i class="bi bi-geo-alt"></i><span>Станции</span></a>
+      <a href="{% url 'adminui:links' %}" class="adminui-nav__item{% if sec == 'links' %} is-active{% endif %}"><i class="bi bi-bezier2"></i><span>Оптические линии</span></a>
+      <a href="{% url 'adminui:closures' %}" class="adminui-nav__item{% if sec == 'closures' %} is-active{% endif %}"><i class="bi bi-node-plus"></i><span>Муфты</span></a>
+      {% endif %}
+      {% if acc.e.mux %}
+      <a href="{% url 'adminui:ne' %}" class="adminui-nav__item{% if sec == 'ne' %} is-active{% endif %}"><i class="bi bi-router"></i><span>NE (мультиплексоры)</span></a>
+      {% endif %}
+      {% endif %}
+
+      {% if acc.e.subnets or acc.e.alerts %}
+      <div class="adminui-nav__group">Мониторинг</div>
+      {% if acc.e.subnets %}
+      <a href="{% url 'adminui:subnets' %}" class="adminui-nav__item{% if sec == 'subnets' %} is-active{% endif %}"><i class="bi bi-diagram-2"></i><span>Подсети</span></a>
+      {% endif %}
+      {% if acc.e.alerts %}
+      {% aui_firing_alerts as n_firing %}
+      <a href="{% url 'adminui:alerts' %}" class="adminui-nav__item{% if sec == 'alerts' %} is-active{% endif %}"><i class="bi bi-bell"></i><span>Алерты</span>{% if n_firing %}<em class="adminui-nav__count adminui-nav__count--crit" title="Активных алертов">{{ n_firing }}</em>{% endif %}</a>
+      {% endif %}
+      {% endif %}
+
+      {% if acc.c.users_manage or acc.c.announcements %}
+      <div class="adminui-nav__group">Система</div>
+      {% if acc.c.users_manage %}
+      {% aui_pending_users as n_pending %}
+      <a href="{% url 'adminui:users' %}" class="adminui-nav__item{% if sec == 'users' %} is-active{% endif %}"><i class="bi bi-people"></i><span>Пользователи</span>{% if n_pending %}<em class="adminui-nav__count" title="Ждут подтверждения">{{ n_pending }}</em>{% endif %}</a>
+      <a href="{% url 'adminui:presets' %}" class="adminui-nav__item{% if sec == 'presets' %} is-active{% endif %}"><i class="bi bi-ui-checks-grid"></i><span>Шаблоны доступа</span></a>
+      <a href="{% url 'adminui:modules' %}" class="adminui-nav__item{% if sec == 'modules' %} is-active{% endif %}"><i class="bi bi-grid"></i><span>Модули главной</span></a>
+      {% endif %}
+      {% if acc.c.announcements %}
+      <a href="{% url 'adminui:announcements' %}" class="adminui-nav__item{% if sec == 'announcements' %} is-active{% endif %}"><i class="bi bi-megaphone"></i><span>Объявления</span></a>
+      {% endif %}
+      {% endif %}
     </nav>
-    {% endif %}
+
+    {# ===== Низ: переходы и пользователь ===== #}
+    <div class="adminui-sidebar__bottom">
+      <a href="/" class="adminui-nav__item adminui-nav__item--muted"><i class="bi bi-arrow-left-circle"></i><span>На сайт</span></a>
+      {% if user.is_superuser %}
+      <a href="/admin/" class="adminui-nav__item adminui-nav__item--muted"><i class="bi bi-box-arrow-up-right"></i><span>Django-admin</span></a>
+      {% endif %}
+      {% if ui_theme_glass %}
+      <a href="{% url 'set_ui_theme' 'classic' %}?next={{ request.get_full_path|urlencode }}" class="adminui-nav__item adminui-nav__item--muted" title="Вернуть прежнее оформление (только для вас)"><i class="bi bi-circle-half"></i><span>Старый вид</span></a>
+      {% else %}
+      <a href="{% url 'set_ui_theme' 'glass' %}?next={{ request.get_full_path|urlencode }}" class="adminui-nav__item adminui-nav__item--muted" title="Новое оформление"><i class="bi bi-stars"></i><span>Тема «Стекло»</span></a>
+      {% endif %}
+      {% if user.is_authenticated %}
+      <div class="adminui-user">
+        <a href="/accounts/profile/" class="adminui-user__link" title="Личный кабинет">
+          <span class="adminui-user__avatar">{{ user.get_full_name|default:user.username|first|upper }}</span>
+          <span class="adminui-user__name">{{ user.get_full_name|default:user.username }}<small>{% if user.is_superuser %}суперпользователь{% else %}{{ user.username }}{% endif %}</small></span>
+        </a>
+        <a href="{% url 'accounts:logout' %}" class="adminui-user__logout" title="Выйти"><i class="bi bi-box-arrow-right"></i></a>
+      </div>
+      {% endif %}
+    </div>
   </aside>
 
   {# ===== Контент ===== #}
   <main class="adminui-main">
-    <header class="adminui-header">
-      <h1 class="adminui-header__title">{% block admin_title %}Админ-панель{% endblock %}</h1>
+    <header class="adminui-header{% block header_class %}{% endblock %}">
+      <div class="adminui-header__text">
+        <nav class="adminui-crumbs" aria-label="Путь">
+          <a href="{% url 'adminui:dashboard' %}">Админ-панель</a>
+          {% aui_crumb %}{% block admin_crumbs %}{% endblock %}
+        </nav>
+        <h1 class="adminui-header__title">{% block admin_title %}Админ-панель{% endblock %}</h1>
+      </div>
       <div class="adminui-header__actions">{% block admin_actions %}{% endblock %}</div>
     </header>
+
+    {% if messages %}
+    <div class="adminui-flashes">
+      {% for message in messages %}
+      <div class="flash flash--{% if message.tags == 'error' %}crit{% elif message.tags == 'success' %}ok{% elif message.tags == 'warning' %}warn{% else %}info{% endif %}" role="status">
+        <i class="bi {% if message.tags == 'error' %}bi-x-octagon{% elif message.tags == 'success' %}bi-check-circle{% elif message.tags == 'warning' %}bi-exclamation-triangle{% else %}bi-info-circle{% endif %}"></i>
+        <span>{{ message }}</span>
+        <button type="button" class="flash__close" onclick="this.parentNode.remove()" aria-label="Закрыть"><i class="bi bi-x"></i></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="adminui-content">
       {% block admin_content %}{% endblock %}
+      {% if is_paginated %}{% include "adminui/_pagination.html" %}{% endif %}
     </div>
   </main>
 
 </div>
 
-<script src="{% static 'js/adminui-devices.js' %}?v=5"></script>
+<script src="{% static 'js/adminui.js' %}?v=1"></script>
+<script src="{% static 'js/adminui-devices.js' %}?v=6"></script>
 {% block extra_js %}{% endblock %}
-    <script src="{% static 'js/glass.js' %}?v=20261116k"></script>
+<script src="{% static 'js/glass.js' %}?v=20261117b"></script>
 </body>
 </html>

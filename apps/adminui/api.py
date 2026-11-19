@@ -163,42 +163,60 @@ def ne_rename(request, pk):
 @login_required
 @require_POST
 def alert_resolve(request, pk):
-    """Ручное разрешение одного алерта."""
-    from django.utils import timezone
-    from apps.alerts.models import Alert
-    try:
-        alert = Alert.objects.get(pk=pk)
-    except Alert.DoesNotExist:
-        return JsonResponse({"ok": False, "error": "Алерт не найден"}, status=404)
-
-    if alert.state != "firing":
-        return JsonResponse({"ok": True, "state": alert.state, "skipped": True})
-
-    alert.state = "ok"
-    alert.resolved_at = timezone.now()
-    alert.save(update_fields=["state", "resolved_at", "updated_at"])
-    return JsonResponse({"ok": True, "state": "ok", "alert_id": alert.pk})
+    """Ручное закрытие одного алерта — та же логика, что у кнопки «Решено» (кто закрыл, уведомление)."""
+    from apps.alerts.ack import resolve
+    note = ""
+    if request.content_type == "application/json":
+        try:
+            note = (json.loads(request.body or b"{}") or {}).get("note", "")
+        except (ValueError, TypeError):
+            note = ""
+    else:
+        note = request.POST.get("note", "")
+    alert, err = resolve(pk, request.user, note)
+    if alert is None:
+        return JsonResponse({"ok": False, "error": err}, status=404 if "не найден" in err else 403)
+    if err:
+        return JsonResponse({"ok": err == "Алерт уже закрыт.", "error": err, "state": alert.state})
+    return JsonResponse({"ok": True, "state": alert.state, "alert_id": alert.pk})
 
 
 @login_required
 @require_POST
 def alert_bulk_resolve(request):
-    """Разрешение нескольких алертов (JSON {ids: [...]})"""
-    from django.utils import timezone
-    from apps.alerts.models import Alert
+    """Закрытие нескольких алертов (JSON {ids: [...]}) — по одному через ack.resolve."""
+    from apps.alerts.ack import resolve
     try:
         payload = json.loads(request.body)
     except (ValueError, TypeError):
         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
 
-    ids = payload.get("ids") or []
+    try:
+        ids = [int(x) for x in (payload.get("ids") or [])][:200]
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "Неверный список ids"}, status=400)
     if not ids:
         return JsonResponse({"ok": False, "error": "Пустой список ids"})
 
-    now = timezone.now()
-    n = (
-        Alert.objects
-        .filter(pk__in=ids, state="firing")
-        .update(state="ok", resolved_at=now, updated_at=now)
-    )
-    return JsonResponse({"ok": True, "resolved": n})
+    done, errors = 0, []
+    for pk in ids:
+        alert, err = resolve(pk, request.user)
+        if alert is not None and not err:
+            done += 1
+        elif err and err != "Алерт уже закрыт.":
+            errors.append(f"#{pk}: {err}")
+    return JsonResponse({"ok": True, "resolved": done, "errors": errors[:10]})
+
+
+@login_required
+def link_device_ports(request, pk):
+    """GET /admin-ui/links/device-ports/<pk>/?link=<id> — порты коммутатора для формы линии."""
+    from apps.monitoring.tasks import link_port_choices
+    try:
+        device = Device.objects.get(pk=pk)
+    except Device.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Устройство не найдено"}, status=404)
+    link_id = request.GET.get("link")
+    ports = link_port_choices(device, exclude_link_id=int(link_id) if (link_id or "").isdigit() else None)
+    return JsonResponse({"ok": True, "device": device.name, "ports": ports,
+                         "polled": bool(ports)})

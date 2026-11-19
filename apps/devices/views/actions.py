@@ -70,7 +70,8 @@ def move_subcategory(request):
             return JsonResponse({"ok": False, "error": "Подкатегория не найдена"}, status=404)
 
         device.subcategory = subcategory
-        device.save(update_fields=["subcategory"])
+        device.category = subcategory.category   # иначе устройство «зависает» в старой категории
+        device.save(update_fields=["subcategory", "category"])
 
         return JsonResponse({"ok": True, "device": device.name, "subcategory": subcategory.name})
     except Exception as e:
@@ -214,3 +215,61 @@ def poll_all_devices_now(request):
         return JsonResponse({"ok": True, "task_id": result.id})
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_POST
+@csrf_protect
+def tree_order(request):
+    """
+    POST /local/devices/tree-order/ — перетаскивание в дереве /local/ (static/js/tree-drag.js).
+
+    Порядок одного контейнера после броска; заодно переносит в него элементы:
+      {"category": "<slug>|_none", "subcategory": "<slug>|null",
+       "items": [{"type": "device", "id": "<ip>"}, {"type": "subcategory", "id": "<slug>"}, ...]}
+    Порядок категорий:
+      {"categories": ["<slug>", ...]}
+    Права: путь под /local/devices/ → «Устройства: изменение» (apps/accounts/access.py).
+    """
+    from django.db import transaction
+    from apps.devices.models import Device, DeviceCategory, DeviceSubcategory
+
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Неверный JSON"}, status=400)
+
+    if "categories" in data:
+        slugs = [s for s in data.get("categories") or [] if isinstance(s, str)][:500]
+        with transaction.atomic():
+            for idx, slug in enumerate(slugs):
+                DeviceCategory.objects.filter(slug=slug).update(sort_order=(idx + 1) * 10)
+        return JsonResponse({"ok": True, "count": len(slugs)})
+
+    cat_slug = data.get("category") or ""
+    sub_slug = data.get("subcategory") or None
+    items = [i for i in (data.get("items") or []) if isinstance(i, dict)][:2000]
+
+    category = None
+    if cat_slug != "_none":
+        category = DeviceCategory.objects.filter(slug=cat_slug).first()
+        if category is None:
+            return JsonResponse({"ok": False, "error": "Категория не найдена"}, status=404)
+    subcategory = None
+    if sub_slug:
+        subcategory = DeviceSubcategory.objects.filter(slug=sub_slug, category=category).first()
+        if subcategory is None:
+            return JsonResponse({"ok": False, "error": "Подкатегория не найдена"}, status=404)
+
+    with transaction.atomic():
+        for idx, it in enumerate(items):
+            pos = (idx + 1) * 10
+            if it.get("type") == "device":
+                Device.objects.filter(ip=str(it.get("id") or "")).update(
+                    sort_order=pos, category=category, subcategory=subcategory)
+            elif it.get("type") == "subcategory":
+                if category is None or subcategory is not None:
+                    continue   # подкатегория живёт только прямо в категории
+                slug = str(it.get("id") or "")
+                DeviceSubcategory.objects.filter(slug=slug).update(sort_order=pos, category=category)
+                Device.objects.filter(subcategory__slug=slug).exclude(category=category).update(category=category)
+    return JsonResponse({"ok": True, "count": len(items)})

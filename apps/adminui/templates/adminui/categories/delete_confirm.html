@@ -1,17 +1,5 @@
-{% extends "adminui/base_admin.html" %}
-{% block admin_title %}Удалить категорию{% endblock %}
-{% block admin_content %}
-<div class="panel">
-    <div class="panel__header">
-        <h2 class="panel__title">Удалить категорию "{{ object.name }}"?</h2>
-    </div>
-    <div class="panel__body">
-        <p>Устройства, привязанные к этой категории, останутся без категории.</p>
-        <form method="post">
-            {% csrf_token %}
-            <button type="submit" class="btn--danger">Удалить</button>
-            <a href="{% url 'adminui:categories' %}" class="btn--secondary">Отмена</a>
-        </form>
-    </div>
-</div>
-{% endblock %}
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление категории{% endblock %}
+{% block confirm_title %}Удалить категорию?{% endblock %}
+{% block confirm_object %}<i class="bi {{ object.icon|default:'bi-folder2' }}"></i> <b>{{ object.name }}</b>{% endblock %}
+{% block confirm_text %}Устройства этой категории останутся без категории (в дереве — в разделе «Без категории»).{% endblock %}

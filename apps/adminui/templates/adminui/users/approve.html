@@ -1,49 +1,48 @@
-{% extends "adminui/base_admin.html" %}
+{% extends "adminui/form_base.html" %}
+{% block header_class %} adminui-header--compact{% endblock %}
+{% block admin_title %}Заявка: {{ target.get_full_name|default:target.username }}{% endblock %}
 
-{% block admin_title %}Подтверждение: {{ target.username }}{% endblock %}
-
-{% block admin_content %}
-<form method="post" class="aui-form">
-  {% csrf_token %}
-  <div class="aui-form__grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); align-items: start;">
-    <div class="panel">
-      <div class="panel__header"><h2 class="panel__title">Заявка</h2></div>
-      <div class="panel__body">
-        <dl class="acc-dl">
-          <dt>Логин</dt><dd class="mono">{{ target.username }}</dd>
-          <dt>ФИО</dt><dd>{{ target.last_name }} {{ target.first_name }} {{ target.middle_name }}</dd>
-          <dt>Email</dt><dd>{{ target.email|default:"—" }}</dd>
-          <dt>Отдел</dt><dd>{{ target.department|default:"—" }}</dd>
-          <dt>Подана</dt><dd>{{ target.date_joined|date:"d.m.Y H:i" }}</dd>
-          {% if target.registration_note %}<dt>Комментарий</dt><dd>{{ target.registration_note }}</dd>{% endif %}
-        </dl>
-        <div class="aui-form__field" style="margin-top:16px">
-          <label class="aui-form__label" for="pos">Должность</label>
-          <select id="pos" name="position_ref" class="aui-input">
-            <option value="">— не задана —</option>
-            {% for p in positions %}<option value="{{ p.pk }}"{% if target.position_ref_id == p.pk %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
-          </select>
-          <div class="acc__hint">Название для справочника сотрудников, на права не влияет.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel__header"><h2 class="panel__title">Что сможет делать</h2></div>
-      <div class="panel__body">
-        {% include "adminui/users/_access_matrix.html" %}
-      </div>
+{% block form_body %}
+<div class="aui-hero">
+  <div class="aui-hero__icon aui-hero__icon--warn"><i class="bi bi-person-plus"></i></div>
+  <div class="aui-hero__main">
+    <h2 class="aui-hero__title">{{ target.last_name }} {{ target.first_name }} {{ target.middle_name }} <span class="aui-status aui-status--warn">ждёт подтверждения</span></h2>
+    <div class="aui-hero__meta">
+      <span class="aui-chip aui-chip--mono"><i class="bi bi-at"></i>{{ target.username }}</span>
+      {% if target.email %}<span class="aui-chip"><i class="bi bi-envelope"></i>{{ target.email }}</span>{% endif %}
+      {% if target.department %}<span class="aui-chip"><i class="bi bi-building"></i>{{ target.department }}</span>{% endif %}
+      <span class="aui-chip"><i class="bi bi-calendar"></i>подана {{ target.date_joined|date:"d.m.Y H:i" }}</span>
     </div>
   </div>
+  {% if target.registration_note %}
+  <div class="aui-hero__facts"><div class="aui-fact"><span class="aui-fact__label">Комментарий к заявке</span><span class="aui-fact__value">{{ target.registration_note }}</span></div></div>
+  {% endif %}
+</div>
 
-  <div class="aui-form__actions">
-    <button type="submit" class="btn--primary"><i class="bi bi-check-lg"></i> Подтвердить с этими правами</button>
-    <a href="{% url 'adminui:users_pending' %}" class="btn--secondary">Назад</a>
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-briefcase"></i> Должность</h2>
+    <p class="aui-fs__desc">Название для справочника сотрудников. На права не влияет.</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    <div class="aui-form__field">
+      <label class="aui-form__label" for="pos">Должность</label>
+      <select id="pos" name="position_ref" class="aui-input">
+        <option value="">— не задана —</option>
+        {% for p in positions %}<option value="{{ p.pk }}"{% if target.position_ref_id == p.pk %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </div>
   </div>
-</form>
-<style>
-  .acc-dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; font-size: 13px; }
-  .acc-dl dt { color: var(--text-muted); }
-  .acc-dl dd { margin: 0; color: var(--text); }
-</style>
+</section>
+
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-shield-lock"></i> Что сможет делать</h2>
+    <p class="aui-fs__desc">Выберите шаблон доступа или отметьте разделы вручную. После подтверждения человек сразу сможет войти.</p>
+  </header>
+  <div class="aui-fs__body">{% include "adminui/users/_access_matrix.html" %}</div>
+</section>
 {% endblock %}
+
+{% block cancel_url %}{% url 'adminui:users_pending' %}{% endblock %}
+{% block submit_label %}Подтвердить с этими правами{% endblock %}

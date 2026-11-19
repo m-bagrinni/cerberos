@@ -4,7 +4,7 @@
 {% block admin_title %}Подсети{% endblock %}
 
 {% block admin_actions %}
-<a href="{% url 'adminui:subnet_create' %}" class="btn--secondary">
+<a href="{% url 'adminui:subnet_create' %}" class="btn--primary">
   <i class="bi bi-plus-lg"></i> Добавить подсеть
 </a>
 {% endblock %}
@@ -17,14 +17,14 @@
   <div class="subnet-card" data-subnet-id="{{ s.pk }}">
     <div class="subnet-card__header">
       <div>
-        <h3 class="subnet-card__title">{{ s.name }}</h3>
+        <h3 class="subnet-card__title"><a class="aui-link" href="{% url 'adminui:subnet_update' s.pk %}">{{ s.name }}</a></h3>
         <div class="subnet-card__cidr mono">{{ s.cidr }}</div>
       </div>
       <div class="subnet-card__status">
         {% if s.is_active %}
-          <span class="badge badge--info">active</span>
+          <span class="badge badge--ok">сканируется</span>
         {% else %}
-          <span class="badge" style="opacity:.5">off</span>
+          <span class="badge badge--off">выкл.</span>
         {% endif %}
       </div>
     </div>
@@ -43,15 +43,15 @@
         <span class="subnet-stat__value">{{ st.alive }}</span>
       </div>
       <div class="subnet-stat">
-        <span class="subnet-stat__label">Исп.</span>
+        <span class="subnet-stat__label">Занято</span>
         <span class="subnet-stat__value">{{ st.used }}</span>
       </div>
       <div class="subnet-stat">
-        <span class="subnet-stat__label">Своб.</span>
+        <span class="subnet-stat__label">Свободно</span>
         <span class="subnet-stat__value">{{ st.free }}</span>
       </div>
       <div class="subnet-stat">
-        <span class="subnet-stat__label">Мон.</span>
+        <span class="subnet-stat__label" title="На мониторинге">Монит.</span>
         <span class="subnet-stat__value">{{ st.monitored }}</span>
       </div>
     </div>
@@ -66,32 +66,18 @@
     {% endif %}
 
     <div class="subnet-card__footer">
-      <button type="button" class="btn--secondary btn--sm aui-icon-btn--scan"
-              data-pk="{{ s.pk }}" title="Сканировать">
-        <i class="bi bi-radar"></i> Scan
-      </button>
-      <a href="{% url 'adminui:subnet_update' s.pk %}" class="btn--secondary btn--sm">
-        <i class="bi bi-pencil"></i>
-      </a>
-      <a href="{% url 'adminui:subnet_delete' s.pk %}" class="btn--secondary btn--sm">
-        <i class="bi bi-trash"></i>
-      </a>
+      <button type="button" class="btn--secondary btn--sm" data-scan-url="{% url 'adminui:subnet_scan' s.pk %}" title="Пропинговать все адреса сейчас"><i class="bi bi-radar"></i> Сканировать</button>
+      <a href="{% url 'subnet_detail' s.pk %}" class="aui-icon-btn" title="Открыть карту IP"><i class="bi bi-grid-3x3"></i></a>
+      <a href="{% url 'adminui:subnet_update' s.pk %}" class="aui-icon-btn" title="Настройки"><i class="bi bi-pencil"></i></a>
+      <a href="{% url 'adminui:subnet_delete' s.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
     </div>
   </div>
   {% endwith %}
   {% empty %}
-  <div class="empty-state" style="grid-column:1/-1">
-    <i class="bi bi-diagram-2"></i>
-    <p>Подсетей нет</p>
-  </div>
+  <div class="empty-state"><i class="bi bi-diagram-2"></i><p>Подсетей пока нет</p><a href="{% url 'adminui:subnet_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Добавить подсеть</a></div>
   {% endfor %}
 </div>
 
 {% endblock %}
 
-{% block extra_js %}
-<script>
-  window.CERBER_SUBNET_SCAN_URL = "/admin-ui/subnets/__PK__/scan/";
-</script>
-<script src="{% static 'js/adminui-subnets.js' %}?v=1"></script>
-{% endblock %}
+

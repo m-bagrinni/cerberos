@@ -140,13 +140,18 @@ class SnmpClient:
         return result.get(oid)
 
     async def walk(
-        self, root_oid: str, max_rows: int = 10000,
+        self, root_oid: str, max_rows: int = 10000, index_below: int | None = None,
     ) -> list[tuple[str, object]]:
         """
         WALK через nextCmd с защитой от "OID not increasing".
 
         В pysnmp 6.2.6 nextCmd — корутина, возвращающая ОДИН ответ.
         Ходим циклом, каждый раз от последнего OID.
+
+        index_below — для столбцов с одним индексом (ifTable/ifXTable): остановиться, как только
+        индекс (первый субидентификатор после root_oid) ≥ index_below. Строки идут по возрастанию
+        индекса, так что дальше только ненужное — у стека Eltex это сотни фантомных портов
+        юнитов 2–8 и служебных интерфейсов, на которых опрос упирался в таймауты.
         """
         rows: list[tuple[str, object]] = []
         current_oid = root_oid
@@ -243,6 +248,14 @@ class SnmpClient:
 
                 if _is_no_such(val):
                     continue
+
+                if index_below is not None:
+                    try:
+                        idx = int(oid_str[len(root_oid) + 1:].split(".", 1)[0])
+                    except ValueError:
+                        idx = None
+                    if idx is not None and idx >= index_below:
+                        return rows
 
                 rows.append((oid_str, val))
                 if len(rows) >= max_rows:

@@ -1,0 +1,15 @@
+{% load adminui_tags %}{% with kind=field|widget_kind %}
+{# Поле формы: {% include "adminui/_field.html" with field=form.name %}; wide=1 — на всю строку сетки .aui-fields #}
+<div class="aui-form__field{% if wide or kind == 'textarea' or kind == 'multi' %} is-wide{% endif %}{% if field.errors %} has-error{% endif %}">
+  {% if kind == "checkbox" %}
+    <label class="aui-switch">
+      {{ field }}<span class="aui-switch__track"></span>
+      <span class="aui-switch__text">{{ field.label }}{% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}</span>
+    </label>
+  {% else %}
+    <label class="aui-form__label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="aui-req">*</span>{% endif %}</label>
+    {{ field }}
+    {% if field.help_text %}<div class="aui-form__hint">{{ field.help_text|safe }}</div>{% endif %}
+  {% endif %}
+  {% for e in field.errors %}<div class="aui-form__error">{{ e }}</div>{% endfor %}
+</div>{% endwith %}

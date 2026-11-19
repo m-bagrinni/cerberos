@@ -2,7 +2,7 @@ from apps.stations.models import OpticalClosure
 """Формы админ-панели."""
 from django import forms
 
-from apps.devices.models import Device, DeviceProfile, MetricDefinition, Vendor
+from apps.devices.models import Device, DeviceCategory, DeviceProfile, MetricDefinition, Vendor
 from apps.subnets.models import Subnet
 from apps.core.models import Announcement
 
@@ -23,25 +23,15 @@ class DeviceFilterForm(forms.Form):
         empty_label="Все вендоры",
         widget=forms.Select(attrs={"class": "aui-input"}),
     )
-    category = forms.ChoiceField(
+    category = forms.ModelChoiceField(
+        queryset=DeviceCategory.objects.order_by("sort_order", "name"),
         required=False,
-        choices=[
-            ("", "Все категории"),
-            ("switch", "Switch"),
-            ("multiplexer", "Multiplexer"),
-            ("router", "Router"),
-            ("other", "Other"),
-        ],
+        empty_label="Все категории",
         widget=forms.Select(attrs={"class": "aui-input"}),
     )
     status = forms.ChoiceField(
         required=False,
-        choices=[
-            ("", "Все статусы"),
-            ("ok", "OK"),
-            ("error", "Error"),
-            ("unknown", "Unknown"),
-        ],
+        choices=[("", "Все статусы")] + list(Device.STATUS_CHOICES),
         widget=forms.Select(attrs={"class": "aui-input"}),
     )
 
@@ -425,9 +415,10 @@ class AlertFilterForm(forms.Form):
     severity = forms.ChoiceField(
         required=False,
         choices=[
-            ("", "Все severity"),
-            ("crit", "Crit"),
-            ("warn", "Warn"),
+            ("", "Все уровни"),
+            ("crit", "Критичный"),
+            ("power", "Нет питания"),
+            ("warn", "Предупреждение"),
         ],
         widget=forms.Select(attrs={"class": "aui-input"}),
     )
@@ -435,8 +426,8 @@ class AlertFilterForm(forms.Form):
         required=False,
         choices=[
             ("", "Все состояния"),
-            ("firing", "Firing"),
-            ("ok", "Ok"),
+            ("firing", "Активные"),
+            ("ok", "Закрытые"),
         ],
         widget=forms.Select(attrs={"class": "aui-input"}),
     )
@@ -479,11 +470,14 @@ class StationForm(forms.ModelForm):
         from apps.stations.models import Station
         model = Station
         fields = ("name", "slug", "latitude", "longitude", "sort_order", "devices")
+        labels = {"name": "Название", "slug": "Код (латиница)", "latitude": "Широта",
+                  "longitude": "Долгота", "sort_order": "Порядок"}
         widgets = {
             "name": forms.TextInput(attrs={"class": "aui-input"}),
             "slug": forms.TextInput(attrs={"class": "aui-input"}),
-            "latitude": forms.NumberInput(attrs={"class": "aui-input", "step": "0.000001"}),
-            "longitude": forms.NumberInput(attrs={"class": "aui-input", "step": "0.000001"}),
+            # TextInput: в NumberInput нельзя вставить «42.87, 74.59» из Google Карт (JS делит на два поля)
+            "latitude": forms.TextInput(attrs={"class": "aui-input", "inputmode": "decimal", "placeholder": "42.874600"}),
+            "longitude": forms.TextInput(attrs={"class": "aui-input", "inputmode": "decimal", "placeholder": "74.569800"}),
             "sort_order": forms.NumberInput(attrs={"class": "aui-input"}),
         }
 

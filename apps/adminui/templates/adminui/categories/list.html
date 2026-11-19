@@ -1,50 +1,46 @@
 {% extends "adminui/base_admin.html" %}
 {% block admin_title %}Категории устройств{% endblock %}
 {% block admin_actions %}
-<a href="{% url 'adminui:category_create' %}" class="btn--secondary">
+<a href="{% url 'adminui:category_create' %}" class="btn--primary">
     <i class="bi bi-plus-lg"></i> Добавить категорию
 </a>
 {% endblock %}
 
 {% block admin_content %}
 <div class="panel">
-    <div class="panel__header">
-        <h2 class="panel__title">Категории ({{ categories|length }})</h2>
-    </div>
-    <div class="panel__body panel__body--flush">
-        {% if categories %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Slug</th>
-                    <th>Название</th>
-                    <th>Иконка</th>
-                    <th>Порядок</th>
-                    <th>Активна</th>
-                    <th>Устройств</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in categories %}
-                <tr>
-                    <td class="c-mono">{{ c.slug }}</td>
-                    <td>{{ c.name }}</td>
-                    <td><i class="bi {{ c.icon }}"></i> {{ c.icon }}</td>
-                    <td>{{ c.sort_order }}</td>
-                    <td>{% if c.is_active %}✅{% else %}❌{% endif %}</td>
-                    <td>{{ c.devices.count }}</td>
-                    <td>
-                        <a href="{% url 'adminui:category_edit' c.pk %}" class="btn--secondary btn--sm">✎</a>
-                        <a href="{% url 'adminui:category_delete' c.pk %}" class="btn--danger btn--sm">🗑</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="aui-empty">Нет категорий</div>
-        {% endif %}
-    </div>
+  <div class="panel__header">
+    <h2 class="panel__title"><i class="bi bi-folder2"></i> Папки дерева устройств <span class="text-muted">{{ paginator.count }}</span></h2>
+    <span class="text-muted text-sm">порядок здесь = порядок в дереве на «Обзоре»</span>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if categories %}
+    <table class="data-table">
+      <thead><tr><th>Категория</th><th class="col-num">Порядок</th><th class="col-num">Подкатегорий</th><th class="col-num">Устройств</th><th>Показ</th><th class="col-actions"></th></tr></thead>
+      <tbody>
+        {% for c in categories %}
+        <tr data-href="{% url 'adminui:category_edit' c.pk %}">
+          <td>
+            <div class="aui-obj">
+              <span class="aui-obj__icon"><i class="bi {{ c.icon|default:'bi-folder2' }}"></i></span>
+              <span class="aui-obj__text"><span class="aui-link">{{ c.name }}</span><span class="cell-sub mono">{{ c.slug }}</span></span>
+            </div>
+          </td>
+          <td class="col-num text-muted">{{ c.sort_order }}</td>
+          <td class="col-num">{{ c.n_sub }}</td>
+          <td class="col-num"><a class="aui-ref" href="{% url 'adminui:devices' %}?category={{ c.pk }}">{{ c.n_devices }}</a></td>
+          <td>{% if c.is_active %}<span class="badge badge--ok">активна</span>{% else %}<span class="badge badge--off">скрыта</span>{% endif %}</td>
+          <td class="col-actions"><div class="aui-row-actions">
+            <a href="{% url 'adminui:category_edit' c.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:category_delete' c.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
+          </div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-folder2"></i><p>Категорий нет — все устройства в дереве лежат в «Без категории».</p>
+      <a href="{% url 'adminui:category_create' %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Создать категорию</a></div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

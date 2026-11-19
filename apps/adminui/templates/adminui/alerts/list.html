@@ -3,55 +3,51 @@
 
 {% block admin_title %}Алерты{% endblock %}
 
+{% block admin_actions %}
+<a href="/alerts/" class="btn--secondary"><i class="bi bi-box-arrow-up-right"></i> Лента алертов</a>
+{% endblock %}
+
 {% block admin_content %}
 
 {# ===== Счётчики ===== #}
 <div class="stat-grid">
-  <div class="stat-card {% if counts.firing_crit %}stat-card--crit{% elif counts.firing %}stat-card--warn{% endif %}">
-    <div class="stat-card__label">Firing</div>
+  <a href="?state=firing" class="stat-card{% if counts.firing_crit %} stat-card--crit{% elif counts.firing %} stat-card--warn{% else %} stat-card--ok{% endif %}">
+    <div class="stat-card__label"><i class="bi bi-bell"></i> Активные</div>
     <div class="stat-card__value">{{ counts.firing }}</div>
     <div class="stat-card__hint">
-      {% if counts.firing_crit %}<span class="text-crit">{{ counts.firing_crit }} crit</span>{% endif %}
-      {% if counts.firing_warn %}<span style="color:var(--warn)">{{ counts.firing_warn }} warn</span>{% endif %}
+      {% if counts.firing_crit %}<span class="text-crit">{{ counts.firing_crit }} критичных</span>{% endif %}
+      {% if counts.firing_warn %}<span class="text-warn">{{ counts.firing_warn }} предупр.</span>{% endif %}
+      {% if not counts.firing %}всё спокойно{% endif %}
     </div>
+  </a>
+  <div class="stat-card{% if counts.firing_unacked %} stat-card--warn{% endif %}">
+    <div class="stat-card__label"><i class="bi bi-hand-index"></i> Не взяты в работу</div>
+    <div class="stat-card__value">{{ counts.firing_unacked }}</div>
+    <div class="stat-card__hint">из активных</div>
   </div>
   <div class="stat-card">
-    <div class="stat-card__label">Всего</div>
+    <div class="stat-card__label"><i class="bi bi-archive"></i> Всего</div>
     <div class="stat-card__value">{{ counts.total }}</div>
-    <div class="stat-card__hint">в БД</div>
+    <div class="stat-card__hint">в базе, включая закрытые</div>
   </div>
 </div>
 
-{# ===== Фильтры ===== #}
-<form method="get" class="aui-filter-bar">
-  <div class="aui-filter-bar__field aui-filter-bar__field--grow">
-    {{ filter_form.q }}
-  </div>
-  <div class="aui-filter-bar__field">
-    {{ filter_form.severity }}
-  </div>
-  <div class="aui-filter-bar__field">
-    {{ filter_form.state }}
-  </div>
-  <div class="aui-filter-bar__field">
-    {{ filter_form.entity }}
-  </div>
-  <button type="submit" class="btn--secondary">
-    <i class="bi bi-funnel"></i> Фильтр
-  </button>
-  {% if request.GET %}
-  <a href="{% url 'adminui:alerts' %}" class="btn--secondary">
-    <i class="bi bi-x-lg"></i> Сброс
-  </a>
-  {% endif %}
-</form>
-
 {# ===== Таблица ===== #}
 <div class="panel">
+  <form method="get" class="aui-toolbar">
+    <div class="aui-search"><i class="bi bi-search"></i>{{ filter_form.q }}</div>
+    {{ filter_form.severity }}
+    {{ filter_form.state }}
+    {{ filter_form.entity }}
+    <button type="submit" class="btn--secondary"><i class="bi bi-funnel"></i> Применить</button>
+    {% if request.GET %}<a href="{% url 'adminui:alerts' %}" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>{% endif %}
+    <span class="aui-toolbar__end aui-count">Найдено: <b>{{ total }}</b></span>
+  </form>
   <div class="panel__header">
-    <h2 class="panel__title">Алерты ({{ total }})</h2>
+    <h2 class="panel__title">Алерты <span class="text-muted">{{ total }}</span></h2>
+    {# Видимость кнопки переключает adminui-alerts.js #}
     <button type="button" id="btn-bulk-resolve" class="btn--secondary btn--sm" style="display:none">
-      <i class="bi bi-check2-square"></i> Resolve выбранные (<span id="bulk-count">0</span>)
+      <i class="bi bi-check2-square"></i> Закрыть выбранные (<span id="bulk-count">0</span>)
     </button>
   </div>
   <div class="panel__body panel__body--flush">
@@ -59,89 +55,56 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th style="width:32px"><input type="checkbox" id="check-all"></th>
-          <th>Severity</th>
-          <th>State</th>
+          <th class="col-check"><input type="checkbox" id="check-all" title="Выбрать все активные"></th>
+          <th>Уровень</th>
+          <th>Состояние</th>
           <th>Объект</th>
           <th>Метрика</th>
           <th>Значение</th>
           <th>Сообщение</th>
+          <th>В работе</th>
           <th>Начало</th>
-          <th></th>
+          <th class="col-actions"></th>
         </tr>
       </thead>
       <tbody>
         {% for a in alerts %}
-        <tr>
+        <tr data-href="{% url 'adminui:alert_detail' a.pk %}">
           <td><input type="checkbox" class="alert-check" data-id="{{ a.pk }}" {% if a.state != "firing" %}disabled{% endif %}></td>
+          <td><span class="badge badge--{{ a.severity }}">{{ a.get_severity_display }}</span></td>
           <td>
-            {% if a.severity == "crit" %}
-              <span class="badge badge--crit">crit</span>
-            {% elif a.severity == "warn" %}
-              <span class="badge badge--warn">warn</span>
-            {% else %}
-              <span class="badge">{{ a.severity }}</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if a.state == "firing" %}
-              <span style="color:var(--crit)">● firing</span>
-            {% else %}
-              <span class="text-muted">○ ok</span>
-            {% endif %}
+            {% if a.state == "firing" %}<span class="text-crit"><span class="status-dot status-dot--crit"></span>активен</span>
+            {% else %}<span class="text-muted"><span class="status-dot"></span>закрыт</span>{% endif %}
           </td>
           <td>
             {% if a.device %}
-              <a href="{% url 'adminui:device_detail' a.device.pk %}" style="color:var(--primary)">
-                {{ a.device.name }}
-              </a>
+              <a href="{% url 'adminui:device_detail' a.device.pk %}" class="aui-ref">{{ a.device.name }}</a>
             {% elif a.ne_device %}
-              <a href="{% url 'adminui:ne_detail' a.ne_device.pk %}" style="color:var(--primary)">
-                {{ a.ne_device.name }} (NE {{ a.ne_device.ne_id }})
-              </a>
+              <a href="{% url 'adminui:ne_detail' a.ne_device.pk %}" class="aui-ref">{{ a.ne_device.name }}</a> <span class="text-muted text-xs">NE {{ a.ne_device.ne_id }}</span>
             {% elif a.ip_address %}
               <span class="mono">{{ a.ip_address.ip }}</span>
-            {% else %}—{% endif %}
+            {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
-          <td class="mono text-muted" style="font-size:11px">{{ a.metric_key }}</td>
+          <td class="mono text-muted text-xs">{{ a.metric_key }}</td>
           <td class="mono">{{ a.value|default:"—" }}</td>
-          <td class="text-muted" style="font-size:12px">{{ a.message|truncatechars:60 }}</td>
-          <td class="text-muted">{{ a.started_at|timesince }} назад</td>
-          <td>
-            <a href="{% url 'adminui:alert_detail' a.pk %}" class="aui-icon-btn" title="Детали">
-              <i class="bi bi-eye"></i>
-            </a>
+          <td class="text-muted text-sm">{{ a.message|truncatechars:60 }}</td>
+          <td class="text-sm">{% if a.acked_by %}{{ a.acked_by.get_full_name|default:a.acked_by.username }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-muted text-sm" title="{{ a.started_at|date:'d.m.Y H:i:s' }}">{{ a.started_at|timesince }} назад</td>
+          <td class="col-actions">
+            <a href="{% url 'adminui:alert_detail' a.pk %}" class="aui-icon-btn" title="Подробнее"><i class="bi bi-eye"></i></a>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div class="empty-state">
-      <i class="bi bi-bell-slash"></i>
-      <p>Алертов не найдено</p>
-    </div>
+    <div class="empty-state"><i class="bi bi-bell-slash"></i><p>Алертов не найдено</p></div>
     {% endif %}
   </div>
 </div>
-
-{# ===== Пагинация ===== #}
-{% if is_paginated %}
-<div class="aui-pagination">
-  {% if page_obj.has_previous %}
-  <a href="?page={{ page_obj.previous_page_number }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" class="btn--secondary">← Назад</a>
-  {% endif %}
-  <span class="text-muted">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}
-  <a href="?page={{ page_obj.next_page_number }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" class="btn--secondary">Вперёд →</a>
-  {% endif %}
-</div>
-{% endif %}
+{% endblock %}
 
 {% block extra_js %}
-<script>
-  window.CERBER_BULK_RESOLVE_URL = "{% url 'adminui:alert_bulk_resolve' %}";
-</script>
-<script src="{% static 'js/adminui-alerts.js' %}?v=1"></script>
-{% endblock %}
+<script>window.CERBER_BULK_RESOLVE_URL = "{% url 'adminui:alert_bulk_resolve' %}";</script>
+<script src="{% static 'js/adminui-alerts.js' %}?v=2"></script>
 {% endblock %}

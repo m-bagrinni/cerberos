@@ -1,120 +1,46 @@
-{% extends "adminui/base_admin.html" %}
+{% extends "adminui/form_base.html" %}
+{% block sheet_class %} aui-sheet--narrow{% endblock %}
 {% block admin_title %}{{ form_title }}{% endblock %}
 
-{% block extra_head %}
-<style>
-    .icon-picker {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-        gap: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-        padding: 12px;
-        background: #111217;
-        border: 1px solid #2c3235;
-        border-radius: 6px;
-        margin-top: 8px;
-    }
-    .icon-picker__item {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        aspect-ratio: 1;
-        background: #1a1d21;
-        border: 1px solid #2c3235;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 20px;
-        color: #8e8e8e;
-        transition: all 0.15s;
-    }
-    .icon-picker__item:hover {
-        background: #22252b;
-        border-color: #ff780a;
-        color: #ff780a;
-    }
-    .icon-picker__item.is-selected {
-        background: rgba(255, 120, 10, 0.15);
-        border-color: #ff780a;
-        color: #ff780a;
-    }
-    .icon-picker-search {
-        width: 100%;
-        padding: 8px 12px;
-        background: #0b0c0e;
-        border: 1px solid #3d444b;
-        border-radius: 4px;
-        color: #ccccdc;
-        font-size: 13px;
-        margin-bottom: 8px;
-    }
-    .icon-preview {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 8px;
-        font-size: 13px;
-        color: #8e8e8e;
-    }
-    .icon-preview i {
-        font-size: 24px;
-        color: #ff780a;
-    }
-</style>
+{% block form_body %}
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-folder2"></i> Категория</h2>
+    <p class="aui-fs__desc">Папка в дереве устройств на «Обзоре». Порядок задаёт, в какой очерёдности папки идут в дереве.</p>
+  </header>
+  <div class="aui-fields aui-fs__body">
+    {% include "adminui/_field.html" with field=form.name %}
+    {% include "adminui/_field.html" with field=form.slug %}
+    {% include "adminui/_field.html" with field=form.sort_order %}
+    {% include "adminui/_field.html" with field=form.is_active %}
+  </div>
+</section>
+
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-palette"></i> Иконка</h2>
+    <p class="aui-fs__desc">Выберите иконку из набора или впишите класс Bootstrap Icons вручную.</p>
+  </header>
+  <div class="aui-fs__body">
+    <div class="aui-form__field{% if form.icon.errors %} has-error{% endif %}">
+      <label class="aui-form__label" for="{{ form.icon.id_for_label }}">Класс иконки</label>
+      {{ form.icon }}
+      {% for e in form.icon.errors %}<div class="aui-form__error">{{ e }}</div>{% endfor %}
+      <div class="icon-preview">
+        <i class="bi {{ form.icon.value|default:'bi-hdd-network' }}" id="icon-preview"></i>
+        <span id="icon-name">{{ form.icon.value|default:'bi-hdd-network' }}</span>
+      </div>
+    </div>
+    <input type="search" id="icon-search" class="aui-input icon-picker-search" placeholder="Поиск иконок…">
+    <div class="icon-picker" id="icon-picker"></div>
+  </div>
+</section>
 {% endblock %}
 
-{% block admin_content %}
-<form method="post" class="aui-form">
-    {% csrf_token %}
-    <div class="panel">
-        <div class="panel__header">
-            <h2 class="panel__title">{{ form_title }}</h2>
-        </div>
-        <div class="panel__body">
+{% block cancel_url %}{% url 'adminui:categories' %}{% endblock %}
+{% block delete_link %}{% if object %}<a href="{% url 'adminui:category_delete' object.pk %}" class="btn--danger"><i class="bi bi-trash3"></i> Удалить</a>{% endif %}{% endblock %}
 
-            <div class="aui-form__field">
-                <label class="aui-form__label">Slug</label>
-                {{ form.slug }}
-                {% if form.slug.errors %}<div class="aui-form__error">{{ form.slug.errors|join:", " }}</div>{% endif %}
-            </div>
-
-            <div class="aui-form__field">
-                <label class="aui-form__label">Название</label>
-                {{ form.name }}
-                {% if form.name.errors %}<div class="aui-form__error">{{ form.name.errors|join:", " }}</div>{% endif %}
-            </div>
-
-            <div class="aui-form__field">
-                <label class="aui-form__label">Иконка</label>
-                {{ form.icon }}
-                <div class="icon-preview">
-                    <i class="bi {{ form.icon.value|default:'bi-hdd-network' }}" id="icon-preview"></i>
-                    <span id="icon-name">{{ form.icon.value|default:'bi-hdd-network' }}</span>
-                </div>
-                <input type="text" id="icon-search" class="icon-picker-search" placeholder="Поиск иконок..." style="margin-top:12px;">
-                <div class="icon-picker" id="icon-picker"></div>
-            </div>
-
-            <div class="aui-form__field">
-                <label class="aui-form__label">Порядок сортировки</label>
-                {{ form.sort_order }}
-                {% if form.sort_order.errors %}<div class="aui-form__error">{{ form.sort_order.errors|join:", " }}</div>{% endif %}
-            </div>
-
-            <div class="aui-form__field">
-                <label class="aui-form__label">{{ form.is_active }} Активна</label>
-                {% if form.is_active.errors %}<div class="aui-form__error">{{ form.is_active.errors|join:", " }}</div>{% endif %}
-            </div>
-
-        </div>
-    </div>
-    <div class="aui-form__actions">
-        <button type="submit" class="btn--primary">{{ form_submit }}</button>
-        <a href="{% url 'adminui:categories' %}" class="btn--secondary">Отмена</a>
-    </div>
-</form>
-
+{% block extra_js %}
 <script>
 // Список иконок (Bootstrap Icons, самые нужные)
 const ICONS = [
@@ -153,6 +79,7 @@ function renderIcons(filter = '') {
         item.addEventListener('click', () => {
             selectedIcon = item.dataset.icon;
             hiddenInput.value = selectedIcon;
+            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
             previewIcon.className = 'bi ' + selectedIcon;
             previewName.textContent = selectedIcon;
 

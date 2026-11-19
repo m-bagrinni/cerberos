@@ -1,39 +1,8 @@
-{% extends "adminui/base_admin.html" %}
-
-{% block admin_title %}Удалить вендора{% endblock %}
-
-{% block admin_content %}
-<div class="panel" style="max-width:600px">
-  <div class="panel__header">
-    <h2 class="panel__title">Удалить вендора?</h2>
-  </div>
-  <div class="panel__body">
-    <p><strong>{{ object.name }}</strong> <span class="mono text-muted">({{ object.slug }})</span></p>
-
-    {% if has_profiles %}
-    <div class="aui-snmp-test aui-snmp-test--error" style="margin-top:12px">
-      Есть профили этого вендора. Удаление невозможно.
-    </div>
-    {% endif %}
-    {% if has_devices %}
-    <div class="aui-snmp-test aui-snmp-test--error" style="margin-top:12px">
-      Есть устройства этого вендора. Удаление невозможно.
-    </div>
-    {% endif %}
-
-    {% if can_delete %}
-    <form method="post" style="margin-top:20px;display:flex;gap:8px">
-      {% csrf_token %}
-      <button type="submit" class="btn--danger">
-        <i class="bi bi-trash"></i> Удалить
-      </button>
-      <a href="{% url 'adminui:vendors' %}" class="btn--secondary">Отмена</a>
-    </form>
-    {% else %}
-    <div style="margin-top:20px">
-      <a href="{% url 'adminui:vendors' %}" class="btn--secondary">← Назад</a>
-    </div>
-    {% endif %}
-  </div>
-</div>
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление вендора{% endblock %}
+{% block confirm_title %}{% if can_delete %}Удалить вендора?{% else %}Вендора удалить нельзя{% endif %}{% endblock %}
+{% block confirm_object %}<i class="bi bi-building"></i> <b>{{ object.name }}</b> <span class="aui-chip aui-chip--mono">{{ object.slug }}</span>{% endblock %}
+{% block confirm_blockers %}
+{% if has_profiles %}<div class="aui-notice aui-notice--warn"><i class="bi bi-diagram-3"></i><div>Есть профили SNMP этого вендора — сначала удалите или перенесите их.</div></div>{% endif %}
+{% if has_devices %}<div class="aui-notice aui-notice--warn"><i class="bi bi-hdd-network"></i><div>К этому вендору привязаны устройства.</div></div>{% endif %}
 {% endblock %}

@@ -77,7 +77,7 @@ class StationListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Station
-        fields = ("id", "slug", "name", "x", "y", "sort_order",
+        fields = ("id", "slug", "name", "x", "y", "latitude", "longitude", "sort_order",
                   "devices_count", "nes_count", "agg_status")
 
     def get_devices_count(self, obj):

@@ -1,26 +1,31 @@
-{% extends "adminui/base_admin.html" %}
-{% block admin_title %}{% if obj.pk %}Шаблон: {{ obj.name }}{% else %}Новый шаблон{% endif %}{% endblock %}
-{% block admin_content %}
-<form method="post" class="aui-form" style="max-width:820px">
-  {% csrf_token %}
-  {% if error %}<div class="aui-form__errors"><div>{{ error }}</div></div>{% endif %}
-  <div class="panel">
-    <div class="panel__header"><h2 class="panel__title">{% if obj.pk %}Шаблон доступа{% else %}Новый шаблон доступа{% endif %}</h2></div>
-    <div class="panel__body">
-      <div class="aui-form__field">
-        <label class="aui-form__label" for="p-name">Название</label>
-        <input id="p-name" class="aui-input" name="name" value="{{ obj.name }}" maxlength="100" required>
-      </div>
-      <div class="aui-form__field">
-        <label class="aui-form__label" for="p-descr">Описание</label>
-        <input id="p-descr" class="aui-input" name="description" value="{{ obj.description }}" maxlength="255">
-      </div>
-      {% include "adminui/users/_access_matrix.html" %}
+{% extends "adminui/form_base.html" %}
+{% block admin_title %}{% if obj.pk %}{{ obj.name }}{% else %}Новый шаблон доступа{% endif %}{% endblock %}
+
+{% block form_body %}
+{% if error %}<div class="aui-form__errors"><div>{{ error }}</div></div>{% endif %}
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-ui-checks-grid"></i> Шаблон</h2>
+    <p class="aui-fs__desc">Готовый набор прав, например «Дежурный инженер». Изменение шаблона не меняет права уже назначенных людей.</p>
+  </header>
+  <div class="aui-fs__body aui-fields">
+    <div class="aui-form__field">
+      <label class="aui-form__label" for="p-name">Название <span class="aui-req">*</span></label>
+      <input id="p-name" class="aui-input" name="name" value="{{ obj.name }}" maxlength="100" required>
+    </div>
+    <div class="aui-form__field">
+      <label class="aui-form__label" for="p-descr">Описание</label>
+      <input id="p-descr" class="aui-input" name="description" value="{{ obj.description }}" maxlength="255">
     </div>
   </div>
-  <div class="aui-form__actions">
-    <button type="submit" class="btn--primary"><i class="bi bi-check-lg"></i> Сохранить</button>
-    <a href="{% url 'adminui:presets' %}" class="btn--secondary">Отмена</a>
-  </div>
-</form>
+</section>
+<section class="aui-fs">
+  <header class="aui-fs__head">
+    <h2 class="aui-fs__title"><i class="bi bi-shield-lock"></i> Права</h2>
+    <p class="aui-fs__desc">Что будет отмечено в таблице прав, когда администратор выберет этот шаблон.</p>
+  </header>
+  <div class="aui-fs__body">{% include "adminui/users/_access_matrix.html" %}</div>
+</section>
 {% endblock %}
+
+{% block cancel_url %}{% url 'adminui:presets' %}{% endblock %}

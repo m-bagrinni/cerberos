@@ -3,7 +3,7 @@
 {% block admin_title %}Оптические муфты{% endblock %}
 
 {% block admin_actions %}
-<a href="{% url 'adminui:closure_create' %}" class="btn--secondary">
+<a href="{% url 'adminui:closure_create' %}" class="btn--primary">
   <i class="bi bi-plus-lg"></i> Добавить муфту
 </a>
 {% endblock %}
@@ -11,20 +11,20 @@
 {% block admin_content %}
 <div class="panel">
   <div class="panel__header">
-    <h2 class="panel__title">Муфты ({{ closures|length }})</h2>
+    <h2 class="panel__title">Муфты <span class="text-muted">{{ paginator.count }}</span></h2>
   </div>
   <div class="panel__body panel__body--flush">
     
-    <!-- Фильтры -->
-    <form method="get" class="panel__filters" style="padding: 16px; display: flex; gap: 12px; border-bottom: 1px solid var(--border);">
-      <input type="text" name="q" placeholder="Поиск по названию..." value="{{ q }}" class="input">
-      <select name="link" class="input">
+    <form method="get" class="aui-toolbar">
+      <div class="aui-search"><i class="bi bi-search"></i><input type="search" name="q" placeholder="Название муфты…" value="{{ q }}" class="aui-input"></div>
+      <select name="link" class="aui-input">
         <option value="">Все линии</option>
         {% for l in links %}
           <option value="{{ l.id }}" {% if selected_link == l.id|stringformat:"s" %}selected{% endif %}>{{ l.label }}</option>
         {% endfor %}
       </select>
-      <button type="submit" class="btn--secondary">Фильтр</button>
+      <button type="submit" class="btn--secondary"><i class="bi bi-funnel"></i> Фильтр</button>
+      {% if q or selected_link %}<a href="?" class="btn--secondary"><i class="bi bi-x-lg"></i> Сброс</a>{% endif %}
     </form>
 
     {% if closures %}
@@ -34,31 +34,29 @@
           <th>ID</th>
           <th>Название</th>
           <th>Линия</th>
-          <th>Широта</th>
-          <th>Долгота</th>
+          <th>Координаты</th>
           <th>Описание</th>
-          <th style="width:100px"></th>
+          <th class="col-actions"></th>
         </tr>
       </thead>
       <tbody>
         {% for c in closures %}
-        <tr>
-          <td>{{ c.id }}</td>
-          <td>{{ c.name }}</td>
-          <td>{{ c.link.label }}</td>
-          <td>{{ c.lat|floatformat:5 }}</td>
-          <td>{{ c.lon|floatformat:5 }}</td>
-          <td>{{ c.description|truncatechars:40 }}</td>
-          <td>
-            <a href="{% url 'adminui:closure_update' c.pk %}" class="btn--icon" title="Редактировать"><i class="bi bi-pencil"></i></a>
-            <a href="{% url 'adminui:closure_delete' c.pk %}" class="btn--icon btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
-          </td>
+        <tr data-href="{% url 'adminui:closure_update' c.pk %}">
+          <td class="text-muted mono">{{ c.id }}</td>
+          <td><a href="{% url 'adminui:closure_update' c.pk %}" class="aui-link">{{ c.name }}</a></td>
+          <td>{{ c.link.label|default:"—" }}</td>
+          <td class="mono text-sm">{{ c.lat|floatformat:5 }}, {{ c.lon|floatformat:5 }}</td>
+          <td class="text-muted text-sm">{{ c.description|truncatechars:40|default:"—" }}</td>
+          <td class="col-actions"><div class="aui-row-actions">
+            <a href="{% url 'adminui:closure_update' c.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'adminui:closure_delete' c.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
+          </div></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div class="empty-state">Нет муфт</div>
+    <div class="empty-state"><i class="bi bi-node-plus"></i><p>Муфт не найдено</p></div>
     {% endif %}
   </div>
 </div>

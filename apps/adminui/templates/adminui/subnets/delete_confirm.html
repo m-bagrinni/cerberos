@@ -1,22 +1,5 @@
-{% extends "adminui/base_admin.html" %}
-
-{% block admin_title %}Удалить подсеть{% endblock %}
-
-{% block admin_content %}
-<div class="panel" style="max-width:600px">
-  <div class="panel__header">
-    <h2 class="panel__title">Удалить подсеть?</h2>
-  </div>
-  <div class="panel__body">
-    <p><strong>{{ object.name }}</strong> <span class="mono text-muted">({{ object.cidr }})</span></p>
-    <p class="text-muted">Все IP-адреса и история пингов этой подсети будут удалены.</p>
-    <form method="post" style="margin-top:20px;display:flex;gap:8px">
-      {% csrf_token %}
-      <button type="submit" class="btn--danger">
-        <i class="bi bi-trash"></i> Удалить
-      </button>
-      <a href="{% url 'adminui:subnets' %}" class="btn--secondary">Отмена</a>
-    </form>
-  </div>
-</div>
-{% endblock %}
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление подсети{% endblock %}
+{% block confirm_title %}Удалить подсеть?{% endblock %}
+{% block confirm_object %}<i class="bi bi-diagram-2"></i> <b>{{ object.name }}</b> <span class="aui-chip aui-chip--mono">{{ object.cidr }}</span>{% endblock %}
+{% block confirm_text %}Все IP-адреса и история пингов этой подсети будут удалены. Чтобы просто остановить сканирование — выключите подсеть в её настройках.{% endblock %}

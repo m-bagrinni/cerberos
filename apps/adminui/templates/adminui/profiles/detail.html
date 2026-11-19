@@ -1,107 +1,60 @@
 {% extends "adminui/base_admin.html" %}
 {% load static %}
 
+{% block header_class %} adminui-header--compact{% endblock %}
 {% block admin_title %}{{ profile.name }}{% endblock %}
 
-{% block admin_actions %}
-<a href="{% url 'adminui:profiles' %}" class="btn--secondary">
-  <i class="bi bi-arrow-left"></i> К списку
-</a>
-<a href="{% url 'adminui:profile_update' profile.pk %}" class="btn--secondary">
-  <i class="bi bi-pencil"></i> Редактировать
-</a>
-<a href="{% url 'adminui:profile_clone' profile.pk %}" class="btn--secondary">
-  <i class="bi bi-files"></i> Клонировать
-</a>
-<a href="{% url 'adminui:profile_delete' profile.pk %}" class="btn--danger">
-  <i class="bi bi-trash"></i> Удалить
-</a>
-{% endblock %}
 
 {% block admin_content %}
-
-{# ===== Шапка профиля ===== #}
-<section class="panel" style="margin-bottom:16px">
-  <div class="panel__body">
-    <div class="profile-header">
-      <div>
-        <h2 class="device-header__name">{{ profile.name }}</h2>
-        <div class="device-header__meta">
-          <span class="mono">{{ profile.slug }}</span>
-          <span>·</span>
-          <span>{{ profile.vendor.name }}</span>
-          {% if profile.device_category %}
-            <span>·</span>
-            <span class="badge badge--info">{{ profile.device_category }}</span>
-          {% endif %}
-          <span>·</span>
-          <span>Priority: {{ profile.priority }}</span>
-        </div>
-      </div>
+<div class="aui-hero">
+  <div class="aui-hero__icon"><i class="bi bi-diagram-3"></i></div>
+  <div class="aui-hero__main">
+    <h2 class="aui-hero__title">{{ profile.name }}</h2>
+    <div class="aui-hero__meta">
+      <span class="aui-chip aui-chip--mono"><i class="bi bi-tag"></i>{{ profile.slug }}</span>
+      <span class="aui-chip"><i class="bi bi-building"></i>{{ profile.vendor.name }}</span>
+      {% if profile.device_category %}<span class="aui-chip"><i class="bi bi-folder2"></i>{{ profile.device_category }}</span>{% endif %}
+      {% if profile.parent %}<a class="aui-chip" href="{% url 'adminui:profile_detail' profile.parent.pk %}"><i class="bi bi-arrow-90deg-up"></i>наследует {{ profile.parent.name }}</a>{% endif %}
     </div>
   </div>
-</section>
+  <div class="aui-hero__actions">
+    <a href="{% url 'adminui:profile_clone' profile.pk %}" class="btn--secondary"><i class="bi bi-files"></i> Клонировать</a>
+<a href="{% url 'adminui:profile_update' profile.pk %}" class="btn--primary"><i class="bi bi-pencil"></i> Редактировать</a>
+  </div>
+  <div class="aui-hero__facts">
+    <div class="aui-fact"><span class="aui-fact__label">Метрик</span><span class="aui-fact__value">{{ metrics|length }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Устройств</span><span class="aui-fact__value">{{ devices|length }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Приоритет подбора</span><span class="aui-fact__value">{{ profile.priority }}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Тест OID</span><span class="aui-fact__value">{% if test_device %}на {{ test_device.name }} <span class="mono text-muted">{{ test_device.ip }}</span>{% else %}<span class="text-muted">нет устройств с этим профилем</span>{% endif %}</span></div>
+  </div>
+</div>
 
-{# ===== Метрики профиля ===== #}
 <section class="panel">
   <div class="panel__header">
-    <h2 class="panel__title">Метрики ({{ metrics|length }})</h2>
-    <a href="{% url 'adminui:metric_create' profile.pk %}" class="btn--primary btn--sm">
-      <i class="bi bi-plus-lg"></i> Добавить метрику
-    </a>
+    <h2 class="panel__title"><i class="bi bi-graph-up"></i> Метрики <span class="text-muted">{{ metrics|length }}</span></h2>
+    <a href="{% url 'adminui:metric_create' profile.pk %}" class="btn--primary btn--sm"><i class="bi bi-plus-lg"></i> Добавить метрику</a>
   </div>
   <div class="panel__body panel__body--flush">
     {% if metrics %}
     <table class="data-table" id="metrics-table">
       <thead>
-        <tr>
-          <th>Key</th>
-          <th>Название</th>
-          <th>OID</th>
-          <th>Тип</th>
-          <th>Ед.</th>
-          <th>Warn</th>
-          <th>Crit</th>
-          <th>Вкл.</th>
-          <th style="width:120px"></th>
-        </tr>
+        <tr><th>Метрика</th><th>OID</th><th>Тип</th><th>Ед.</th><th class="col-num">Warn</th><th class="col-num">Crit</th><th>Опрос</th><th class="col-actions"></th></tr>
       </thead>
       <tbody>
         {% for m in metrics %}
-        <tr data-metric-id="{{ m.pk }}">
-          <td class="mono"><strong>{{ m.key }}</strong></td>
-          <td>{{ m.name }}</td>
-          <td class="mono text-muted" style="font-size:11px">{{ m.oid }}</td>
-          <td class="text-muted">{{ m.value_type }}</td>
-          <td class="text-muted">{{ m.unit|default:"—" }}</td>
-          <td class="text-muted">{{ m.warn|default:"—" }}</td>
-          <td class="text-muted">{{ m.crit|default:"—" }}</td>
-          <td>
-            {% if m.enabled %}
-              <span style="color:var(--ok)"><i class="bi bi-check-circle"></i></span>
-            {% else %}
-              <span class="text-muted"><i class="bi bi-x-circle"></i></span>
-            {% endif %}
-          </td>
-          <td>
+        <tr data-metric-id="{{ m.pk }}" data-href="{% url 'adminui:metric_update' profile.pk m.pk %}">
+          <td><span class="aui-link">{{ m.name }}</span><span class="cell-sub mono">{{ m.key }}</span></td>
+          <td class="mono text-muted text-xs">{{ m.oid }}</td>
+          <td class="text-muted text-sm">{{ m.value_type }}</td>
+          <td class="text-muted text-sm">{{ m.unit|default:"—" }}</td>
+          <td class="col-num text-warn">{{ m.warn|default_if_none:"—" }}</td>
+          <td class="col-num text-crit">{{ m.crit|default_if_none:"—" }}</td>
+          <td>{% if m.enabled %}<span class="badge badge--ok">вкл.</span>{% else %}<span class="badge badge--off">выкл.</span>{% endif %}</td>
+          <td class="col-actions">
             <div class="aui-row-actions">
-              {% if test_device %}
-              <button type="button"
-                      class="aui-icon-btn aui-icon-btn--test"
-                      data-metric-id="{{ m.pk }}"
-                      data-oid="{{ m.oid }}"
-                      title="Тест OID">
-                <i class="bi bi-plug"></i>
-              </button>
-              {% endif %}
-              <a href="{% url 'adminui:metric_update' profile.pk m.pk %}"
-                 class="aui-icon-btn" title="Редактировать">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'adminui:metric_delete' profile.pk m.pk %}"
-                 class="aui-icon-btn" title="Удалить">
-                <i class="bi bi-trash"></i>
-              </a>
+              {% if test_device %}<button type="button" class="aui-icon-btn aui-icon-btn--test" data-metric-id="{{ m.pk }}" data-oid="{{ m.oid }}" title="Проверить OID на {{ test_device.name }}"><i class="bi bi-plug"></i></button>{% endif %}
+              <a href="{% url 'adminui:metric_update' profile.pk m.pk %}" class="aui-icon-btn" title="Редактировать"><i class="bi bi-pencil"></i></a>
+              <a href="{% url 'adminui:metric_delete' profile.pk m.pk %}" class="aui-icon-btn aui-icon-btn--danger" title="Удалить"><i class="bi bi-trash"></i></a>
             </div>
           </td>
         </tr>
@@ -110,50 +63,36 @@
     </table>
     {% else %}
     <div class="empty-state">
-      <i class="bi bi-diagram-3"></i>
-      <p>У профиля нет метрик</p>
-      <a href="{% url 'adminui:metric_create' profile.pk %}" class="btn--primary" style="margin-top:12px">
-        <i class="bi bi-plus-lg"></i> Добавить первую метрику
-      </a>
+      <i class="bi bi-graph-up"></i>
+      <p>У профиля нет метрик — устройства с ним опрашиваются только на доступность.</p>
+      <a href="{% url 'adminui:metric_create' profile.pk %}" class="btn--primary"><i class="bi bi-plus-lg"></i> Добавить первую метрику</a>
     </div>
     {% endif %}
   </div>
 </section>
 
-{# ===== Устройства профиля ===== #}
-{% if devices %}
-<section class="panel" style="margin-top:16px">
-  <div class="panel__header">
-    <h2 class="panel__title">Устройства этого профиля ({{ devices|length }})</h2>
-  </div>
+<section class="panel">
+  <div class="panel__header"><h2 class="panel__title"><i class="bi bi-hdd-network"></i> Устройства с этим профилем <span class="text-muted">{{ devices|length }}</span></h2></div>
   <div class="panel__body panel__body--flush">
+    {% if devices %}
     <table class="data-table">
-      <thead>
-        <tr><th>Name</th><th>IP</th><th>Vendor</th><th>Status</th><th></th></tr>
-      </thead>
+      <thead><tr><th>Устройство</th><th>IP</th><th>Вендор</th><th>Статус</th></tr></thead>
       <tbody>
         {% for d in devices %}
-        <tr>
-          <td>{{ d.name }}</td>
+        <tr data-href="{% url 'adminui:device_detail' d.pk %}">
+          <td><span class="aui-link">{{ d.name }}</span></td>
           <td class="mono text-muted">{{ d.ip }}</td>
           <td>{{ d.vendor.name|default:"—" }}</td>
-          <td>
-            <span class="status-dot status-dot--{{ d.status }}"></span>
-            {{ d.status }}
-          </td>
-          <td>
-            <a href="{% url 'adminui:device_detail' d.pk %}" class="aui-icon-btn" title="Открыть">
-              <i class="bi bi-arrow-right"></i>
-            </a>
-          </td>
+          <td><span class="status-dot status-dot--{{ d.status }}"></span>{{ d.get_status_display }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-hdd"></i><p>Профиль пока ни на одном устройстве</p></div>
+    {% endif %}
   </div>
 </section>
-{% endif %}
-
 {% endblock %}
 
 {% block extra_js %}

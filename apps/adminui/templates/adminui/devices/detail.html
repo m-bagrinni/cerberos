@@ -1,98 +1,60 @@
 {% extends "adminui/base_admin.html" %}
 {% load static cerber_json %}
 
+{% block header_class %} adminui-header--compact{% endblock %}
 {% block admin_title %}{{ device.name }}{% endblock %}
 
-{% block admin_actions %}
-<a href="{% url 'adminui:devices' %}" class="btn--secondary">
-  <i class="bi bi-arrow-left"></i> К списку
-</a>
-<a href="{% url 'adminui:device_update' device.pk %}" class="btn--secondary">
-  <i class="bi bi-pencil"></i> Редактировать
-</a>
-<button type="button" class="btn--secondary aui-icon-btn--poll" data-ip="{{ device.ip }}" data-pk="{{ device.pk }}">
-  <i class="bi bi-arrow-clockwise"></i> Poll now
-</button>
-{% endblock %}
 
 {% block admin_content %}
 
 {# ===== Шапка устройства ===== #}
-<section class="panel" style="margin-bottom:16px">
-  <div class="panel__body">
-    <div class="device-header">
-      <div class="device-header__main">
-        <h2 class="device-header__name">{{ device.name }}</h2>
-        <div class="device-header__meta">
-          <span class="mono">{{ device.ip }}</span>
-          <span>·</span>
-          <span>{{ device.vendor.name|default:"—" }}</span>
-          {% if device.ent_model %}<span>·</span><span class="mono">{{ device.ent_model }}</span>{% endif %}
-          {% if uplink_chain %}<span>·</span><span title="Цепочка до корня сети">{% for pk, name in uplink_chain %}{% if pk %}<a href="{% url 'adminui:device_detail' pk %}">{{ name }}</a>{% else %}{{ name }}{% endif %}{% if not forloop.last %} › {% endif %}{% endfor %} › <b>{{ device.name }}</b></span>{% endif %}
-          {% if dependents.devices or dependents.ne or dependents.subnets %}<span>·</span><a href="{% url 'adminui:dependencies' %}" title="Их алерты свернутся под алерт этого устройства">⛓ за ним: {% if dependents.devices %}{{ dependents.devices }} устр.{% endif %}{% if dependents.ne %} {{ dependents.ne }} NE{% endif %}{% if dependents.subnets %} {{ dependents.subnets }} подсет.{% endif %}</a>{% endif %}
-          {% if device.profile %}<span>·</span><span>{{ device.profile.name }}</span>{% endif %}
-        </div>
-      </div>
-      <div class="device-header__status">
-        <span class="status-dot status-dot--{{ device.status }}"></span>
-        <strong>{{ device.status }}</strong>
-      </div>
-    </div>
-
-    <div class="device-header__details">
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Community</span>
-        <span class="device-detail-item__value mono">{{ device.snmp_community }}</span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">SNMP</span>
-        <span class="device-detail-item__value">v{{ device.snmp_version }}</span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Last seen</span>
-        <span class="device-detail-item__value">
-          {% if device.last_seen %}{{ device.last_seen|timesince }} назад{% else %}—{% endif %}
-        </span>
-      </div>
-      <div class="device-detail-item">
-        <span class="device-detail-item__label">Last polled</span>
-        <span class="device-detail-item__value">
-          {% if device.last_polled_at %}{{ device.last_polled_at|timesince }} назад{% else %}—{% endif %}
-        </span>
-      </div>
+<div class="aui-hero">
+  <div class="aui-hero__icon{% if device.status == 'ok' %} aui-hero__icon--ok{% elif device.status == 'unreachable' %} aui-hero__icon--crit{% else %} aui-hero__icon--muted{% endif %}"><i class="bi {{ device.category.icon|default:'bi-hdd-network' }}"></i></div>
+  <div class="aui-hero__main">
+    <h2 class="aui-hero__title">{{ device.name }}
+      <span class="aui-status{% if device.status == 'ok' %} aui-status--ok{% elif device.status == 'unreachable' %} aui-status--crit{% endif %}">{{ device.get_status_display }}</span>
+    </h2>
+    <div class="aui-hero__meta">
+      <span class="aui-chip aui-chip--mono"><i class="bi bi-globe2"></i>{{ device.ip }}</span>
+      {% if device.vendor %}<span class="aui-chip"><i class="bi bi-building"></i>{{ device.vendor.name }}</span>{% endif %}
+      {% if device.ent_model %}<span class="aui-chip aui-chip--mono"><i class="bi bi-cpu"></i>{{ device.ent_model }}</span>{% endif %}
+      {% if device.category %}<span class="aui-chip"><i class="bi bi-folder2"></i>{{ device.category.name }}{% if device.subcategory %} / {{ device.subcategory.name }}{% endif %}</span>{% endif %}
+      {% if device.profile %}<a class="aui-chip" href="{% url 'adminui:profile_detail' device.profile.pk %}"><i class="bi bi-diagram-3"></i>{{ device.profile.name }}</a>{% endif %}
     </div>
   </div>
-</section>
+  <div class="aui-hero__actions">
+    <button type="button" class="btn--secondary aui-icon-btn--poll" data-ip="{{ device.ip }}" data-pk="{{ device.pk }}"><i class="bi bi-arrow-clockwise"></i> Опросить</button>
+<a href="{% url 'adminui:device_update' device.pk %}" class="btn--primary"><i class="bi bi-pencil"></i> Редактировать</a>
+  </div>
+  <div class="aui-hero__facts">
+    <div class="aui-fact"><span class="aui-fact__label">Последний ответ</span><span class="aui-fact__value">{% if device.last_seen %}{{ device.last_seen|timesince }} назад{% else %}—{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Последний опрос</span><span class="aui-fact__value">{% if device.last_polled_at %}{{ device.last_polled_at|timesince }} назад{% else %}—{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">SNMP</span><span class="aui-fact__value mono">v{{ device.snmp_version }} · порт {{ device.snmp_port }} · {% if acc.c.snmp_secrets %}{{ device.snmp_community|default:"—" }}{% else %}<span class="text-muted" title="Нужна возможность «SNMP community»">••••••</span>{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">Путь до ядра</span><span class="aui-fact__value">{% if uplink_chain %}{% for pk, name in uplink_chain %}{% if pk %}<a class="aui-ref" href="{% url 'adminui:device_detail' pk %}">{{ name }}</a>{% else %}{{ name }}{% endif %} › {% endfor %}<b>{{ device.name }}</b>{% else %}<span class="text-muted">корень (не задан)</span>{% endif %}</span></div>
+    <div class="aui-fact"><span class="aui-fact__label">за ним в сети</span><span class="aui-fact__value">{% if dependents.devices or dependents.ne or dependents.subnets %}<a class="aui-ref" href="{% url 'adminui:dependencies' %}" title="Их алерты свернутся под алерт этого устройства">{% if dependents.devices %}{{ dependents.devices }} устр. {% endif %}{% if dependents.ne %}{{ dependents.ne }} NE {% endif %}{% if dependents.subnets %}{{ dependents.subnets }} подсет.{% endif %}</a>{% else %}<span class="text-muted">никто</span>{% endif %}</span></div>
+  </div>
+</div>
 
-{# ===== Графики (2 колонки) ===== #}
+{# ===== Графики метрик профиля ===== #}
+<div class="aui-section-head">
+  <h2><i class="bi bi-graph-up"></i> Метрики</h2>
+  <span class="text-muted text-sm">по профилю {% if device.profile %}«{{ device.profile.name }}»{% else %}(не задан){% endif %}, последние значения из БД</span>
+</div>
 {% if metrics %}
 <div class="aui-charts-grid">
   {% for m in metrics %}
   <section class="panel">
-    <div class="panel__header">
-      <h2 class="panel__title">{{ m.name }}</h2>
-      {% if last_values|length %}
-        {% with lv=last_values|default_if_none:"" %}
-          {# Django не умеет dict[key] в шаблоне — рендерим через JS #}
-        {% endwith %}
-      {% endif %}
-    </div>
-    <div class="panel__body">
-      <canvas id="chart-{{ m.key }}" height="180"></canvas>
-    </div>
+    <div class="panel__header"><h2 class="panel__title">{{ m.name }}</h2><span class="mono text-muted text-xs">{{ m.key }}</span></div>
+    <div class="panel__body"><canvas id="chart-{{ m.key }}" height="180"></canvas></div>
   </section>
   {% endfor %}
 </div>
-
-
-
 {% else %}
 <div class="panel">
-  <div class="panel__body">
-    <div class="empty-state">
-      <i class="bi bi-graph-up"></i>
-      <p>У профиля устройства нет метрик</p>
-    </div>
+  <div class="empty-state">
+    <i class="bi bi-graph-up"></i>
+    <p>У профиля устройства нет метрик.</p>
+    {% if device.profile %}<a href="{% url 'adminui:profile_detail' device.profile.pk %}" class="btn--secondary"><i class="bi bi-diagram-3"></i> Открыть профиль</a>{% endif %}
   </div>
 </div>
 {% endif %}

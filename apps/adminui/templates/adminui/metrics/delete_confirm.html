@@ -1,23 +1,7 @@
-{% extends "adminui/base_admin.html" %}
-
-{% block admin_title %}Удалить метрику{% endblock %}
-
-{% block admin_content %}
-<div class="panel" style="max-width:600px">
-  <div class="panel__header">
-    <h2 class="panel__title">Удалить метрику?</h2>
-  </div>
-  <div class="panel__body">
-    <p><strong>{{ object.key }}</strong> — {{ object.name }}</p>
-    <p class="text-muted mono">OID: {{ object.oid }}</p>
-    <p class="text-muted">Все исторические значения этой метрики также будут удалены.</p>
-    <form method="post" style="margin-top:20px;display:flex;gap:8px">
-      {% csrf_token %}
-      <button type="submit" class="btn--danger">
-        <i class="bi bi-trash"></i> Удалить
-      </button>
-      <a href="{% url 'adminui:profile_detail' profile.pk %}" class="btn--secondary">Отмена</a>
-    </form>
-  </div>
-</div>
-{% endblock %}
+{% extends "adminui/confirm_base.html" %}
+{% block admin_title %}Удаление метрики{% endblock %}
+{% block admin_crumbs %}<a href="{% url 'adminui:profile_detail' profile.pk %}">{{ profile.name }}</a>{% endblock %}
+{% block confirm_title %}Удалить метрику?{% endblock %}
+{% block confirm_object %}<b class="mono">{{ object.key }}</b> — {{ object.name }} <span class="aui-chip aui-chip--mono">{{ object.oid }}</span>{% endblock %}
+{% block confirm_text %}История значений этой метрики тоже будет удалена.{% endblock %}
+{% block cancel_url %}{% url 'adminui:profile_detail' profile.pk %}{% endblock %}
